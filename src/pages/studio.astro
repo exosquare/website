@@ -1,0 +1,39 @@
+---
+import Base from '../layouts/Base.astro';
+import ContactInvite from '../components/ContactInvite.astro';
+import site from '../data/site.json';
+---
+
+<Base title="Studio"
+  ><div class="wrap">
+    <header class="page-header">
+      <div class="eyebrow">ExoSquare</div><h1>
+        An independent idea and<br />experimental technology studio.
+      </h1><p>{site.framing}</p>
+    </header><section class="editorial-grid studio-section">
+      <h2>What brings us here</h2><div class="prose">
+        <p class="studio-statement">
+          Software becomes meaningful when people use it.
+        </p><p>
+          We build software and explore questions about technology through
+          experiments and writing. The work is a place to show the thinking,
+          evidence, and lessons alongside the result.
+        </p><p>
+          Some questions lead to useful systems. Others change what we try next.
+          Both deserve a careful record.
+        </p>
+      </div>
+    </section><section class="editorial-grid studio-section">
+      <h2>How we work</h2><div class="prose">
+        <p>
+          We value room to explore, clear context, and thoughtful
+          follow-through. People should be able to ask questions, test an idea,
+          and say when they do not know.
+        </p><p>
+          Project records make room for what failed and what changed. Claims
+          about results belong with the evidence that supports them.
+        </p>
+      </div>
+    </section><ContactInvite />
+  </div></Base
+>

@@ -1,0 +1,19 @@
+---
+interface Props {
+  nostr?: { url?: string; lightning?: string };
+}
+const { nostr } = Astro.props;
+---
+
+{
+  nostr && (nostr.url || nostr.lightning) && (
+    <div class="nostr-line">
+      {nostr.url && (
+        <a class="text-link" href={nostr.url}>
+          Companion note on Nostr ↗
+        </a>
+      )}
+      {nostr.lightning && <p class="mono">Lightning · {nostr.lightning}</p>}
+    </div>
+  )
+}

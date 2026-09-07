@@ -1,0 +1,21 @@
+---
+import { withBase } from '../lib/paths';
+import site from '../data/site.json';
+import { nostrProfile } from '../lib/nostr';
+---
+
+<footer class="site-footer wrap">
+  <a href={withBase("/")} class="footer-brand" aria-label="ExoSquare home"
+    ><img src={withBase("/logo.png")} width="74" height="72" alt="ExoSquare" /></a
+  ><p>{site.convener}</p><nav aria-label="Footer">
+    <a href={withBase("/work/")}>Work</a><a href={withBase("/writing/")}>Writing</a><a href={withBase("/studio/")}
+      >Studio</a
+    ><a href={withBase("/contact/")}>Contact</a>
+  </nav><div class="footer-meta">
+    {site.links.linkedin && <a href={site.links.linkedin}>LinkedIn</a>}{
+      nostrProfile && <a href={nostrProfile.url}>{nostrProfile.label}</a>
+    }<a href={withBase("/privacy/")}>Privacy</a><a href={withBase("/terms/")}>Website terms</a><span
+      >© {new Date().getFullYear()} ExoSquare</span
+    ><span class="mono">Independent by design.</span>
+  </div>
+</footer>

@@ -1,0 +1,15 @@
+---
+interface Props {
+  status?: string;
+  checked?: Date;
+}
+const { status, checked } = Astro.props;
+const labels: Record<string, string> = {
+  shipped: 'Shipped',
+  'in-development': 'In development',
+  experiment: 'Experiment',
+  archived: 'Archived',
+};
+---
+
+{status && checked && <span class="status-badge">{labels[status]}</span>}

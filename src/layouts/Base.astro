@@ -1,0 +1,74 @@
+---
+import { withBase } from '../lib/paths';
+import '../styles/global.css';
+import '@fontsource/space-mono/400.css';
+import SiteNav from '../components/SiteNav.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { previewDrafts } from '../lib/content';
+interface Props {
+  title: string;
+  description?: string;
+  draft?: boolean;
+}
+const {
+  title,
+  description = 'An independent idea and experimental technology studio.',
+  draft = false,
+} = Astro.props;
+const designPreview = import.meta.env.DEV || previewDrafts;
+const noindex = designPreview || draft || !Astro.site;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" /><meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <title>{title === 'ExoSquare' ? title : `${title} · ExoSquare`}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {
+      Astro.site && !noindex && (
+        <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+      )
+    }
+    <meta property="og:title" content={title} /><meta
+      property="og:description"
+      content={description}
+    /><meta property="og:type" content="website" />
+    <link rel="icon" type="image/png" href={withBase("/logo.png")} />
+    <script is:inline>
+      (() => {
+        let choice;
+        try {
+          choice = localStorage.getItem('exo-theme');
+        } catch {}
+        const mode =
+          choice === 'dark' || choice === 'light'
+            ? choice
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.dataset.theme = mode;
+        document.documentElement.classList.add('js');
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <SiteNav />
+    {
+      designPreview && (
+        <div class="preview-note">
+          Design preview <span>·</span> Working copy
+          {previewDrafts && ' and unpublished content'}
+        </div>
+      )
+    }
+    <main id="main" tabindex="-1"><slot /></main>
+    <SiteFooter />
+  </body>
+</html>

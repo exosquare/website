@@ -1,0 +1,91 @@
+---
+import { withBase } from '../lib/paths';
+const links = [
+  ['Work', '/work/'],
+  ['Writing', '/writing/'],
+  ['Studio', '/studio/'],
+  ['Contact', '/contact/'],
+];
+---
+
+<header class="site-header wrap">
+  <a class="brand" href={withBase("/")} aria-label="ExoSquare home"
+    ><img src={withBase("/logo.png")} width="41" height="40" alt="ExoSquare" /></a
+  >
+  <nav class="main-nav" id="primary-nav" aria-label="Primary">
+    {
+      links.map(([label, href]) => (
+        <a
+          href={withBase(href)}
+          aria-current={
+            Astro.url.pathname.startsWith(withBase(href)) ? 'page' : undefined
+          }
+        >
+          {label}
+        </a>
+      ))
+    }
+  </nav>
+  <div class="nav-controls">
+    <button class="theme-toggle" type="button" aria-label="Switch colour theme"
+      >Dark</button
+    ><button
+      class="menu-toggle"
+      type="button"
+      aria-controls="primary-nav"
+      aria-expanded="false">Menu</button>
+  </div>
+</header>
+<script>
+  const root = document.documentElement;
+  const themeButton =
+    document.querySelector<HTMLButtonElement>('.theme-toggle')!;
+  const system = matchMedia('(prefers-color-scheme: dark)');
+  function label() {
+    const dark = root.dataset.theme === 'dark';
+    themeButton.textContent = dark ? 'Light' : 'Dark';
+    themeButton.setAttribute(
+      'aria-label',
+      `Switch to ${dark ? 'light' : 'dark'} theme`,
+    );
+  }
+  label();
+  themeButton.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('exo-theme', root.dataset.theme);
+    } catch {}
+    label();
+  });
+  system.addEventListener('change', (e) => {
+    let saved;
+    try {
+      saved = localStorage.getItem('exo-theme');
+    } catch {}
+    if (saved !== 'dark' && saved !== 'light') {
+      root.dataset.theme = e.matches ? 'dark' : 'light';
+      label();
+    }
+  });
+  const menu = document.querySelector<HTMLButtonElement>('.menu-toggle')!;
+  const nav = document.querySelector<HTMLElement>('.main-nav')!;
+  function close() {
+    menu.setAttribute('aria-expanded', 'false');
+    nav.classList.remove('is-open');
+    menu.textContent = 'Menu';
+  }
+  menu.addEventListener('click', () => {
+    const open = menu.getAttribute('aria-expanded') !== 'true';
+    menu.setAttribute('aria-expanded', String(open));
+    nav.classList.toggle('is-open', open);
+    menu.textContent = open ? 'Close' : 'Menu';
+    if (open) nav.querySelector<HTMLAnchorElement>('a')?.focus();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') {
+      close();
+      menu.focus();
+    }
+  });
+  matchMedia('(min-width: 761px)').addEventListener('change', close);
+</script>

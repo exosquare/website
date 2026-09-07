@@ -1,0 +1,42 @@
+---
+const { entries } = Astro.props;
+const topics = [...new Set(entries.map((e: any) => e.data.topic))] as string[];
+---
+
+<aside class="index-filters">
+  <h2 class="eyebrow">Filter by topic</h2><div class="filter-buttons">
+    <button type="button" data-filter="all" aria-pressed="true"
+      >All <span>{entries.length}</span></button
+    >{
+      topics.map((topic) => (
+        <button type="button" data-filter={topic} aria-pressed="false">
+          {topic}
+          <span>
+            {entries.filter((e: any) => e.data.topic === topic).length}
+          </span>
+        </button>
+      ))
+    }
+  </div>
+</aside>
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  const rows = document.querySelectorAll<HTMLElement>('.work-item');
+  buttons.forEach((button) =>
+    button.addEventListener('click', () => {
+      buttons.forEach((b) =>
+        b.setAttribute('aria-pressed', String(b === button)),
+      );
+      let shown = 0;
+      rows.forEach((row) => {
+        row.hidden =
+          button.dataset.filter !== 'all' &&
+          row.dataset.topic !== button.dataset.filter;
+        if (!row.hidden) shown++;
+      });
+      const result = document.querySelector('[data-results]');
+      if (result)
+        result.textContent = `${shown} ${shown === 1 ? 'entry' : 'entries'}`;
+    }),
+  );
+</script>

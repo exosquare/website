@@ -1,0 +1,45 @@
+---
+import Base from '../../layouts/Base.astro';
+import WorkRow from '../../components/WorkRow.astro';
+import IndexFilters from '../../components/IndexFilters.astro';
+import ContactInvite from '../../components/ContactInvite.astro';
+import { articles } from '../../lib/content';
+const entries = await articles();
+---
+
+<Base title="Writing"
+  ><div class="wrap">
+    <header class="page-header">
+      <h1>Writing</h1><p>
+        Articles, experiment notes, and field notes. Written for technical
+        readers, with enough context to follow the question.
+      </p>
+    </header>
+    {
+      entries.length ? (
+        <div class="index-layout">
+          <>
+            <IndexFilters entries={entries} />
+            <div class="index-results">
+              <>
+                <ul class="work-list" role="list">
+                  {entries.map((entry) => (
+                    <WorkRow entry={entry} />
+                  ))}
+                </ul>
+                <p class="result-count" data-results aria-live="polite">
+                  {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                </p>
+              </>
+            </div>
+          </>
+        </div>
+      ) : (
+        <div class="empty-state">
+          <p>No writing published yet.</p>
+        </div>
+      )
+    }
+    <ContactInvite />
+  </div></Base
+>

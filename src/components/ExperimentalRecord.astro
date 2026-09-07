@@ -1,0 +1,30 @@
+---
+interface Props {
+  record: Record<string, string>;
+  expanded?: boolean;
+}
+const { record, expanded = false } = Astro.props;
+const rows = [
+  ['question', 'Question'],
+  ['runs', 'What runs'],
+  ['evidence', 'Evidence'],
+  ['failed', 'What failed'],
+  ['changed', 'What changed'],
+  ['open', 'Still open'],
+];
+---
+
+<dl class:list={['experimental-record', { expanded }]}>
+  {
+    rows.map(([key, label]) => (
+      <div>
+        <>
+          <dt>{label}</dt>
+          <dd class:list={{ empty: !record[key] }}>
+            {record[key] || 'To be recorded.'}
+          </dd>
+        </>
+      </div>
+    ))
+  }
+</dl>

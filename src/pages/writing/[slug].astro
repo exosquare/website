@@ -1,0 +1,70 @@
+---
+import { withBase } from '../../lib/paths';
+import Figure from '../../components/Figure.astro';
+import ContributorCredits from '../../components/ContributorCredits.astro';
+import NostrLine from '../../components/NostrLine.astro';
+import Base from '../../layouts/Base.astro';
+import ExperimentalRecord from '../../components/ExperimentalRecord.astro';
+import ContactInvite from '../../components/ContactInvite.astro';
+import { articles, readingTime, formatDate } from '../../lib/content';
+import { render } from 'astro:content';
+export async function getStaticPaths() {
+  return (await articles()).map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const d = entry.data;
+---
+
+<Base title={d.title} description={d.standfirst} draft={d.draft}
+  ><article class="wrap">
+    <header class="article-header editorial-grid">
+      <div class="side-note"><a href={withBase("/writing/")}>← All writing</a></div><div>
+        <div class="eyebrow">{d.kind} · {d.topic}</div><h1>{d.title}</h1><p
+          class="standfirst"
+        >
+          {d.standfirst}
+        </p><div class="article-meta">
+          <span>{d.author}</span><span>{readingTime(entry.body)} min read</span
+          >{
+            d.publishedAt ? (
+              <time datetime={formatDate(d.publishedAt)}>
+                {formatDate(d.publishedAt)}
+              </time>
+            ) : (
+              <span>Unpublished draft</span>
+            )
+          }
+        </div>
+      </div>
+    </header><div class="editorial-grid article-body">
+      <aside class="side-note mono">
+        {
+          d.draft && (
+            <p>
+              Working note
+              <br />
+              For editorial review
+            </p>
+          )
+        }
+      </aside><div>
+        <div class="prose">
+          {d.hero && <Figure {...d.hero} hero />}<Content />
+        </div><NostrLine nostr={d.nostr} />
+      </div>
+    </div>{
+      d.record && (
+        <section class="editorial-grid record-section">
+          <>
+            <h2 class="eyebrow">Experimental record</h2>
+            <ExperimentalRecord record={d.record} />
+          </>
+        </section>
+      )
+    }<ContributorCredits contributors={d.contributors || []} /><ContactInvite />
+  </article></Base
+>

@@ -1,0 +1,97 @@
+---
+import { withBase } from '../lib/paths';
+import Base from '../layouts/Base.astro';
+import WorkRow from '../components/WorkRow.astro';
+import ContactInvite from '../components/ContactInvite.astro';
+import site from '../data/site.json';
+import { articles, projects } from '../lib/content';
+const entries = [
+  ...(await articles()).map((entry) => ({ entry, type: 'writing' })),
+  ...(await projects()).map((entry) => ({ entry, type: 'work' })),
+]
+  .sort(
+    (a, b) =>
+      (b.entry.data.publishedAt?.getTime() ?? 0) -
+      (a.entry.data.publishedAt?.getTime() ?? 0),
+  )
+  .slice(0, 6);
+---
+
+<Base title="ExoSquare"
+  ><div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">{site.studioLine}</div><h1>
+        {site.hero.light}{' '}
+        <strong>{site.hero.bold}</strong>
+      </h1><p>{site.framing}</p><a
+        class="hero-link text-link"
+        href={entries.length ? '#selected-work' : withBase('/studio/')}
+        >{entries.length ? 'Explore work' : 'About the studio'}
+        <span aria-hidden="true">{entries.length ? '↓' : '↗'}</span></a
+      >
+    </header><section
+      id="selected-work"
+      class="ledger"
+      aria-label="Selected work and writing"
+    >
+      {
+        entries.length > 0 && (
+          <div class="ledger-head eyebrow" aria-hidden="true">
+            <>
+              <span>Publication</span>
+              <span>Kind</span>
+              <span>Work & writing</span>
+              <span>State</span>
+            </>
+          </div>
+        )
+      }{
+        entries.length ? (
+          <ul class="work-list" role="list">
+            {entries.map(({ entry, type }) => (
+              <WorkRow entry={entry} type={type} />
+            ))}
+          </ul>
+        ) : (
+          <p class="empty-state">
+            No projects or writing published yet.{' '}
+            <a class="text-link" href={withBase("/studio/")}>
+              About the studio
+            </a>
+          </p>
+        )
+      }{
+        entries.length > 0 && (
+          <div class="ledger-links">
+            <>
+              <a href={withBase("/writing/")}>
+                All writing <span aria-hidden="true">↗</span>
+              </a>
+              <a href={withBase("/work/")}>
+                All projects <span aria-hidden="true">↗</span>
+              </a>
+            </>
+          </div>
+        )
+      }
+    </section><section class="dependency-section">
+      <div>
+        <h2 class="eyebrow">This site’s dependencies</h2><p>
+          A small site with visible dependencies. Built as static files that
+          can move between hosts.
+        </p>
+      </div><dl class="dependency-table mono">
+        {
+          site.dependencies.map((row) => (
+            <div>
+              <>
+                <dt>{row.name}</dt>
+                <dd>{row.exit}</dd>
+              </>
+            </div>
+          ))
+        }
+      </dl>
+    </section><ContactInvite />
+  </div></Base
+>

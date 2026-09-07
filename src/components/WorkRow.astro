@@ -1,0 +1,34 @@
+---
+import { withBase } from '../lib/paths';
+import StatusBadge from './StatusBadge.astro';
+import { formatDate } from '../lib/content';
+const { entry, type = 'writing' } = Astro.props;
+const d = entry.data;
+---
+
+<li
+  class="work-item"
+  data-topic={d.topic}
+  data-status={d.status || 'unconfirmed'}
+>
+  <a class="work-row" href={withBase(`/${type}/${entry.id}/`)}
+    ><span class="row-meta mono"
+      >{d.publishedAt ? formatDate(d.publishedAt) : 'Unpublished'}</span
+    ><span class="row-kind"
+      >{d.draft && <span class="mobile-draft">Draft · </span>}{
+        type === 'work' ? 'Project' : d.kind
+      }</span
+    ><span class="row-main"
+      ><span class="row-title">{d.title}</span><span class="row-summary"
+        >{d.summary || d.standfirst}</span
+      ></span
+    ><span class="row-end"
+      >{
+        d.draft ? (
+          <span class="draft-label">Draft</span>
+        ) : (
+          <StatusBadge status={d.status} checked={d.statusChecked} />
+        )
+      }<span class="row-arrow" aria-hidden="true">↗</span></span
+    ></a>
+</li>

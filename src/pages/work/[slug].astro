@@ -1,0 +1,62 @@
+---
+import { withBase } from '../../lib/paths';
+import Figure from '../../components/Figure.astro';
+import ContributorCredits from '../../components/ContributorCredits.astro';
+import NostrLine from '../../components/NostrLine.astro';
+import Base from '../../layouts/Base.astro';
+import ExperimentalRecord from '../../components/ExperimentalRecord.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import ContactInvite from '../../components/ContactInvite.astro';
+import { projects, formatDate } from '../../lib/content';
+import { render } from 'astro:content';
+export async function getStaticPaths() {
+  return (await projects()).map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const d = entry.data;
+---
+
+<Base title={d.title} description={d.summary} draft={d.draft}
+  ><article class="wrap">
+    <header class="page-header project-header">
+      <div class="eyebrow"><a href={withBase("/work/")}>← All work</a></div><h1>
+        {d.title}
+      </h1><p>{d.summary}</p><div class="article-meta">
+        <span>{d.topic}</span>{
+          d.draft && <span>Unpublished draft</span>
+        }<StatusBadge status={d.status} checked={d.statusChecked} />{
+          d.statusChecked && (
+            <span class="mono">
+              Status checked {formatDate(d.statusChecked)}
+            </span>
+          )
+        }
+      </div>
+    </header><div class="editorial-grid project-intro">
+      <h2 class="eyebrow">About this work</h2><div class="prose">
+        <Content />{(d.screenshots || []).map((image) => <Figure {...image} />)}
+      </div>
+    </div><section class="record-section" aria-label="Experimental record">
+      <ExperimentalRecord record={d.record} expanded />
+    </section><ContributorCredits contributors={d.contributors || []} />{
+      d.links?.length > 0 && (
+        <section class="editorial-grid record-section">
+          <>
+            <h2 class="eyebrow">Explore the work</h2>
+            <div>
+              {d.links.map((link) => (
+                <a class="text-link" href={link.url}>
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          </>
+        </section>
+      )
+    }<NostrLine nostr={d.nostr} /><ContactInvite />
+  </article></Base
+>

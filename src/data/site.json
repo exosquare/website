@@ -1,0 +1,62 @@
+{
+  "studioLine": "An independent idea and experimental technology studio",
+  "hero": {
+    "light": "We build things people don’t want to leave,",
+    "bold": "not things they can’t leave."
+  },
+  "framing": "Technology should expand what people and organisations can do while preserving meaningful choice and control.",
+  "invite": "If something here overlaps with a problem you’re working on, we’d be glad to talk.",
+  "email": "hello@exosquare.com",
+  "convener": "An independent idea and experimental technology studio. Exploring technology through projects, experiments and writing.",
+  "links": {
+    "linkedin": "",
+    "npub": "npub1r6rs2v9s3lsw6ta6y6gst4f3ad903s208gwkmw4zs0nsd0cpe5ysmu8ac4",
+    "lightning": ""
+  },
+  "dependencies": [
+    {
+      "name": "publishing",
+      "exit": "Markdown and static HTML"
+    },
+    {
+      "name": "hosting",
+      "exit": "GitHub Pages"
+    },
+    {
+      "name": "fonts",
+      "exit": "local files"
+    },
+    {
+      "name": "analytics",
+      "exit": "none"
+    }
+  ],
+  "nostrIdentity": {
+    "label": "Follow on Nostr",
+    "profileGateway": "https://njump.me"
+  },
+  "entities": [
+    {
+      "location": "Hong Kong",
+      "name": "Exosquare Limited",
+      "registration": {
+        "label": "Business registration number",
+        "number": "75803217"
+      },
+      "registeredOffice": [
+        "Unit B, 3/F., Kai Wan House",
+        "146 Tung Choi Street",
+        "Mongkok, Kowloon",
+        "Hong Kong"
+      ]
+    },
+    {
+      "location": "Australia",
+      "name": "Exosquare Pty. Ltd.",
+      "registration": {
+        "label": "ACN",
+        "number": "621 091 254"
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+---
+import { withBase } from '../lib/paths';
+interface Props {
+  src: string;
+  alt: string;
+  caption?: string;
+  label?: string;
+  hero?: boolean;
+}
+const { src, alt, caption, label, hero = false } = Astro.props;
+---
+
+<figure class:list={['content-figure', { 'hero-figure': hero }]}>
+  <img
+    src={withBase(src)}
+    alt={alt}
+    loading={hero ? 'eager' : 'lazy'}
+    decoding="async"
+  />{
+    (caption || label) && (
+      <figcaption>
+        {label && <span class="mono">{label}</span>} {caption}
+      </figcaption>
+    )
+  }
+</figure>

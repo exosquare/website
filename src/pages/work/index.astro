@@ -1,0 +1,45 @@
+---
+import Base from '../../layouts/Base.astro';
+import WorkRow from '../../components/WorkRow.astro';
+import IndexFilters from '../../components/IndexFilters.astro';
+import ContactInvite from '../../components/ContactInvite.astro';
+import { projects } from '../../lib/content';
+const entries = await projects();
+---
+
+<Base title="Work"
+  ><div class="wrap">
+    <header class="page-header">
+      <h1>Work</h1><p>
+        Software and experiments. A record of the question, what runs, and what
+        remains to be understood.
+      </p>
+    </header>
+    {
+      entries.length ? (
+        <div class="index-layout">
+          <>
+            <IndexFilters entries={entries} />
+            <div class="index-results">
+              <>
+                <ul class="work-list" role="list">
+                  {entries.map((entry) => (
+                    <WorkRow entry={entry} type="work" />
+                  ))}
+                </ul>
+                <p class="result-count" data-results aria-live="polite">
+                  {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                </p>
+              </>
+            </div>
+          </>
+        </div>
+      ) : (
+        <div class="empty-state">
+          <p>No projects published yet.</p>
+        </div>
+      )
+    }
+    <ContactInvite />
+  </div></Base
+>

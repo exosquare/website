@@ -1,0 +1,116 @@
+---
+import { withBase } from '../lib/paths';
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+import { nostrProfile } from '../lib/nostr';
+import QRCode from 'qrcode';
+const qrOptions = {
+  errorCorrectionLevel: 'M' as const,
+  margin: 4,
+  scale: 8,
+  color: { dark: '#000000ff', light: '#ffffffff' },
+};
+const qr = nostrProfile
+  ? await QRCode.toDataURL(nostrProfile.url, qrOptions)
+  : null;
+const qrSize = nostrProfile
+  ? (QRCode.create(nostrProfile.url, qrOptions).modules.size + 8) * 4
+  : 0;
+---
+
+<Base title="Contact">
+  <div class="wrap contact-page">
+    <header class="page-header">
+      <div class="eyebrow">Contact</div>
+      <h1>{site.invite}</h1>
+    </header>
+    <div class="editorial-grid">
+      <h2 class="eyebrow">A conversation</h2>
+      <div class="prose">
+        <p>
+          Project enquiries, collaboration proposals,
+          and thoughtful conversations are all welcome.
+        </p>
+        <p>
+          A little context is a good start. Tell us what you are working on,
+          what prompted the question, and where you think the work might
+          overlap.
+        </p>
+        {
+          site.email && (
+            <a class="text-link" href={`mailto:${site.email}`}>
+              {site.email}
+            </a>
+          )
+        }
+        <p class="contact-secondary">
+          See the <a href={withBase("/privacy/")}>privacy policy</a> before sending personal information.
+        </p>
+      </div>
+    </div>
+    {
+      nostrProfile && qr && (
+        <section class="editorial-grid contact-section">
+          <h2 class="eyebrow">On Nostr</h2>
+          <div class="nostr-contact">
+            <div>
+              <a class="nostr-profile-link text-link" href={nostrProfile.url}>
+                {nostrProfile.label} <span aria-hidden="true">↗</span>
+              </a>
+              <p class="contact-secondary">
+                Follow on Nostr. Our articles and project records live here on
+                the website.
+              </p>
+              <a class="text-link nostr-app-link" href={nostrProfile.appUrl}>
+                Open in a Nostr app
+              </a>
+            </div>
+            <figure class="nostr-qr">
+              <a href={nostrProfile.url} aria-label="Open Nostr profile">
+                <img
+                  src={qr}
+                  width={qrSize}
+                  height={qrSize}
+                  alt="QR code to follow on Nostr"
+                />
+              </a>
+              <figcaption>Scan to open Nostr.</figcaption>
+            </figure>
+          </div>
+        </section>
+      )
+    }
+    <section class="editorial-grid contact-section legal-entities">
+      <h2 class="eyebrow">Company details</h2>
+      <dl>
+        {
+          site.entities.map((entity) => (
+            <div>
+              <>
+                <dt>{entity.location}</dt>
+                <dd>
+                  {entity.name}
+                  <p class="contact-secondary">
+                    {entity.registration.label}: {entity.registration.number}
+                  </p>
+                  {'registeredOffice' in entity && entity.registeredOffice && (
+                    <p class="contact-secondary">
+                      Registered office
+                      <br />
+                      {entity.registeredOffice.map((line, index) => (
+                        <Fragment>
+                          {index > 0 && <br />}
+                          {line}
+                        </Fragment>
+                      ))}
+                    </p>
+                  )}
+                </dd>
+              </>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
+  </div>
+</Base>
