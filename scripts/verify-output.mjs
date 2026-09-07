@@ -46,7 +46,8 @@ for (const file of files) {
     assert.ok(found, `${file}: broken local link ${href}`);
     links++;
   }
-  if (file.includes('/work/') && !file.endsWith('/work/index.html')) {
+  const relative = path.relative(root, file).split(path.sep).join('/');
+  if (relative.startsWith('work/') && relative !== 'work/index.html') {
     for (const row of [
       'Question',
       'What runs',
