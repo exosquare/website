@@ -1,0 +1,47 @@
+name: Publishing CI
+on:
+  pull_request:
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: publishing-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    name: Validate (${{ matrix.address.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        address:
+          - name: root
+            site: https://exosquare.com
+            base: ''
+          - name: project
+            site: https://exosquare.github.io
+            base: /website
+    env:
+      SITE_URL: ${{ matrix.address.site }}
+      BASE_PATH: ${{ matrix.address.base }}
+      ASTRO_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/validate-site
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: browser-failure-${{ matrix.address.name }}
+          path: test-results/
+          if-no-files-found: ignore
+  publishing-checks:
+    name: Publishing checks
+    if: always()
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both address configurations to pass
+        env:
+          RESULT: ${{ needs.validate.result }}
+        run: test "$RESULT" = success

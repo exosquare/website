@@ -13,9 +13,7 @@ async function walk(dir) {
     )
   ).flat();
 }
-const files = (await walk(root)).filter(
-  (f) => f.endsWith('.html'),
-);
+const files = (await walk(root)).filter((f) => f.endsWith('.html'));
 let links = 0;
 for (const file of files) {
   const html = await readFile(file, 'utf8');
@@ -23,11 +21,12 @@ for (const file of files) {
   assert.match(html, /name="viewport"/, file + ': viewport');
   assert.equal((html.match(/<h1(?:\s|>)/g) || []).length, 1, file + ': one h1');
   assert.match(html, /<main\b/, file + ': main landmark');
-  for (const match of html.matchAll(/href="([^"#]+)(?:#[^"]*)?"/g)) {
+  for (const match of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)) {
     let href = match[1].replaceAll('&amp;', '&');
     if (/^(?:[a-z]+:|\/\/)/i.test(href)) continue;
-    href = href.split(/[?#]/)[0];
-    if (basePath && href.startsWith(basePath + '/')) href = href.slice(basePath.length);
+    href = decodeURIComponent(href.split(/[?#]/)[0]);
+    if (basePath && href.startsWith(basePath + '/'))
+      href = href.slice(basePath.length);
     const base = href.startsWith('/') ? root : path.dirname(file);
     const target = path.resolve(
       base,
@@ -64,5 +63,5 @@ for (const file of files) {
   );
 }
 console.log(
-  `Verified ${files.length} HTML pages, ${links} local links, landmarks, titles and project record rows.`,
+  `Verified ${files.length} HTML pages, ${links} local links/assets, landmarks, titles and project record rows.`,
 );
