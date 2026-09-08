@@ -1,0 +1,19 @@
+name: Validate publishing
+description: Check the production build and local browser behavior
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7.0.0
+      with:
+        node-version: 24
+        cache: npm
+    - run: npm ci --no-audit --no-fund
+      shell: bash
+    - run: npx playwright install --with-deps chromium
+      shell: bash
+    - run: npm run check
+      shell: bash
+    - run: npm run build
+      shell: bash
+    - run: npm run test:browser
+      shell: bash

@@ -29,9 +29,9 @@ Entries default to `draft: true`. Use `npm run dev:drafts` to review them locall
 
 **This repository is public.** Draft status hides a page from the built website, not its committed source. Keep all unpublished drafting and unapproved assets in a separate private workspace. Transfer only approved content and its approved assets into this repository, reviewing an explicit list of files before staging. Do not bulk-sync another working folder or its Git history. Only add files intended to be public; do not commit local documents, credentials or private notes.
 
-Public images belong in `public/images/`. Use descriptive alt text. For Markdown posts at `/writing/slug/` or `/work/slug/`, use `../../images/filename.jpg` for an image and `../../contact/` for a local page link. Relative paths work at both the temporary project address and the custom domain. In Astro components, use `withBase` from `src/lib/paths.ts` for local paths. Files under `public` are deployed even if no page links to them.
+For Markdown article images, place approved files in `src/assets/images/` and reference them relative to the content source, for example `![Description](../../assets/images/filename.jpg)`. Astro processes these images and supplies the correct deployment path. For posts at `/writing/slug/` or `/work/slug/`, use `../../contact/` for a local page link. Use descriptive alt text. Raw public assets can live in `public/images/`; reference them through the base-aware `Figure` component in MDX. In Astro components, use `withBase` from `src/lib/paths.ts` for local paths. Files under `public` are deployed even if no page links to them.
 
-After reviewing changes, run the checks and build, commit the intended public files and push `main`. The GitHub Actions workflow checks, builds and deploys the site to GitHub Pages. Check the workflow result and live page after each release. GitHub Pages must be configured to use GitHub Actions as its publishing source.
+After reviewing changes, push a feature branch and open a pull request. Publishing CI checks root-domain and project-path builds, all local page/asset references, and desktop/mobile browser behavior. Merge after the required `Publishing checks` succeeds. The main-branch workflow validates the actual production build, deploys that same artifact and checks live delivery. Check the workflow result and live page after each release. GitHub Pages must be configured to use GitHub Actions as its publishing source.
 
 ## Site address
 
@@ -44,6 +44,18 @@ SITE_URL=https://exosquare.github.io BASE_PATH=/website npm run build
 ```
 
 Custom-domain DNS and HTTPS setup are managed separately from source edits. Adding a repository file alone does not establish a working domain or certificate.
+
+## Browser checks
+
+```sh
+npx playwright install chromium
+npm run build
+npm run test:browser
+```
+
+The browser suite discovers built pages, including new writing. It checks structural behavior, local images, font loading, navigation and theme persistence. It does not assert article counts, headlines, pixel screenshots or third-party availability. Tests use isolated browser contexts, a pinned Chromium version, one worker and no retries. Playwright waits for the server and observable page states instead of fixed sleeps. Failure traces/screenshots are retained for diagnosis.
+
+PR checks run for every change, including article-only changes. They do not deploy. After merging, production is validated again using the configured Pages address. Live-delivery checks run only after deployment and retry transient network/CDN failures separately from the required PR check.
 
 ## Fonts
 
