@@ -1,0 +1,44 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { withBase } from '../../../lib/paths';
+---
+
+<Base
+  title="Play the local Tetris output"
+  description="Play the original game generated in the local-model Tetris experiment"
+>
+  <div class="play-view">
+    <h1>Original Tetris output</h1>
+    <p>
+      Click inside the game and press Enter to start. Use the controls shown beside the
+      board. <a href={withBase('/writing/one-prompt-local-tetris/')}>Return to the experiment note</a>.
+    </p>
+    <iframe
+      src={withBase('/experiments/local-tetris.html')}
+      title="Original locally generated Tetris game. Click inside, then press Enter to start."
+      sandbox="allow-scripts"
+    ></iframe>
+  </div>
+</Base>
+
+<style>
+  .play-view {
+    width: min(100% - 32px, 1100px);
+    margin: 40px auto 64px;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+  p {
+    max-width: 680px;
+    margin: 12px 0 24px;
+    line-height: 1.6;
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 820px;
+    border: 1px solid var(--line);
+    background: #0b0e1a;
+  }
+</style>
