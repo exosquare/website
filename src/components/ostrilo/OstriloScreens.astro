@@ -1,0 +1,150 @@
+---
+import { withBase } from '../../lib/paths';
+interface Props {
+  kind: 'overview' | 'approval' | 'permissions' | 'identities';
+}
+const { kind } = Astro.props;
+const root = withBase('/images/ostrilo/');
+const screens = {
+  overview: [
+    {
+      name: 'home-light',
+      label: 'Light',
+      alt: 'Ostrilo home in its light theme, with a sample identity, two keys, three relays, site permissions and recent signing activity.',
+      width: 400,
+      height: 600,
+    },
+    {
+      name: 'home-dark',
+      label: 'Deep Ink',
+      alt: 'Ostrilo home in its dark theme, showing the selected sample identity and both signed and denied activity.',
+      width: 400,
+      height: 600,
+    },
+  ],
+  approval: [
+    {
+      name: 'approval',
+      label: 'Reviewing a request',
+      alt: 'An Ostrilo approval screen for a sample text note, showing the requesting localhost site, selected key, event content, and Deny and Approve and sign buttons.',
+      width: 400,
+      height: 600,
+    },
+  ],
+  permissions: [
+    {
+      name: 'permissions',
+      label: 'Site permissions',
+      alt: 'Ostrilo permissions settings with three sample sites at different trust levels and a record of which site has read the public key.',
+      width: 1280,
+      height: 900,
+    },
+  ],
+  identities: [
+    {
+      name: 'identities',
+      label: 'Keys and identities',
+      alt: 'Ostrilo settings with two sample identities, one marked active, and controls to add a key or switch the active identity.',
+      width: 1280,
+      height: 900,
+    },
+  ],
+}[kind];
+const captions = {
+  overview:
+    'The same everyday controls in light and Deep Ink. These are real extension captures from the September 2026 design review, using sample identities and activity.',
+  approval:
+    'The decision in context: which site is asking, which identity will sign, and what the event contains. This request comes from a local test page.',
+  permissions:
+    'Signing permissions and identity disclosure are visible together. The sites, addresses and public-key reads shown here are design-review fixtures.',
+  identities:
+    'Several identities can share one vault. The active identity is explicit, with a direct control for switching to another key. Sample data shown.',
+};
+---
+
+<figure class:list={['ostrilo-figure', kind]}>
+  <div class="screens">
+    {
+      screens.map((screen) => (
+        <div class="screen">
+          <div class="screen-label">{screen.label}</div>
+          <a
+            href={`${root}${screen.name}.png`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${screen.label.toLowerCase()} screenshot at full size (new tab)`}
+          >
+            <img
+              src={`${root}${screen.name}.png`}
+              alt={screen.alt}
+              width={screen.width}
+              height={screen.height}
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+        </div>
+      ))
+    }
+  </div>
+  <figcaption>
+    {captions[kind]}
+    <span>Open an image to see it at full size.</span>
+  </figcaption>
+</figure>
+
+<style>
+  .ostrilo-figure {
+    margin: 40px 0 44px;
+  }
+  .screens {
+    display: grid;
+    gap: 24px;
+  }
+  .overview .screens {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .screen {
+    min-width: 0;
+  }
+  .screen-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    color: var(--muted);
+  }
+  .screen a {
+    display: block;
+  }
+  .screen img {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: none;
+    border: 1px solid var(--rule);
+  }
+  .approval .screens {
+    max-width: 400px;
+    margin-inline: auto;
+  }
+  figcaption {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  figcaption span {
+    display: block;
+    margin-top: 4px;
+  }
+  @media (max-width: 560px) {
+    .overview .screens {
+      grid-template-columns: 1fr;
+      max-width: 400px;
+      margin-inline: auto;
+      gap: 28px;
+    }
+  }
+</style>

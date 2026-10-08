@@ -47,15 +47,11 @@ for (const file of files) {
   }
   const relative = path.relative(root, file).split(path.sep).join('/');
   if (relative.startsWith('work/') && relative !== 'work/index.html') {
-    for (const row of [
-      'Question',
-      'What runs',
-      'Evidence',
-      'What failed',
-      'What changed',
-      'Still open',
-    ])
-      assert.ok(html.includes(row), file + ': missing ' + row);
+    assert.doesNotMatch(
+      html,
+      /aria-label="Experimental record"/,
+      file + ': project record removed',
+    );
   }
   assert.ok(
     !/mailto:[^"\s]*(?:example\.|placeholder)/i.test(html),
@@ -63,5 +59,5 @@ for (const file of files) {
   );
 }
 console.log(
-  `Verified ${files.length} HTML pages, ${links} local links/assets, landmarks, titles and project record rows.`,
+  `Verified ${files.length} HTML pages, ${links} local links/assets, landmarks, titles and project layout.`,
 );

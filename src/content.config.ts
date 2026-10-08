@@ -18,6 +18,9 @@ const figure = z.object({
   src: z.string(),
   alt: z.string(),
   caption: z.string().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  preserveColor: z.boolean().optional(),
 });
 const nostr = z
   .object({ url: z.url().optional(), lightning: z.string().optional() })
@@ -37,12 +40,12 @@ const projects = defineCollection({
     .object({
       ...common,
       summary: z.string(),
+      hero: figure.optional(),
       screenshots: z.array(figure).default([]),
       status: z
         .enum(['shipped', 'in-development', 'experiment', 'archived'])
         .optional(),
       statusChecked: z.coerce.date().optional(),
-      record,
       links: z.array(z.object({ label: z.string(), url: z.url() })).default([]),
     })
     .refine((d) => !d.status || !!d.statusChecked, {
