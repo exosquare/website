@@ -14,7 +14,7 @@ function pages(dir: string): string[] {
 }
 const routes = pages('dist')
   .map((file) => path.relative('dist', file).split(path.sep).join('/'))
-  .filter((file) => file !== '404.html')
+  .filter((file) => file !== '404.html' && file !== 'experiments/local-tetris.html')
   .map((file) => file.replace(/index\.html$/, ''))
   .sort();
 const prefix = (process.env.BASE_PATH || '').replace(/\/$/, '');
@@ -72,6 +72,20 @@ for (const route of routes) {
     expect(errors).toEqual([]);
   });
 }
+
+test('original Tetris artifact plays', async ({ page, baseURL }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const response = await page.goto(
+    new URL('experiments/local-tetris.html', baseURL).href,
+  );
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('#overlay h3')).toHaveText('READY');
+  await page.locator('#overlay').click();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#score')).not.toHaveText('0');
+  expect(errors).toEqual([]);
+});
 
 test('shared navigation, theme persistence and local fonts', async ({
   page,
