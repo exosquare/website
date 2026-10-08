@@ -35,7 +35,7 @@ After reviewing changes, push a feature branch and open a pull request. Publishi
 
 ## Ostrilo launch
 
-The reviewed Ostrilo project page remains `draft: true` while its Chrome Web Store listing is under review. Its copy describes Chrome availability at publication. Confirm the listing and installation link, then set the actual publication date and change `draft` to `false` in a release update. Its approved brand artwork and sample-data screenshots are stored in `public/images/ostrilo/`.
+The Ostrilo project copy describes Chrome availability at publication. Keep its publication PR in draft until the Chrome Web Store listing is approved and the installation link works. Before marking that PR ready to merge, set `publishedAt` to the actual release date and remove its provisional-date comment. Merging the change to `draft: false` makes the page visible in the next deployment. Its approved brand artwork and sample-data screenshots are stored in `public/images/ostrilo/`.
 
 ## Site address
 
