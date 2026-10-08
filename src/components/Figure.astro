@@ -6,15 +6,34 @@ interface Props {
   caption?: string;
   label?: string;
   hero?: boolean;
+  width?: number;
+  height?: number;
+  preserveColor?: boolean;
 }
-const { src, alt, caption, label, hero = false } = Astro.props;
+const {
+  src,
+  alt,
+  caption,
+  label,
+  hero = false,
+  width,
+  height,
+  preserveColor = false,
+} = Astro.props;
 ---
 
 <figure class:list={['content-figure', { 'hero-figure': hero }]}>
   <img
     src={withBase(src)}
     alt={alt}
+    width={width}
+    height={height}
+    class:list={{
+      'original-color': preserveColor,
+      'intrinsic-ratio': width && height,
+    }}
     loading={hero ? 'eager' : 'lazy'}
+    fetchpriority={hero ? 'high' : undefined}
     decoding="async"
   />{
     (caption || label) && (
@@ -24,3 +43,12 @@ const { src, alt, caption, label, hero = false } = Astro.props;
     )
   }
 </figure>
+
+<style>
+  .original-color {
+    filter: none;
+  }
+  .content-figure img.intrinsic-ratio {
+    aspect-ratio: auto;
+  }
+</style>
