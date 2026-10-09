@@ -35,7 +35,7 @@ After reviewing changes, push a feature branch and open a pull request. Publishi
 
 ## Ostrilo launch
 
-The reviewed Ostrilo project page remains `draft: true` while its Chrome Web Store listing is under review. Its copy describes Chrome availability at publication. Confirm the listing and installation link, then set the actual publication date and change `draft` to `false` in a release update. Its approved brand artwork and sample-data screenshots are stored in `public/images/ostrilo/`.
+Ostrilo is available in the [Chrome Web Store](https://chromewebstore.google.com/detail/ostrilo/nhodljdjlljpapclgcjmhajpgodanchk). The project page links directly to the approved listing and uses `draft: false` for publication. Its publication date is 9 October 2026. If the release is delayed, update `publishedAt` to the actual release date before merging. Its approved brand artwork and sample-data screenshots are stored in `public/images/ostrilo/`.
 
 ## Site address
 
