@@ -3,10 +3,9 @@ title: 'Ostrilo'
 topic: 'Sovereign engineering'
 summary: 'A Nostr browser signer, built around privacy, security and a better everyday experience.'
 draft: false
-# Provisional date for this draft PR. Set the actual date before merging.
-publishedAt: 2026-10-08
+publishedAt: 2026-10-09
 status: shipped
-statusChecked: 2026-10-07
+statusChecked: 2026-10-09
 hero:
   src: '/images/ostrilo/brand.png'
   alt: 'Ostrilo’s purple, faceted ostrich beside the words: Your keys. Your signing decisions.'
@@ -14,6 +13,8 @@ hero:
   height: 560
   preserveColor: true
 links:
+  - label: 'Install for Chrome'
+    url: 'https://chromewebstore.google.com/detail/ostrilo/nhodljdjlljpapclgcjmhajpgodanchk'
   - label: 'Visit Ostrilo'
     url: 'https://ostrilo.com/'
   - label: 'Explore the source'
@@ -26,7 +27,7 @@ import OstriloScreens from '../../components/ostrilo/OstriloScreens.astro';
 
 I started writing Ostrilo because I wanted to learn more about Nostr, and I wasn't entirely happy with the browser extension I'd been using. Building one myself gave me a way to explore the protocol while focusing on the things I cared about: privacy, security and usability.
 
-Ostrilo is now available for Chrome, with a [website](https://ostrilo.com/) to explain how it works and the [source](https://github.com/macro88/ostrilo) available for anyone to inspect, build on or contribute to.
+Ostrilo is now [available for Chrome](https://chromewebstore.google.com/detail/ostrilo/nhodljdjlljpapclgcjmhajpgodanchk), with a [website](https://ostrilo.com/) to explain how it works and the [source](https://github.com/macro88/ostrilo) available for anyone to inspect, build on or contribute to.
 
 The idea is simple. A Nostr app should be able to ask for a signature without being given the private key that controls an identity. Ostrilo keeps that key in an encrypted vault in the browser, handles signing inside the extension, and gives the website the signed event. The person using it can see who's asking and decide what to allow.
 
@@ -84,4 +85,4 @@ Ostrilo is open source under the MIT licence. The current release covers local s
 
 The [roadmap](https://ostrilo.com/roadmap/) includes broader backup support, NIP-44 encrypted messaging and NIP-46 remote signing. An independent security review with published findings is a requirement for 1.0 and hasn't happened yet.
 
-The extension, setup guide and source are linked from [ostrilo.com](https://ostrilo.com/).
+The setup guide and source are linked from [ostrilo.com](https://ostrilo.com/).
