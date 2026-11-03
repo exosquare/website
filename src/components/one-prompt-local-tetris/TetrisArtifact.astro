@@ -1,0 +1,45 @@
+---
+import { withBase } from '../../lib/paths';
+
+const url = withBase('/experiments/local-tetris.html');
+const playUrl = withBase('/experiments/play/local-tetris/');
+---
+
+<figure class="tetris-artifact">
+  <iframe
+    src={url}
+    title="Original locally generated Tetris game. Click inside, then press Enter to start."
+    sandbox="allow-scripts"
+    loading="lazy"
+  ></iframe>
+  <figcaption>
+    Original generated HTML, unchanged. Click inside the game and press Enter to start.
+    The game uses keyboard controls. <a href={playUrl} target="_blank" rel="noopener noreferrer"
+      >Open a larger play view</a
+    >. The preview runs scripts in a sandbox without access to this site's origin.
+  </figcaption>
+</figure>
+
+<style>
+  .tetris-artifact {
+    margin: 36px 0;
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 770px;
+    border: 1px solid var(--line);
+    background: #0b0e1a;
+  }
+  figcaption {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  @media (max-width: 700px) {
+    iframe {
+      height: 680px;
+    }
+  }
+</style>

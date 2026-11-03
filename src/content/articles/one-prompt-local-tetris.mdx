@@ -1,0 +1,64 @@
+---
+title: 'A Tetris game from one local prompt'
+draft: false
+publishedAt: 2026-10-08
+topic: 'Local models'
+kind: 'Experiment note'
+author: 'Matt'
+standfirst: 'I asked a model running on my laptop for a single-file browser game. The result made me curious about where local inference could fit into a wider development workflow.'
+---
+
+import TetrisArtifact from '../../components/one-prompt-local-tetris/TetrisArtifact.astro';
+import TetrisChat from '../../components/one-prompt-local-tetris/TetrisChat.astro';
+
+I keep a keen eye on local models, especially for coding. I'd like to have lots of coding agents running 24 hours a day on hardware I control, with most of the cost coming down to electricity and hardware. I'm not there yet, but that's the idea behind these experiments.
+
+I've seen token prices coming down, particularly around open models. [DeepSeek's price cuts](https://api-docs.deepseek.com/news/news250929/) are one example. My bet is that today's frontier-model prices are being held down by investor money. I don't think that can go on forever, and I expect providers to charge more when that support runs out. I'd like to know what I could do locally by then.
+
+For this test, I asked for a game of Tetris.
+
+## One prompt, then a long wait
+
+I used LM Studio on my M3 MacBook Pro with 36 GB of RAM. The model was labelled `qwen3.8-27b-uncensored-mlx`. After saying hello, I gave it one substantive prompt: “build a browser based tetris in vanilla js. Single file”.
+
+The screenshot below shows the exchange. LM Studio says “Thought for 71 minutes 50 seconds”. I think the whole generation took roughly that long, but I didn't time it separately, so I can't give an exact end-to-end duration.
+
+<TetrisChat />
+
+It returned a single HTML file. I saved it, opened it in a browser and played it. Honestly, I was surprised anything worked. It's not perfect, but it's very, very close. For one prompt, I thought that was a very good result.
+
+Here's the file exactly as it came out of the model. Click inside the game to use the keyboard, or open the larger view if the frame feels cramped.
+
+<TetrisArtifact />
+
+Looking through the source, I could see the board, movement and rotation, scoring, hold and next-piece slots, and synthesised sound. I haven't checked every feature in play. This was me trying something out, not a thorough game test.
+
+## Why Opus came to mind
+
+In late 2025, I was porting Rust smart contracts to EVM Solidity and building a React frontend. [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5) did much of that implementation. I was checking every line, and I found it genuinely useful. That was my personal turning point with coding agents.
+
+So [Qwen's published coding results](https://huggingface.co/Qwen/Qwen3.8-27B) caught my attention. Its base model looks competitive on selected benchmarks with Opus 4.6 Max, from [the generation after 4.5](https://www.anthropic.com/news/claude-opus-4-6).
+
+| Qwen-reported benchmark | Qwen3.8-27B | Opus 4.6 Max |
+| --- | --- | --- |
+| Terminal Bench 2.1 | 73.0 | 78.2 |
+| SWE-bench Pro | 61.7 | 53.4 |
+| NL2Repo-Bench | 42.3 | 47.6 |
+
+That's a mixed picture, and the methods aren't identical. For SWE-bench Pro, Qwen reports its own evaluations for most models but uses an officially reported Opus score. These figures are for Qwen's base model, not the modified `uncensored-mlx` build I ran. They don't tell me that Qwen is universally better than Opus 4.5 either. Still, having a local option in this territory is something I want to keep watching.
+
+## How it fits on a laptop
+
+[Qwen describes this as a 27-billion-parameter dense model](https://huggingface.co/Qwen/Qwen3.8-27B), with a mix of Gated DeltaNet linear attention and full attention. For running it on a Mac, there are a couple of practical pieces worth understanding.
+
+Quantization stores the model's weights at lower precision, which makes them smaller. For example, [one third-party uncensored MLX variant](https://huggingface.co/abood365/Qwen3.8-27B-Uncensored-MLX) lists a 4-bit build at about 15 GB on disk. [MLX also uses Apple Silicon's unified memory](https://github.com/ml-explore/mlx/blob/main/docs/src/usage/unified_memory.rst), so the CPU and GPU can work with the same data without copying it between separate memory pools.
+
+That helps explain how local use is possible. I still need to confirm the exact repository and quantization I loaded, and whether any multi-token prediction or speculative decoding was enabled. The example above isn't proof of my settings, and its disk size isn't a minimum RAM requirement.
+
+## What I'm going to try next
+
+Around 72 minutes is slow for a game from one prompt. But my laptop also spends hours sitting idle overnight. For a bounded coding task automatically assigned to it by a frontier "orchestrator" mode, that sort of wait might be fine.
+
+My experiments with Buzz and multiple agents have me thinking about how to put that time to use. I'd like to use frontier models such as Astra and Opus for design and planning, then give a local model a well-defined piece of implementation within a proper software development life cycle. I don't expect local models to replace frontier models across the board.
+
+I haven't run an overnight agent pipeline yet, let alone lots of agents around the clock. This game is a small early test. Next I'd give the local model a task in a real codebase, review the result, and record how long it took and how much rework it needed.

@@ -1,0 +1,21 @@
+---
+import { withBase } from '../../lib/paths';
+
+const screenshot = withBase('/experiments/local-tetris-chat.png');
+---
+
+<figure class="content-figure">
+  <a href={screenshot} target="_blank" rel="noopener noreferrer">
+    <img
+      src={screenshot}
+      alt="LM Studio chat with qwen3.8-27b-uncensored-mlx: a greeting, the single-file browser Tetris prompt, Thought for 71 minutes 50 seconds, and the start of the HTML output."
+      width="1932"
+      height="1778"
+      loading="lazy"
+      decoding="async"
+    />
+  </a>
+  <figcaption>
+    The original LM Studio chat. The displayed time is thinking time. Open the image to read it at full size.
+  </figcaption>
+</figure>

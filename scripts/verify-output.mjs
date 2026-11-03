@@ -16,11 +16,20 @@ async function walk(dir) {
 const files = (await walk(root)).filter((f) => f.endsWith('.html'));
 let links = 0;
 for (const file of files) {
+  const relative = path.relative(root, file).split(path.sep).join('/');
   const html = await readFile(file, 'utf8');
   assert.match(html, /<html[^>]+lang="en"/, file + ': language');
   assert.match(html, /name="viewport"/, file + ': viewport');
   assert.equal((html.match(/<h1(?:\s|>)/g) || []).length, 1, file + ': one h1');
-  assert.match(html, /<main\b/, file + ': main landmark');
+  if (relative === 'experiments/local-tetris.html') {
+    assert.deepEqual(
+      await readFile(file),
+      await readFile('public/experiments/local-tetris.html'),
+      file + ': original game bytes',
+    );
+  } else {
+    assert.match(html, /<main\b/, file + ': main landmark');
+  }
   for (const match of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)) {
     let href = match[1].replaceAll('&amp;', '&');
     if (/^(?:[a-z]+:|\/\/)/i.test(href)) continue;
@@ -45,7 +54,6 @@ for (const file of files) {
     assert.ok(found, `${file}: broken local link ${href}`);
     links++;
   }
-  const relative = path.relative(root, file).split(path.sep).join('/');
   if (relative.startsWith('work/') && relative !== 'work/index.html') {
     assert.doesNotMatch(
       html,
