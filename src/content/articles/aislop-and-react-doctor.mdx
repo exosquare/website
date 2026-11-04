@@ -1,0 +1,84 @@
+---
+title: 'Guardrails for agent-written code: aislop and react-doctor'
+draft: false
+publishedAt: 2026-10-17
+topic: 'Code quality tooling'
+kind: 'Article'
+author: 'Matt'
+standfirst: 'Coding agents can produce code that runs and still leaves a mess behind. Static scanners give that work a boundary. This is why we use two of them, what they found on a recent project, and how a CI gate stops the code drifting.'
+---
+
+Coding agents write a lot of code quickly. Much of it is good. Some of it is poor in ways that are easy to miss in review: an import of a package nobody added to the project, a debugging line left in, an error caught and quietly dropped. When a change runs to hundreds of lines, a reviewer reads for intent and skims the rest. That skimmed part is where these problems settle.
+
+We now put static scanners in front of that work. They don't replace review. They take the dull, checkable part of it off the reviewer and apply it to every line of every change, every time. This post explains what they are, why we think they matter more now, and how we use two of them, [aislop](https://github.com/scanaislop/aislop) and [react-doctor](https://github.com/millionco/react-doctor), as guardrails.
+
+## What a static scanner is
+
+A static scanner reads source code without running it and reports patterns it has been told are problems. A spellchecker is a fair comparison. It doesn't understand what you meant to say, but it reliably notices a word that isn't in the dictionary.
+
+Most developers already use one, usually a linter. The scanners here go further. They bundle several linters and add their own rules for code structure, security and project hygiene. Both describe themselves as deterministic. The same code gives the same result, which is what makes a scanner usable as a gate. A check that might change its answer between two runs on the same code is a poor reason to block a merge.
+
+## Why they matter now
+
+Agents make some kinds of mistake that a scanner catches well. One is well studied. A [2024 study of package hallucinations](https://arxiv.org/abs/2406.10279) generated 576,000 Python and JavaScript samples with 16 code models and found that 19.7% of the packages the code relied on did not exist. The rate was 5.2% on average for the commercial models and 21.7% for the open-source ones. The authors note that newer models may behave differently. The point for us is the shape of the problem. These are plausible names in otherwise reasonable code, and they are easy to read past.
+
+The other reason is volume. An agent can produce a change faster than a person can read it carefully. A scanner reads all of it in seconds and doesn't get tired at line four hundred.
+
+## The two tools
+
+aislop is a general scanner. It wraps existing tools such as Biome and oxlint for JavaScript and TypeScript and adds its own rules, grouped into engines for formatting, linting, code quality, security and a set it calls AI slop. That set covers things like comments that restate the code, leftover `console.log` calls, empty `catch` blocks and imports of packages the project manifest doesn't declare. It produces a score out of 100, and its [scoring document](https://github.com/scanaislop/aislop/blob/main/docs/scoring.md) sets out exactly how errors, warnings and info items are weighted. The README says there is no language model in the runtime path.
+
+react-doctor is specific to React. Its [README](https://github.com/millionco/react-doctor) describes checks for correctness, performance, security, accessibility and maintainability, such as state updated from effects in ways that cause extra renders, effects that need cleanup, and context values rebuilt on every render. It reports diagnostics at error or warning level.
+
+## Making the build fail
+
+A scanner that only prints a report is easy to ignore. The useful step is to make it fail the build.
+
+Our setup has a CI job that runs both tools on every pull request, and the publish step depends on it. In the package scripts:
+
+```json
+"doctor": "react-doctor --no-score --no-supply-chain --blocking warning --yes",
+"aislop": "aislop scan"
+```
+
+And in `.aislop/config.yml`:
+
+```yaml
+ci:
+  failBelow: 96
+telemetry:
+  enabled: false
+```
+
+With these settings, any react-doctor finding fails the job, warnings included. aislop fails it if the score drops below 96 or if any error-severity finding appears. We tested this directly. Raising the threshold to 97 in a scratch copy made `aislop scan` exit with status 1.
+
+This is where scanners help keep agents focused. An agent given a task tends to solve the task and leave the surroundings a little worse. A failing check is a precise, local instruction: this file, this line, this rule. It can be fixed without arguing about taste. The same commands run locally, so whoever opens the pull request, person or agent, can run them first and fix most problems before review starts. When code drifts, the build says so, and it says so the same way every time.
+
+## On a recent project
+
+We added both scanners to a small React web app on a recent project. They ran in an advisory mode first, reporting without failing anything, so we could see the starting point.
+
+aislop scored the code 61. react-doctor reported 19 diagnostics at first, and 14 a change later, one error and thirteen warnings. Eight of aislop's findings were errors from the same rule, imports of packages the project hadn't declared. When we looked, the packages were real: an icon set, a date library and an XML parser. The code used them without the project's manifest saying so, which works only as long as something else happens to install them. Declaring the icon set and the date library and removing the XML parser import took the score from 66, where small fixes had brought it, to 86.
+
+Over the next few changes the score climbed to 96 and react-doctor's findings fell to none. Nothing was suppressed to get there, and one ESLint rule that had been switched off was turned back on. Only then did we make the checks blocking, with the threshold at the score the code had reached.
+
+## Why you might use them too
+
+If you use agents to write code, these tools are cheap to try. Both run from `npx`. What worked for us:
+
+- Run them in advisory mode first and read the findings before deciding what counts as a failure.
+- Fix the findings, then set the threshold at the score you reach, so the gate holds the line you've earned.
+- For React, fail on warnings. Thirteen of react-doctor's fourteen findings on our project were warnings.
+- Treat the score as a ratchet and not a goal. Chasing points by reshuffling code defeats the purpose.
+
+## What we can't vouch for
+
+A few honest limits:
+
+- **Accuracy.** Neither tool publishes false-positive or miss rates that we could find. The findings we checked were reasonable, but that's one small codebase.
+- **What the score means.** aislop documents how 96 is calculated. Nothing we read connects a point of score to fewer bugs.
+- **react-doctor's score.** It is computed by a remote service, which is why we run with `--no-score`. A [third-party page](https://www.mintlify.com/millionco/react-doctor/guides/understanding-scores) gives a formula, but applied to our findings it gave 94 where the service had returned 52, so we don't rely on it.
+- **The licence.** react-doctor's README says MIT, but its [LICENSE file](https://github.com/millionco/react-doctor/blob/main/LICENSE) is a modified MIT licence with two added conditions, on use as machine learning training data and on resale as a hosted service. Neither affects running it in CI. Read the file before building on it.
+- **Rule names.** aislop's rule for undeclared imports is called `hallucinated-import`. On our project every package it flagged was real. The rule caught something worth fixing, and its name claimed more than it found.
+
+None of that changes our view. A scanner doesn't know what good code is. It knows a list of things that are usually bad, checks for them without getting bored, and stops the build when they appear. For code arriving faster than we can read it closely, that is the guardrail we want.
