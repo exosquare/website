@@ -1,0 +1,57 @@
+---
+import { withBase } from '../../lib/paths';
+
+const url = withBase('/experiments/moonshine-stt/');
+const playUrl = withBase('/experiments/play/moonshine-stt/');
+const syntheticUrl = withBase('/experiments/moonshine-stt/?synthetic=1');
+---
+
+<figure class="moonshine-artifact">
+  <iframe
+    src={url}
+    title="On-device Moonshine speech recognition. Press Load demo before anything is downloaded, then start the microphone."
+    sandbox="allow-scripts allow-same-origin"
+    allow="microphone"
+    loading="lazy"></iframe>
+  <figcaption>
+    On-device Moonshine Base. Nothing is downloaded until Load demo (~160 MB).
+    The first visit is about 160 MB (Base weights plus the runtime). Weights are
+    fetched once from Hugging Face and stored in the browser cache. Later visits
+    load from that cache. Audio never leaves the device. The demo works best on
+    WebGPU. The microphone stays off until a second button. The network panel is
+    in the same frame, so it can see this demo's requests.
+    <a href={playUrl} target="_blank" rel="noopener noreferrer"
+      >Open a larger view</a
+    >.
+    <a href={syntheticUrl} target="_blank" rel="noopener noreferrer"
+      >Open with a synthetic source</a
+    >. The frame runs scripts and may use the microphone. It keeps this site's
+    origin so Cache Storage, WebGPU, module workers, and the directory-scoped
+    network service worker can run. An opaque sandbox origin cannot register
+    that worker, and Clear site data for this site would not clear its cache.
+  </figcaption>
+</figure>
+
+<style>
+  .moonshine-artifact {
+    margin: 36px 0;
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 980px;
+    border: 1px solid var(--rule);
+    background: #fff;
+  }
+  figcaption {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  @media (max-width: 700px) {
+    iframe {
+      height: 1280px;
+    }
+  }
+</style>
