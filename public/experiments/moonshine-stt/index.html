@@ -12,150 +12,88 @@
         --fg: #0a0a0a;
         --muted: #6b6b6b;
         --rule: #e4e4e4;
-        --soft: #f5f5f5;
+        --stage: #101315;
+        --mesh: #d1e6ed;
+        --stage-fg: #eef5f7;
+        --stage-muted: #9ba9af;
+        --stage-rule: #2b3439;
       }
       @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #0a0a0a;
-          --fg: #f2f2f2;
-          --muted: #a0a0a0;
-          --rule: #303030;
-          --soft: #171717;
-        }
+        :root { --bg: #0a0a0a; --fg: #f2f2f2; --muted: #a0a0a0; --rule: #303030; }
       }
       * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
       html, body { margin: 0; }
       body {
         background: var(--bg);
         color: var(--fg);
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        font-weight: 400;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
       }
-      main {
-        width: min(1120px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 28px 0 48px;
-      }
-      header { margin-bottom: 20px; }
-      h1 {
-        margin: 4px 0 0;
-        font-weight: 300;
-        font-size: clamp(1.8rem, 4vw, 2.6rem);
-        letter-spacing: -0.025em;
-      }
-      h2 { margin: 0 0 12px; font-size: 1rem; }
-      p { margin: 0; }
+      main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 32px; }
+      .page-heading { margin-bottom: 22px; }
+      .eyebrow { font: 700 0.6875rem/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; }
+      h1 { margin: 4px 0 0; font-weight: 300; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.025em; }
+      h2, h3, p { margin: 0; }
       a { color: inherit; }
       button, a, summary { -webkit-tap-highlight-color: transparent; }
-      button:focus-visible, a:focus-visible {
-        outline: 2px solid var(--fg);
-        outline-offset: 3px;
+      button:focus-visible, a:focus-visible, summary:focus-visible, #transcript:focus-visible {
+        outline: 2px solid currentColor; outline-offset: 4px;
       }
-      .eyebrow {
-        margin: 0;
-        font-size: 0.6875rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }
-      .islands {
-        display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-        gap: 20px;
-        align-items: start;
-      }
-      section {
-        border: 1px solid var(--rule);
-        padding: 16px;
-        min-width: 0;
-      }
-      .commit {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-      #size-note, #consent, #cache-hint { max-width: 62ch; }
-      #cache-hint:empty { display: none; }
-      button {
-        font: inherit;
-        color: var(--bg);
-        background: var(--fg);
-        border: 1px solid var(--fg);
-        min-height: 44px;
-        padding: 10px 16px;
-        cursor: pointer;
-        font-weight: 700;
-      }
-      button:disabled { opacity: 0.45; cursor: default; }
-      .bar {
-        width: 100%;
-        height: 10px;
-        border: 1px solid var(--fg);
-        background: var(--soft);
-        overflow: hidden;
-      }
-      .bar > span {
-        display: block;
-        height: 100%;
-        width: 0;
-        background: var(--fg);
-      }
-      .bar[data-state="indeterminate"] > span {
-        width: 35%;
-        animation: slide 1.1s ease-in-out infinite;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .bar[data-state="indeterminate"] > span { animation: none; width: 100%; opacity: 0.35; }
-      }
-      @keyframes slide {
-        from { transform: translateX(-120%); }
-        to { transform: translateX(320%); }
-      }
-      #progress-label, #progress-file, #device, #status, .mono, .meta, .path, time {
-        font-family: ui-monospace, "Space Mono", monospace;
-        font-size: 0.75rem;
-      }
-      #device:empty, #speech-error:empty { display: none; }
-      #speech-error { color: var(--fg); border-left: 2px solid var(--fg); padding-left: 10px; }
-      #mark {
-        width: min(100%, 220px);
-        height: auto;
-        overflow: visible;
-        display: block;
-        margin: 8px 0;
-        color: var(--fg);
-      }
-      #window, #mark text { fill: var(--bg); }
-      #level-readout { color: var(--muted); }
-      #transcript, #requests, #model-files {
-        max-height: 220px;
-        overflow: auto;
-        border-top: 1px solid var(--rule);
-        margin-top: 12px;
-        padding-top: 8px;
-      }
-      #transcript p { margin: 0 0 8px; }
-      time { color: var(--muted); margin-right: 8px; }
-      .empty, .fine, .meta { color: var(--muted); }
-      .coverage { display: grid; gap: 8px; margin-bottom: 12px; }
-      .coverage p, .fine { font-size: 0.875rem; }
-      .summaries { display: grid; gap: 6px; margin: 12px 0; }
-      .summaries p { font-family: ui-monospace, monospace; font-size: 0.75rem; }
+      .sound-stage { background: var(--stage); color: var(--stage-fg); }
+      .stage-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 28px 0; }
+      .stage-brand { font-size: 0.625rem; letter-spacing: 0.18em; }
+      #status { color: var(--stage-muted); font: 0.6875rem ui-monospace, monospace; text-align: right; }
+      #status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 8px; background: currentColor; }
+      .workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: stretch; }
+      .visual { min-width: 0; display: flex; align-items: center; }
+      #mark { display: block; width: 100%; height: 400px; }
+      .transcript-pane { margin: 32px 0; padding: 4px 32px; min-width: 0; border-left: 1px solid var(--stage-rule); display: flex; flex-direction: column; }
+      .transcript-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .transcript-heading h2 { font-size: 0.75rem; font-weight: 500; }
+      .transcript-heading span { color: var(--stage-muted); font: 0.625rem ui-monospace, monospace; }
+      #transcript { height: 290px; overflow: auto; scrollbar-width: thin; scrollbar-color: #506067 transparent; padding-right: 8px; margin-top: 20px; font-size: clamp(1.125rem, 2vw, 1.375rem); line-height: 1.65; overflow-wrap: anywhere; }
+      #transcript p + p { margin-top: 16px; }
+      #transcript .empty { color: var(--stage-muted); font-size: 1rem; line-height: 1.7; max-width: 25ch; padding-top: 48px; }
+      .controls { padding: 22px 28px; border-top: 1px solid var(--stage-rule); }
+      .action-line { display: flex; align-items: center; gap: 24px; }
+      #action { flex: 0 0 auto; min-width: 168px; min-height: 46px; padding: 11px 20px; border: 1px solid var(--mesh); background: var(--mesh); color: var(--stage); font: 600 0.8125rem "Helvetica Neue", Helvetica, Arial, sans-serif; cursor: pointer; }
+      #action:hover:not(:disabled) { background: var(--stage-fg); border-color: var(--stage-fg); }
+      #action:disabled { cursor: wait; opacity: 0.6; }
+      #action:focus-visible { outline-color: var(--mesh); }
+      #action-hint, #size-note { font-size: 0.75rem; line-height: 1.6; }
+      #action-hint { color: var(--stage-fg); }
+      #size-note { color: var(--stage-muted); }
+      #progress-wrap { margin-top: 18px; }
+      .bar { display: block; width: 100%; height: 6px; accent-color: var(--mesh); }
+      #progress-label { color: var(--stage-muted); font: 0.6875rem ui-monospace, monospace; margin-top: 8px; }
+      #speech-error { margin-top: 16px; border-left: 2px solid var(--mesh); padding-left: 12px; font-size: 0.8125rem; }
+      .diagnostics { margin-top: 20px; color: var(--muted); border-bottom: 1px solid var(--rule); }
+      .diagnostics > summary { width: fit-content; cursor: pointer; font-size: 0.75rem; padding: 4px 0 14px; }
+      .network-content { padding: 8px 0 24px; font-size: 0.8125rem; }
+      .coverage { display: grid; gap: 10px; max-width: 80ch; }
+      #device:empty, #progress-file:empty { display: none; }
+      .summaries { display: grid; gap: 6px; margin: 20px 0; }
+      .summaries, .mono, .meta, .path, #device, #progress-file { font: 0.6875rem/1.6 ui-monospace, monospace; }
+      h3 { font-size: 0.8125rem; margin: 20px 0 8px; color: var(--fg); }
+      #requests, #model-files { max-height: 240px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 8px; }
       .req { padding: 8px 0; border-bottom: 1px solid var(--rule); }
-      .req-title { font-weight: 700; }
-      .path { overflow-wrap: anywhere; }
-      .foot {
-        margin-top: 16px;
-        color: var(--muted);
-        font-size: 0.8125rem;
-      }
-      .foot a { margin-right: 12px; }
-      @media (max-width: 800px) {
-        .islands { grid-template-columns: 1fr; }
+      .req-title { font-weight: 600; overflow-wrap: anywhere; }
+      .path, .meta { overflow-wrap: anywhere; }
+      .foot { margin-top: 24px; font-size: 0.75rem; max-width: 90ch; }
+      .foot a { margin-right: 8px; }
+      @media (max-width: 640px) {
+        main { padding-top: 20px; }
+        .stage-top { padding: 20px 20px 0; }
+        .workspace { grid-template-columns: 1fr; }
+        #mark { height: 270px; }
+        .transcript-pane { margin: 0 20px 20px; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--stage-rule); }
+        #transcript { height: 140px; margin-top: 14px; }
+        #transcript .empty { padding-top: 14px; max-width: 30ch; font-size: 0.875rem; }
+        .controls { padding: 20px; }
+        .action-line { align-items: stretch; flex-direction: column; gap: 12px; }
+        #action { width: 100%; }
       }
     </style>
   </head>
@@ -177,66 +115,50 @@
       })();
     </script>
     <main>
-      <header>
+      <header class="page-heading">
         <p class="eyebrow">ExoSquare experiment</p>
         <h1>On-device speech</h1>
       </header>
-      <div class="islands">
-        <section id="speech" aria-labelledby="speech-heading">
-          <h2 id="speech-heading">Speech</h2>
-          <div class="commit" id="commit">
-            <p id="size-note">
-              About 160 MB on the first visit (Base weights plus the runtime).
-              Weights are fetched once from Hugging Face and stored in the browser
-              cache. Later visits load from that cache. Audio never leaves the
-              device. The demo works best on WebGPU.
-            </p>
-            <p id="cache-hint"></p>
-            <button id="load" type="button">Load demo (~160 MB)</button>
-            <div id="progress-wrap" hidden>
-              <div
-                id="progress-bar"
-                class="bar"
-                role="progressbar"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-label="Model load progress"
-              >
-                <span id="progress-fill"></span>
-              </div>
-              <p id="progress-label">Starting the runtime</p>
-              <p id="progress-file"></p>
+      <section id="speech" class="sound-stage" aria-label="Speech to text">
+        <div class="stage-top">
+          <p class="stage-brand">EXPERIMENT DEMO</p>
+          <p id="status" role="status">Model not loaded</p>
+        </div>
+        <div class="workspace">
+          <div class="visual">
+            <canvas id="mark" role="img" aria-label="A square wireframe block that ripples with your voice." data-level="0" data-speech="false" data-source="off">A square wireframe responds to your voice.</canvas>
+          </div>
+          <section class="transcript-pane" aria-labelledby="transcript-heading">
+            <div class="transcript-heading"><h2 id="transcript-heading">Transcript</h2><span>English</span></div>
+            <div id="transcript" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Transcript">
+              <p class="empty">Your words will appear here. Download the model to begin.</p>
             </div>
-            <p id="device"></p>
-            <p id="status"></p>
-            <p id="speech-error" role="alert" hidden></p>
-            <div id="mic-step" hidden>
-              <p id="consent">
-                The microphone stays off until you press start. Audio is transcribed
-                in this browser and is not uploaded.
-              </p>
-              <button id="mic" type="button">Start microphone</button>
+          </section>
+        </div>
+        <div class="controls">
+          <div class="action-line">
+            <button id="action" type="button" aria-describedby="action-hint size-note">Download Model</button>
+            <div>
+              <p id="action-hint">About 160 MB once, then saved in your browser.</p>
+              <p id="size-note">Audio never leaves this device. The microphone starts only when you press Start.</p>
             </div>
           </div>
-          <svg id="mark" viewBox="0 0 200 200" role="img" aria-label="ExoSquare mark. The window opens with the input level." data-level="0" data-speech="false">
-            <g id="mark-scale">
-              <rect id="halo" x="1" y="1" width="198" height="198" fill="none" stroke="currentColor" stroke-width="1"></rect>
-              <rect x="8" y="8" width="184" height="184" fill="currentColor"></rect>
-              <rect id="window" x="22" y="18" width="156" height="52"></rect>
-              <text x="100" y="148" text-anchor="middle" font-size="46" font-weight="700" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">EXO</text>
-              <text x="100" y="176" text-anchor="middle" font-size="15" letter-spacing="4" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">SQUARE</text>
-            </g>
-          </svg>
-          <p id="level-readout" class="mono">0.00</p>
-          <div id="transcript" aria-live="polite">
-            <p class="empty">Transcript text shows up here after you start capture.</p>
+          <div id="progress-wrap" hidden>
+            <progress id="progress-bar" class="bar" max="100" aria-label="Model load progress"></progress>
+            <p id="progress-label">Preparing download</p>
           </div>
-        </section>
-        <section id="network" aria-labelledby="network-heading">
-          <h2 id="network-heading">Network</h2>
+          <p id="speech-error" role="alert" hidden></p>
+        </div>
+      </section>
+      <details id="network" class="diagnostics">
+        <summary>Network &amp; model details</summary>
+        <div class="network-content">
           <div class="coverage">
+            <p>About 160 MB on the first visit, fetched from Hugging Face and stored in the browser cache. The demo works best on WebGPU and falls back to WASM when needed.</p>
+            <p id="device"></p>
+            <p id="progress-file"></p>
             <p>
-              Nothing is downloaded until you press Load demo. This list then shows
+              Model files are downloaded only after you press Download Model. This list then shows
               every request this page can see. Rows are not removed.
             </p>
             <p>
@@ -275,8 +197,6 @@
           <div id="model-files"></div>
           <h3>Requests</h3>
           <div id="requests"></div>
-        </section>
-      </div>
       <p class="foot">
         Moonshine Base and Silero VAD weights are MIT licensed and are downloaded
         into this browser. They are not stored in this site repository. The speech
@@ -289,6 +209,8 @@
         <a href="sw.js">Network observer</a>
         <a href="observe.js">Request ledger</a>
       </p>
+        </div>
+      </details>
     </main>
     <script type="module" src="main.js"></script>
   </body>

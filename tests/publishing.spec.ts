@@ -73,15 +73,17 @@ for (const route of routes) {
     if (kind === 'moonshine') {
       await expect(page).toHaveTitle('On-device speech');
       await expect(
-        page.getByRole('button', { name: 'Load demo (~160 MB)' }),
+        page.getByRole('button', { name: 'Download Model' }),
       ).toBeVisible();
       const note = page.locator('#size-note');
-      await expect(note).toContainText('160 MB');
-      await expect(note).toContainText('Hugging Face');
-      await expect(note).toContainText('browser cache');
       await expect(note).toContainText('never leaves');
-      await expect(note).toContainText('WebGPU');
-      await expect(page.locator('#mic-step')).toBeHidden();
+      await expect(note).toContainText('Start');
+      await expect(page.locator('#action-hint')).toContainText('160 MB');
+      await expect(page.getByRole('button')).toHaveCount(1);
+      await expect(page.locator('#network')).not.toHaveAttribute('open');
+      await expect(page.locator('#network')).toContainText('Hugging Face');
+      await expect(page.locator('#network')).toContainText('browser cache');
+      await expect(page.locator('#network')).toContainText('WebGPU');
       await expect(page.locator('#progress-wrap')).toBeHidden();
       await expect(page.locator('#network')).toContainText('Cache Storage');
       await expect(page.locator('#network')).toContainText('Clear site data');

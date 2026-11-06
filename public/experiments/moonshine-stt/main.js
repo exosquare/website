@@ -1,3 +1,4 @@
+import { createBlockVisualizer } from './block-visualizer.js';
 import {
   createLedger,
   formatBytes,
@@ -10,26 +11,18 @@ const synthetic = new URLSearchParams(location.search).get('synthetic') === '1';
 const ledger = createLedger();
 const modelFiles = [];
 
-const loadButton = document.querySelector('#load');
+const actionButton = document.querySelector('#action');
+const actionHint = document.querySelector('#action-hint');
 const sizeNote = document.querySelector('#size-note');
-const cacheHint = document.querySelector('#cache-hint');
 const progressWrap = document.querySelector('#progress-wrap');
-const progressFill = document.querySelector('#progress-fill');
 const progressBar = document.querySelector('#progress-bar');
 const progressLabel = document.querySelector('#progress-label');
 const progressFile = document.querySelector('#progress-file');
 const deviceLine = document.querySelector('#device');
 const statusLine = document.querySelector('#status');
 const errorLine = document.querySelector('#speech-error');
-const micStep = document.querySelector('#mic-step');
-const consent = document.querySelector('#consent');
-const micButton = document.querySelector('#mic');
 const transcript = document.querySelector('#transcript');
-const levelReadout = document.querySelector('#level-readout');
-const mark = document.querySelector('#mark');
-const markScale = document.querySelector('#mark-scale');
-const windowRect = document.querySelector('#window');
-const halo = document.querySelector('#halo');
+const visualizer = createBlockVisualizer(document.querySelector('#mark'));
 const swNote = document.querySelector('#sw-note');
 const pageSummary = document.querySelector('#page-summary');
 const loadSummary = document.querySelector('#load-summary');
@@ -44,7 +37,9 @@ const state = {
   ready: false,
   live: false,
   worker: null,
-  audio: null,
+  busy: '',
+  cached: false,
+  loadFailed: false,
   sessionStart: 0,
   vad: 0,
   vadActive: false,
@@ -87,6 +82,25 @@ ledger.onChange(() => {
 
 function setStatus(text) {
   statusLine.textContent = text;
+}
+
+function renderAction() {
+  actionButton.disabled = state.loading || !!state.busy;
+  actionButton.textContent = state.busy || (state.loading
+    ? state.cacheMode ? 'Loading…' : 'Downloading…'
+    : state.live ? 'Stop' : state.ready ? 'Start'
+    : state.loadFailed ? 'Retry download' : state.cached ? 'Load Model' : 'Download Model');
+  actionHint.textContent = state.live
+    ? synthetic ? 'Generated audio is running. The microphone is off.' : 'Microphone on. Press Stop when you’re finished.'
+    : state.ready ? synthetic ? 'Ready to try with generated audio.' : 'Ready. Press Start to allow microphone access.'
+    : state.loading ? 'Loading the model. The microphone is off.'
+    : state.cached ? 'Uses model files already saved in this browser.' : 'About 160 MB once, then saved in your browser.';
+  document.querySelector('#speech').dataset.state = state.live ? 'live' : state.ready ? 'ready' : state.loading ? 'loading' : 'idle';
+}
+
+function setEmptyTranscript(text) {
+  const empty = transcript.querySelector('.empty');
+  if (empty) empty.textContent = text;
 }
 
 function showError(text) {
@@ -229,7 +243,7 @@ function renderModelFiles() {
   const onnxCache = onnx.filter((file) => file.source === 'cache-storage').length;
   if (!state.loading && !state.ready) {
     onnxSummary.textContent =
-      'ONNX files are not requested until you press Load demo. A cold first visit downloads about 160 MB (Base weights plus the runtime). A later visit can show no weight requests, because those files are read from Cache Storage.';
+      'ONNX files are not requested until you press Download Model. A cold first visit downloads about 160 MB (Base weights plus the runtime). A later visit can show no weight requests, because those files are read from Cache Storage.';
   } else if (!onnx.length) {
     onnxSummary.textContent = 'No ONNX file has finished loading yet.';
   } else if (onnxNet === 0 && onnxCache > 0) {
@@ -298,15 +312,10 @@ function renderNetwork() {
 
 function setBar(ratio) {
   if (ratio == null || !Number.isFinite(ratio)) {
-    progressFill.style.width = '0%';
-    progressBar.removeAttribute('aria-valuenow');
-    progressBar.dataset.state = 'indeterminate';
+    progressBar.removeAttribute('value');
     return;
   }
-  const pct = Math.max(0, Math.min(100, ratio * 100));
-  progressFill.style.width = `${pct}%`;
-  progressBar.setAttribute('aria-valuenow', String(Math.round(pct)));
-  progressBar.dataset.state = 'determinate';
+  progressBar.value = Math.max(0, Math.min(100, ratio * 100));
 }
 
 function renderProgress(current) {
@@ -413,16 +422,12 @@ function onWorkerMessage(event) {
     );
     const onnx = relevant.filter((url) => url.endsWith('.onnx'));
     state.cacheMode = onnx.length > 0;
-    if (data.error) {
-      cacheHint.textContent = `Cache Storage could not be opened (${data.error}).`;
-    } else if (onnx.length) {
-      cacheHint.textContent =
-        'Weight files are already in this browser cache, so this load should read them from Cache Storage instead of downloading about 160 MB again.';
-    }
+    if (onnx.length) state.cached = true;
+    renderAction();
   }
   if (data.type === 'model-file') upsertModelFile(data);
   if (data.type === 'device') describeDevice(data);
-  if (data.type === 'status') setStatus(data.message);
+  if (data.type === 'status' && state.live) setStatus(data.message);
   if (data.type === 'vad') {
     state.vad = Math.max(0, Math.min(1, data.probability || 0));
     state.vadActive = !!data.active;
@@ -431,280 +436,235 @@ function onWorkerMessage(event) {
   if (data.type === 'ready') {
     state.ready = true;
     state.loading = false;
-    loadButton.disabled = true;
-    loadButton.textContent = 'Model ready';
-    progressLabel.textContent = progressFiles.size
-      ? progressLabel.textContent.replace(/^(Downloading|Loading from cache|Loading)\b/, 'Loaded')
-      : 'Model ready';
+    state.loadFailed = false;
+    progressWrap.hidden = true;
     setBar(1);
-    micStep.hidden = false;
-    setStatus('The model is ready. The microphone is still off.');
+    setStatus('Ready');
+    setEmptyTranscript('Press Start, then speak. Your words will appear here.');
+    renderAction();
     void setPhase('ready');
     renderNetwork();
   }
-  if (data.type === 'error') {
-    state.loading = false;
-    loadButton.disabled = false;
-    loadButton.textContent = 'Try again (~160 MB)';
-    showError(`The model did not load, so transcription has not started. ${data.message}`);
-    setStatus('The model did not load.');
-  }
+  if (data.type === 'error') failModel(data.message);
+
 }
 
 function appendTranscript(data) {
   const text = (data.text || '').trim();
   if (!text) return;
-  const empty = transcript.querySelector('.empty');
-  empty?.remove();
+  const nearBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 48;
+  transcript.querySelector('.empty')?.remove();
   const line = document.createElement('p');
-  const stamp = document.createElement('time');
-  const ms = Math.max(0, (data.start || Date.now()) - state.sessionStart);
-  const total = Math.floor(ms / 1000);
-  stamp.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-  stamp.dateTime = new Date(data.start || Date.now()).toISOString();
-  line.append(stamp, document.createTextNode(` ${text}`));
+  line.textContent = text;
   transcript.append(line);
+  if (nearBottom) transcript.scrollTop = transcript.scrollHeight;
+}
+
+let audioHandle = null;
+let captureEpoch = 0;
+
+function releaseAudio() {
+  captureEpoch++;
+  const handle = audioHandle;
+  audioHandle = null;
+  state.live = false;
+  state.vad = 0;
+  state.vadActive = false;
+  handle?.stop();
+  visualizer.disconnect();
+  return handle?.context.close().catch(() => {});
+}
+
+function failModel(message) {
+  void releaseAudio();
+  state.loading = false;
+  state.ready = false;
+  state.busy = '';
+  state.loadFailed = true;
+  state.worker?.terminate();
+  state.worker = null;
+  progressWrap.hidden = true;
+  showError(`Speech recognition could not run. Try downloading the model again. ${message || ''}`.trim());
+  setStatus('Model unavailable');
+  renderAction();
+  void setPhase('page');
 }
 
 async function loadDemo() {
   if (state.loading || state.ready) return;
   state.loading = true;
+  state.cacheMode = state.cached;
+  state.worker?.terminate();
+  progressFiles.clear();
+  modelFiles.length = 0;
   showError('');
-  loadButton.disabled = true;
   progressWrap.hidden = false;
-  progressLabel.textContent = 'Starting the runtime';
+  progressLabel.textContent = state.cached ? 'Reading saved model files' : 'Preparing download';
   setBar(null);
-  setStatus('Loading the model. The microphone is still off.');
+  setStatus('Loading model');
+  renderAction();
   await setPhase('loading');
   await registerObserver();
   const worker = new Worker(new URL('./speech-worker.js', import.meta.url), { type: 'module' });
   state.worker = worker;
-  worker.addEventListener('message', onWorkerMessage);
+  worker.addEventListener('message', (event) => {
+    if (state.worker === worker) onWorkerMessage(event);
+  });
   worker.addEventListener('error', (event) => {
-    state.loading = false;
-    loadButton.disabled = false;
-    loadButton.textContent = 'Try again (~160 MB)';
-    showError(
-      `The model did not load, so transcription has not started. ${event.message || 'Worker error'}`,
-    );
+    if (state.worker === worker) failModel(event.message || 'Worker error');
   });
   worker.postMessage({ type: 'load' });
-}
-
-let audioHandle = null;
-let raf = 0;
-let level = 0;
-
-function restMark() {
-  cancelAnimationFrame(raf);
-  level = 0;
-  state.vad = 0;
-  state.vadActive = false;
-  mark.dataset.level = '0';
-  mark.dataset.speech = 'false';
-  markScale.setAttribute('transform', 'translate(100 100) scale(1) translate(-100 -100)');
-  windowRect.setAttribute('y', '18');
-  windowRect.setAttribute('height', '52');
-  halo.setAttribute('x', '1');
-  halo.setAttribute('y', '1');
-  halo.setAttribute('width', '198');
-  halo.setAttribute('height', '198');
-  levelReadout.textContent = '0.00';
-}
-
-function animate(analyser) {
-  const samples = new Float32Array(analyser.fftSize);
-  const tick = () => {
-    analyser.getFloatTimeDomainData(samples);
-    let sum = 0;
-    for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
-    const rms = Math.sqrt(sum / samples.length);
-    const target = Math.max(Math.min(1, rms / 0.12), state.vadActive ? state.vad : 0);
-    level += (target - level) * 0.28;
-    const scale = 1 + level * 0.07;
-    markScale.setAttribute(
-      'transform',
-      `translate(100 100) scale(${scale.toFixed(4)}) translate(-100 -100)`,
-    );
-    windowRect.setAttribute('y', (18 - level * 6).toFixed(1));
-    windowRect.setAttribute('height', (52 + level * 48).toFixed(1));
-    const inset = 1 - level * 8;
-    halo.setAttribute('x', String(inset));
-    halo.setAttribute('y', String(inset));
-    halo.setAttribute('width', String(200 - inset * 2));
-    halo.setAttribute('height', String(200 - inset * 2));
-    mark.dataset.level = level.toFixed(3);
-    mark.dataset.speech = state.vadActive ? 'true' : 'false';
-    levelReadout.textContent = level.toFixed(2);
-    raf = requestAnimationFrame(tick);
-  };
-  raf = requestAnimationFrame(tick);
 }
 
 async function startCapture() {
   if (!state.ready || state.live) return;
   showError('');
-  const micPromise = synthetic
-    ? null
-    : navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          autoGainControl: true,
-          noiseSuppression: true,
-        },
-      });
+  const epoch = ++captureEpoch;
   const context = new AudioContext({ latencyHint: 'interactive' });
-  await context.resume();
   let stream = null;
-  let source;
-  let extraStop = () => {};
-  try {
-    if (synthetic) {
-      const osc = context.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 132;
-      const osc2 = context.createOscillator();
-      osc2.type = 'square';
-      osc2.frequency.value = 198;
-      const gain = context.createGain();
-      gain.gain.value = 0.2;
-      const lfo = context.createOscillator();
-      lfo.frequency.value = 2.4;
-      const depth = context.createGain();
-      depth.gain.value = 0.15;
-      lfo.connect(depth);
-      depth.connect(gain.gain);
-      osc.connect(gain);
-      osc2.connect(gain);
-      osc.start();
-      osc2.start();
-      lfo.start();
-      source = gain;
-      extraStop = () => {
-        osc.stop();
-        osc2.stop();
-        lfo.stop();
-      };
-    } else {
-      stream = await micPromise;
-      source = context.createMediaStreamSource(stream);
-    }
-  } catch (error) {
-    await context.close();
-    const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
-    showError(
-      denied
-        ? 'Microphone permission was denied, so capture has not started. Nothing is being recorded.'
-        : `The microphone is not available, so capture has not started. ${error?.message || ''}`.trim(),
-    );
-    setStatus('The microphone is off.');
-    return;
-  }
-  const analyser = context.createAnalyser();
-  analyser.fftSize = 2048;
-  source.connect(analyser);
-  const mute = context.createGain();
-  mute.gain.value = 0;
-  analyser.connect(mute);
-  mute.connect(context.destination);
-  await context.audioWorklet.addModule(new URL('./vad-processor.js', import.meta.url));
-  const worklet = new AudioWorkletNode(context, 'vad-processor', {
-    numberOfInputs: 1,
-    numberOfOutputs: 0,
-    channelCount: 1,
-    channelCountMode: 'explicit',
-    channelInterpretation: 'discrete',
-  });
-  source.connect(worklet);
-  worklet.port.onmessage = (event) => {
-    const buffer = event.data?.buffer;
-    if (!buffer || !state.worker || !state.live) return;
-    const copy = new Float32Array(buffer);
-    state.worker.postMessage({ type: 'audio', buffer: copy }, [copy.buffer]);
-  };
-  audioHandle = {
+  let source = null;
+  let worklet = null;
+  let stopped = false;
+  const oscillators = [];
+  const handle = {
     context,
-    stream,
     stop() {
-      extraStop();
+      if (stopped) return;
+      stopped = true;
+      oscillators.forEach((oscillator) => oscillator.stop());
       stream?.getTracks().forEach((track) => track.stop());
-      worklet.disconnect();
-      source.disconnect();
+      worklet?.disconnect();
+      source?.disconnect();
     },
   };
-  state.sessionStart = Date.now();
-  state.live = true;
-  await setPhase('live');
-  state.worker.postMessage({ type: 'listen', on: true });
-  animate(analyser);
-  micButton.textContent = synthetic ? 'Stop synthetic audio' : 'Stop microphone';
-  setStatus(
-    synthetic
-      ? 'Synthetic audio is on. The microphone is not open.'
-      : 'The microphone is on. Speech is segmented on this device.',
-  );
-  renderNetwork();
+  audioHandle = handle;
+  try {
+    await context.resume();
+    if (synthetic) {
+      // Kept as a URL-only integration test source, with no additional UI.
+      const gain = context.createGain();
+      gain.gain.value = 0.12;
+      const tone = context.createOscillator();
+      tone.frequency.value = 132;
+      tone.type = 'sawtooth';
+      const lfo = context.createOscillator();
+      lfo.frequency.value = 0.8;
+      const depth = context.createGain();
+      depth.gain.value = 0.1;
+      lfo.connect(depth).connect(gain.gain);
+      tone.connect(gain);
+      tone.start();
+      lfo.start();
+      oscillators.push(tone, lfo);
+      source = gain;
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        channelCount: 1, echoCancellation: true, autoGainControl: true, noiseSuppression: true,
+      } });
+      if (epoch !== captureEpoch) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      source = context.createMediaStreamSource(stream);
+      stream.getTracks().forEach((track) => track.addEventListener('ended', () => {
+        if (state.live && audioHandle === handle) void stopCapture();
+      }));
+    }
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+    const mute = context.createGain();
+    mute.gain.value = 0;
+    analyser.connect(mute).connect(context.destination);
+    await context.audioWorklet.addModule(new URL('./vad-processor.js', import.meta.url));
+    if (epoch !== captureEpoch) return;
+    worklet = new AudioWorkletNode(context, 'vad-processor', {
+      numberOfInputs: 1, numberOfOutputs: 0, channelCount: 1,
+      channelCountMode: 'explicit', channelInterpretation: 'discrete',
+    });
+    source.connect(worklet);
+    worklet.port.onmessage = (event) => {
+      const buffer = event.data?.buffer;
+      if (!buffer || !state.worker || !state.live) return;
+      const copy = new Float32Array(buffer);
+      state.worker.postMessage({ type: 'audio', buffer: copy }, [copy.buffer]);
+    };
+    state.sessionStart = Date.now();
+    await setPhase('live');
+    if (epoch !== captureEpoch || !state.ready) return;
+    state.live = true;
+    state.worker.postMessage({ type: 'listen', on: true });
+    visualizer.connect(analyser, { source: synthetic ? 'synthetic' : 'microphone', isSpeech: () => state.vadActive });
+    setStatus(synthetic ? 'Generated audio' : 'Listening');
+    setEmptyTranscript(synthetic ? 'Generated audio is running. The microphone is off.' : 'Listening. Speak a sentence to begin.');
+    renderNetwork();
+  } catch (error) {
+    if (audioHandle === handle) await releaseAudio();
+    else handle.stop();
+    throw error;
+  }
 }
 
 async function stopCapture() {
-  state.live = false;
   state.worker?.postMessage({ type: 'listen', on: false });
-  audioHandle?.stop();
-  await audioHandle?.context.close();
-  audioHandle = null;
-  restMark();
+  await releaseAudio();
   await setPhase('ready');
-  micButton.textContent = synthetic ? 'Start synthetic audio' : 'Start microphone';
-  setStatus('Capture stopped. The model stays in this browser.');
+  setStatus('Stopped');
+  setEmptyTranscript('Press Start whenever you’re ready to speak.');
+  renderAction();
   renderNetwork();
 }
 
-loadButton.addEventListener('click', () => {
-  loadDemo().catch((error) => {
-    state.loading = false;
-    loadButton.disabled = false;
-    loadButton.textContent = 'Try again (~160 MB)';
-    showError(`The model did not load, so transcription has not started. ${error.message}`);
-  });
-});
-
-micButton.addEventListener('click', () => {
-  if (state.live) {
-    stopCapture();
+actionButton.addEventListener('click', async () => {
+  if (state.loading || state.busy) return;
+  if (!state.ready) {
+    try { await loadDemo(); }
+    catch (error) { failModel(error.message); }
     return;
   }
-  startCapture().catch((error) => {
-    showError(`Capture did not start. ${error?.message || ''}`.trim());
-    setStatus('The microphone is off.');
-  });
+  const stopping = state.live;
+  state.busy = stopping ? 'Stopping…' : 'Starting…';
+  renderAction();
+  try {
+    if (stopping) await stopCapture();
+    else await startCapture();
+  } catch (error) {
+    const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
+    showError(denied
+      ? 'Microphone access was denied. Allow it in your browser, then press Start again.'
+      : `Could not start the microphone. ${error?.message || 'Please try again.'}`);
+    setStatus('Microphone off');
+  } finally {
+    state.busy = '';
+    renderAction();
+  }
 });
-
-if (synthetic) {
-  consent.textContent =
-    'This URL uses a generated tone instead of the microphone, so capture can be tried without a mic. The microphone is not opened. Audio still stays in this browser.';
-  micButton.textContent = 'Start synthetic audio';
-}
 
 async function noteExistingCache() {
   if (!('caches' in window)) return;
   try {
     const cache = await caches.open('transformers-cache');
     const keys = await cache.keys();
-    const onnx = keys.filter(
-      (request) =>
-        /moonshine-base-ONNX|silero-vad/.test(request.url) && request.url.endsWith('.onnx'),
-    );
-    if (onnx.length) {
-      cacheHint.textContent =
-        'Weight files are already in this browser cache, so this click should load them from there instead of downloading about 160 MB again.';
+    state.cached = keys.some((request) => /moonshine-base-ONNX/.test(request.url) && request.url.endsWith('.onnx'));
+    if (!state.ready && !state.loading && state.cached) {
+      setEmptyTranscript('Your words will appear here. Load the saved model to begin.');
+      renderAction();
     }
-  } catch {
-    /* the standing explanation still tells the reader what a first visit does */
-  }
+  } catch { /* Download Model remains the starting action. */ }
 }
 
-setStatus('Waiting. The download has not started.');
+if (synthetic) sizeNote.textContent = 'Generated audio is used on this test URL. The microphone stays off.';
+setStatus('Model not loaded');
+renderAction();
 renderNetwork();
 noteExistingCache();
 sizeNote.dataset.ready = 'true';
+window.addEventListener('pagehide', () => {
+  if (audioHandle) {
+    state.worker?.postMessage({ type: 'listen', on: false });
+    void releaseAudio();
+    state.busy = '';
+    setStatus('Stopped');
+    renderAction();
+  }
+});
