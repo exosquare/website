@@ -1,0 +1,48 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { withBase } from '../../../lib/paths';
+
+const url = withBase('/experiments/moonshine-stt/');
+---
+
+<Base
+  title="On-device speech"
+  description="Load Moonshine Base in the browser, then transcribe from the microphone. Audio stays on the device."
+>
+  <div class="play-view">
+    <h1>On-device speech</h1>
+    <p>Download the model, press Start, and speak. Your transcript stays on this device.
+      <a href={url}>Open the standalone demo</a>.
+    </p>
+    <iframe
+      src={url}
+      title="On-device Moonshine speech recognition. Download the model, then press Start to use the microphone."
+      sandbox="allow-scripts allow-same-origin"
+      allow="microphone"></iframe>
+  </div>
+</Base>
+
+<style>
+  .play-view {
+    width: min(100% - 32px, 1100px);
+    margin: 40px auto 64px;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+  p {
+    max-width: 680px;
+    margin: 12px 0 24px;
+    line-height: 1.6;
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 820px;
+    border: 1px solid var(--rule);
+    background: #fff;
+  }
+  @media (max-width: 640px) {
+    iframe { height: 1000px; }
+  }
+</style>

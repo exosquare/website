@@ -1,0 +1,36 @@
+---
+title: 'Trying Moonshine for private voice controls'
+draft: true
+topic: 'Local models'
+kind: 'Experiment note'
+author: 'Matt'
+standfirst: 'A conversation about speaking to a web app led me to try speech to text in the browser. About 160 megabytes seemed a reasonable cost for a building block that could keep voice processing local.'
+---
+
+import MoonshineSttArtifact from '../../components/moonshine-stt/MoonshineSttArtifact.astro';
+
+I was talking with an engineer about being able to speak to a Chrome extension for simple things like changing a setting. Something as simple as switching to dark mode without clicking through menus. That got me interested in what it would take to make that work privately, with no server holding the voice data.
+
+Speech to text is one of those pieces, so I tried Moonshine Base in a [public browser demo on Hugging Face](https://webml-community-moonshine-web.static.hf.space/). I wanted to see what was already available and how it might fit together.
+
+Moonshine Base is an English speech-to-text model with about 61.5 million parameters and a permissive open-source licence. The demo runs it through Transformers.js in the browser, turning microphone input into text. Making sense of a request and changing a setting would still need to happen after that. [Model details](https://huggingface.co/moonshine-ai/moonshine-base), [demo source](https://github.com/huggingface/transformers.js-examples/tree/main/moonshine-web).
+
+About 160 megabytes (MB) ended up in the browser's Cache Storage on the first load. That's not insignificant, although on my high-speed connection I barely noticed it. I even wondered whether it had loaded. I'd be more conscious of that download on a slower or metered connection, but I was impressed by how much capability was available out of the box at that size.
+
+Try it here. Download the model, then press Start to use the microphone. The block reacts to your voice while the transcript appears alongside it.
+
+<MoonshineSttArtifact />
+
+There's a small trap when checking the download. Once the model weights are in Cache Storage, another visit can look quiet in the browser's Network panel. The weights are already there. A low transferred figure on that visit doesn't tell us how much had to be downloaded the first time.
+
+The developer tools' “Disable cache” option doesn't clear Cache Storage either. To check a fresh load, that storage needs to be cleared separately before reloading. In Chrome, it's under Application, then Storage. Otherwise it's easy to mistake a warm visit for a very small download. [Chrome's Cache Storage guide](https://developer.chrome.com/docs/devtools/storage/cache).
+
+The privacy side is what makes this interesting to me. Voice cloners are everywhere, and once my voice leaves the machine, I don't really know where it will end up or what might be trained on it. I'd prefer to avoid sending it away in the first place when the job can happen locally.
+
+Once the model weights are local, transcription should run in the browser without sending the audio to a server. That's how the demo's speech processing is implemented, and it's a behaviour I can check in the Network panel. [Transcription source](https://github.com/huggingface/transformers.js-examples/blob/main/moonshine-web/src/worker.js).
+
+The initial requests for the page and model files are expected. After loading, speaking into the microphone should not produce requests carrying audio to a transcription service. Any other traffic, including analytics if present, needs its own inspection. Local transcription alone doesn't establish that everything else on a page is private.
+
+There are limits to what this trial tells me. I haven't measured latency or compared transcription accuracy against other models. This checkpoint is English only, and its model card warns that it can invent or repeat words, particularly with short or cut-off audio. That matters for the sort of brief commands I have in mind. [Model limitations](https://huggingface.co/moonshine-ai/moonshine-base#performance-and-limitations).
+
+For now, Moonshine looks like a building block worth keeping an eye on. The part I'd like to explore next is turning those recognised words into useful actions, while keeping the voice processing on the user's machine.

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>On-device speech</title>
+    <link rel="icon" type="image/png" href="../../logo.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fff;
+        --fg: #0a0a0a;
+        --muted: #6b6b6b;
+        --rule: #e4e4e4;
+        --stage: #101315;
+        --mesh: #d1e6ed;
+        --stage-fg: #eef5f7;
+        --stage-muted: #9ba9af;
+        --stage-rule: #2b3439;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0a0a0a; --fg: #f2f2f2; --muted: #a0a0a0; --rule: #303030; }
+      }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      html, body { margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 32px; }
+      .page-heading { margin-bottom: 22px; }
+      .eyebrow { font: 700 0.6875rem/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; }
+      h1 { margin: 4px 0 0; font-weight: 300; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.025em; }
+      h2, h3, p { margin: 0; }
+      a { color: inherit; }
+      button, a, summary { -webkit-tap-highlight-color: transparent; }
+      button:focus-visible, a:focus-visible, summary:focus-visible, #transcript:focus-visible {
+        outline: 2px solid currentColor; outline-offset: 4px;
+      }
+      .sound-stage { background: var(--stage); color: var(--stage-fg); }
+      .stage-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 28px 0; }
+      .stage-brand { font-size: 0.625rem; letter-spacing: 0.18em; }
+      #status { color: var(--stage-muted); font: 0.6875rem ui-monospace, monospace; text-align: right; }
+      #status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 8px; background: currentColor; }
+      .workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: stretch; }
+      .visual { min-width: 0; display: flex; align-items: center; }
+      #mark { display: block; width: 100%; height: 400px; }
+      .transcript-pane { margin: 32px 0; padding: 4px 32px; min-width: 0; border-left: 1px solid var(--stage-rule); display: flex; flex-direction: column; }
+      .transcript-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .transcript-heading h2 { font-size: 0.75rem; font-weight: 500; }
+      .transcript-heading span { color: var(--stage-muted); font: 0.625rem ui-monospace, monospace; }
+      #transcript { height: 290px; overflow: auto; scrollbar-width: thin; scrollbar-color: #506067 transparent; padding-right: 8px; margin-top: 20px; font-size: clamp(1.125rem, 2vw, 1.375rem); line-height: 1.65; overflow-wrap: anywhere; }
+      #transcript p + p { margin-top: 16px; }
+      #transcript .empty { color: var(--stage-muted); font-size: 1rem; line-height: 1.7; max-width: 25ch; padding-top: 48px; }
+      .controls { padding: 22px 28px; border-top: 1px solid var(--stage-rule); }
+      .action-line { display: flex; align-items: center; gap: 24px; }
+      #action { flex: 0 0 auto; min-width: 168px; min-height: 46px; padding: 11px 20px; border: 1px solid var(--mesh); background: var(--mesh); color: var(--stage); font: 600 0.8125rem "Helvetica Neue", Helvetica, Arial, sans-serif; cursor: pointer; }
+      #action:hover:not(:disabled) { background: var(--stage-fg); border-color: var(--stage-fg); }
+      #action:disabled { cursor: wait; opacity: 0.6; }
+      #action:focus-visible { outline-color: var(--mesh); }
+      #action-hint, #size-note { font-size: 0.75rem; line-height: 1.6; }
+      #action-hint { color: var(--stage-fg); }
+      #size-note { color: var(--stage-muted); }
+      #progress-wrap { margin-top: 18px; }
+      .bar { display: block; width: 100%; height: 6px; accent-color: var(--mesh); }
+      #progress-label { color: var(--stage-muted); font: 0.6875rem ui-monospace, monospace; margin-top: 8px; }
+      #speech-error { margin-top: 16px; border-left: 2px solid var(--mesh); padding-left: 12px; font-size: 0.8125rem; }
+      .diagnostics { margin-top: 20px; color: var(--muted); border-bottom: 1px solid var(--rule); }
+      .diagnostics > summary { width: fit-content; cursor: pointer; font-size: 0.75rem; padding: 4px 0 14px; }
+      .network-content { padding: 8px 0 24px; font-size: 0.8125rem; }
+      .coverage { display: grid; gap: 10px; max-width: 80ch; }
+      #device:empty, #progress-file:empty { display: none; }
+      .summaries { display: grid; gap: 6px; margin: 20px 0; }
+      .summaries, .mono, .meta, .path, #device, #progress-file { font: 0.6875rem/1.6 ui-monospace, monospace; }
+      h3 { font-size: 0.8125rem; margin: 20px 0 8px; color: var(--fg); }
+      #requests, #model-files { max-height: 240px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 8px; }
+      .req { padding: 8px 0; border-bottom: 1px solid var(--rule); }
+      .req-title { font-weight: 600; overflow-wrap: anywhere; }
+      .path, .meta { overflow-wrap: anywhere; }
+      .foot { margin-top: 24px; font-size: 0.75rem; max-width: 90ch; }
+      .foot a { margin-right: 8px; }
+      @media (max-width: 640px) {
+        main { padding-top: 20px; }
+        .stage-top { padding: 20px 20px 0; }
+        .workspace { grid-template-columns: 1fr; }
+        #mark { height: 270px; }
+        .transcript-pane { margin: 0 20px 20px; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--stage-rule); }
+        #transcript { height: 140px; margin-top: 14px; }
+        #transcript .empty { padding-top: 14px; max-width: 30ch; font-size: 0.875rem; }
+        .controls { padding: 20px; }
+        .action-line { align-items: stretch; flex-direction: column; gap: 12px; }
+        #action { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var queue = [];
+        window.__exoResourceQueue = queue;
+        function emit(entry) {
+          if (window.__exoOnResource) window.__exoOnResource(entry);
+          else queue.push(entry);
+        }
+        try {
+          var observer = new PerformanceObserver(function (list) {
+            list.getEntries().forEach(emit);
+          });
+          observer.observe({ type: "resource", buffered: true });
+        } catch (e) {}
+      })();
+    </script>
+    <main>
+      <header class="page-heading">
+        <p class="eyebrow">ExoSquare experiment</p>
+        <h1>On-device speech</h1>
+      </header>
+      <section id="speech" class="sound-stage" aria-label="Speech to text">
+        <div class="stage-top">
+          <p class="stage-brand">EXPERIMENT DEMO</p>
+          <p id="status" role="status">Model not loaded</p>
+        </div>
+        <div class="workspace">
+          <div class="visual">
+            <canvas id="mark" role="img" aria-label="A square wireframe block that ripples with your voice." data-level="0" data-speech="false" data-source="off">A square wireframe responds to your voice.</canvas>
+          </div>
+          <section class="transcript-pane" aria-labelledby="transcript-heading">
+            <div class="transcript-heading"><h2 id="transcript-heading">Transcript</h2><span>English</span></div>
+            <div id="transcript" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Transcript">
+              <p class="empty">Your words will appear here. Download the model to begin.</p>
+            </div>
+          </section>
+        </div>
+        <div class="controls">
+          <div class="action-line">
+            <button id="action" type="button" aria-describedby="action-hint size-note">Download Model</button>
+            <div>
+              <p id="action-hint">About 160 MB once, then saved in your browser.</p>
+              <p id="size-note">Audio never leaves this device. The microphone starts only when you press Start.</p>
+            </div>
+          </div>
+          <div id="progress-wrap" hidden>
+            <progress id="progress-bar" class="bar" max="100" aria-label="Model load progress"></progress>
+            <p id="progress-label">Preparing download</p>
+          </div>
+          <p id="speech-error" role="alert" hidden></p>
+        </div>
+      </section>
+      <details id="network" class="diagnostics">
+        <summary>Network &amp; model details</summary>
+        <div class="network-content">
+          <div class="coverage">
+            <p>About 160 MB on the first visit, fetched from Hugging Face and stored in the browser cache. The demo works best on WebGPU and falls back to WASM when needed.</p>
+            <p id="device"></p>
+            <p id="progress-file"></p>
+            <p>
+              Model files are downloaded only after you press Download Model. This list then shows
+              every request this page can see. Rows are not removed.
+            </p>
+            <p>
+              Transferred is transferSize, the bytes that crossed the network.
+              Decoded is decodedBodySize. An HTTP-cached file can still have a
+              decoded size and a small transfer.
+            </p>
+            <p>
+              Weight files live in Cache Storage (<span class="mono">transformers-cache</span>).
+              A hit is not a network request, so it does not appear in the request
+              list. The model file list asks that store directly. DevTools Disable
+              cache does not bypass Cache Storage. To download the weights again,
+              use DevTools &gt; Application &gt; Storage &gt; Clear site data.
+            </p>
+            <p>
+              A later visit can show no weight traffic. The page and the ONNX
+              Runtime WASM can still transfer (about 4.8 MB in a measured warm
+              session). That figure is not the weights.
+            </p>
+            <p id="sw-note">
+              The service worker records fetches from this page and from workers it
+              controls. The page and the speech worker also record resource timing
+              and wrap fetch, XMLHttpRequest, WebSocket, and sendBeacon. One
+              request seen more than once is one row. This view does not see DNS
+              lookups, the parent page, other tabs, or a service worker registered
+              outside this experiment.
+            </p>
+          </div>
+          <div class="summaries">
+            <p id="page-summary"></p>
+            <p id="load-summary"></p>
+            <p id="live-summary" aria-live="polite"></p>
+            <p id="onnx-summary"></p>
+          </div>
+          <h3>Model files</h3>
+          <div id="model-files"></div>
+          <h3>Requests</h3>
+          <div id="requests"></div>
+      <p class="foot">
+        Moonshine Base and Silero VAD weights are MIT licensed and are downloaded
+        into this browser. They are not stored in this site repository. The speech
+        pipeline is adapted from
+        <a href="https://github.com/huggingface/transformers.js-examples/tree/main/moonshine-web">Moonshine Web</a>
+        (Apache-2.0). Transformers.js is Apache-2.0.
+        <a href="../../licenses/moonshine-web-Apache-2.0.txt">Licence notice</a>
+        <a href="speech-worker.js">Speech worker</a>
+        <a href="vad-processor.js">Audio worklet</a>
+        <a href="sw.js">Network observer</a>
+        <a href="observe.js">Request ledger</a>
+      </p>
+        </div>
+      </details>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

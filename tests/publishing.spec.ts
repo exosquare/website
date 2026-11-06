@@ -12,9 +12,10 @@ function pages(dir: string): string[] {
         : [];
   });
 }
-// The generated game is published as-is: no main, no canonical link, and a
-// fixed layout wider than the mobile viewport. Other route checks still apply.
-const standaloneArtifact = 'experiments/local-tetris.html';
+// Standalone experiment files are copied as-is. Tetris has no main landmark.
+// The speech page has its own checks and no canonical link.
+const tetrisRoute = 'experiments/local-tetris.html';
+const moonshineRoute = 'experiments/moonshine-stt/';
 const routes = pages('dist')
   .map((file) => path.relative('dist', file).split(path.sep).join('/'))
   .filter((file) => file !== '404.html')
@@ -34,18 +35,23 @@ test.beforeEach(async ({ context, baseURL }) => {
 
 for (const route of routes) {
   test(`published page: /${route}`, async ({ page, baseURL }) => {
-    const artifact = route === standaloneArtifact;
+    const kind =
+      route === tetrisRoute
+        ? 'tetris'
+        : route === moonshineRoute
+          ? 'moonshine'
+          : 'page';
     const errors: string[] = [];
     const consoleErrors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    if (artifact) {
+    if (kind !== 'page') {
       page.on('console', (message) => {
         if (message.type() === 'error') consoleErrors.push(message.text());
       });
     }
     const response = await page.goto(new URL(route, baseURL).href);
     expect(response?.status()).toBe(200);
-    if (artifact) {
+    if (kind === 'tetris') {
       await expect(page).toHaveTitle('Tetris');
       const board = page.locator('canvas#board');
       await expect(board).toBeVisible();
@@ -64,15 +70,35 @@ for (const route of routes) {
     } else {
       await expect(page.locator('main')).toBeVisible();
     }
+    if (kind === 'moonshine') {
+      await expect(page).toHaveTitle('On-device speech');
+      await expect(
+        page.getByRole('button', { name: 'Download Model' }),
+      ).toBeVisible();
+      const note = page.locator('#size-note');
+      await expect(note).toContainText('never leaves');
+      await expect(note).toContainText('Start');
+      await expect(page.locator('#action-hint')).toContainText('160 MB');
+      await expect(page.getByRole('button')).toHaveCount(1);
+      await expect(page.locator('#network')).not.toHaveAttribute('open');
+      await expect(page.locator('#network')).toContainText('Hugging Face');
+      await expect(page.locator('#network')).toContainText('browser cache');
+      await expect(page.locator('#network')).toContainText('WebGPU');
+      await expect(page.locator('#progress-wrap')).toBeHidden();
+      await expect(page.locator('#network')).toContainText('Cache Storage');
+      await expect(page.locator('#network')).toContainText('Clear site data');
+      await expect(page.locator('body')).not.toContainText('154 MB');
+      await expect(page.locator('body')).not.toContainText('150 MB');
+    }
     await expect(page.locator('h1')).toBeVisible();
-    if (!artifact) {
+    if (kind === 'page') {
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
         'href',
         new URL(`${prefix}/${route}`, site).href,
       );
     }
     await page.evaluate(() => document.fonts.ready);
-    if (!artifact) {
+    if (kind !== 'tetris') {
       await expect
         .poll(() =>
           page.evaluate(
@@ -102,7 +128,7 @@ for (const route of routes) {
       )
       .toBe(true);
     expect(errors).toEqual([]);
-    if (artifact) expect(consoleErrors).toEqual([]);
+    if (kind !== 'page') expect(consoleErrors).toEqual([]);
   });
 }
 

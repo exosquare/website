@@ -1,0 +1,59 @@
+---
+import { withBase } from '../../lib/paths';
+
+const url = withBase('/experiments/moonshine-stt/');
+const playUrl = withBase('/experiments/play/moonshine-stt/');
+---
+
+<figure class="moonshine-artifact">
+  <iframe
+    src={url}
+    title="On-device Moonshine speech recognition. Download the model, then press Start to use the microphone."
+    sandbox="allow-scripts allow-same-origin"
+    allow="microphone"
+    loading="lazy"></iframe>
+  <figcaption>
+    On-device Moonshine Base. The first model download is about 160 MB and is
+    saved in your browser. Press Start when you’re ready to use the microphone.
+    Audio stays on your device.{' '}
+    <a href={playUrl} target="_blank" rel="noopener noreferrer">Open a larger view</a>.
+  </figcaption>
+</figure>
+
+<style>
+  .moonshine-artifact {
+    margin: 36px 0;
+    width: calc(100% + var(--article-gutter, 0px));
+    margin-left: calc(-1 * var(--article-gutter, 0px));
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 820px;
+    border: 1px solid var(--rule);
+    background: #fff;
+  }
+  figcaption {
+    margin-top: 12px;
+    margin-left: var(--article-gutter, 0px);
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  /* Let the demo use the article's side-note gutter while prose stays narrow. */
+  @media (min-width: 761px) {
+    .moonshine-artifact {
+      --article-gutter: 200px;
+    }
+  }
+  @media (min-width: 1001px) {
+    .moonshine-artifact {
+      --article-gutter: 284px;
+    }
+  }
+  @media (max-width: 700px) {
+    iframe {
+      height: 1000px;
+    }
+  }
+</style>
