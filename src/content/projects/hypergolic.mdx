@@ -1,0 +1,52 @@
+---
+title: 'Hypergolic'
+topic: 'Nostr napplets'
+summary: 'A simple, minimal home for Nostr napplets, built so the apps can be the hero. Our first Android release is available now.'
+draft: false
+publishedAt: 2026-11-13
+status: shipped
+statusChecked: 2026-11-13
+hero:
+  src: '/images/hypergolic/brand.png'
+  alt: 'Hypergolic’s orange spark beside the words: A native home for Nostr napplets.'
+  width: 1280
+  height: 640
+  preserveColor: true
+links:
+  - label: 'Download v0.1.0 for Android'
+    url: 'https://github.com/nostrocket/hypergolic/releases/tag/v0.1.0'
+  - label: 'Explore the source'
+    url: 'https://github.com/nostrocket/hypergolic'
+  - label: 'Report an issue'
+    url: 'https://github.com/nostrocket/hypergolic/issues'
+---
+
+import HypergolicScreens from '../../components/hypergolic/HypergolicScreens.astro';
+
+After the summer in 2026, a friend came back from SEC in Madeira and showed me a very early version of Napplets. I realised immediately that this was something special. I could see it helping take Nostr into the mainstream.
+
+Nostr clients keep reimplementing the same things: core relay connectivity, signer support, identity and permissions. With napplets, the shell can implement that shared plumbing once. Developers can build inside the napplet sandbox and spend more of their time on the user experience.
+
+Hypergolic is our contribution to that idea. It's a native shell for small Nostr web applications called napplets, built for Android and iOS. [v0.1.0 is now available for Android](https://github.com/nostrocket/hypergolic/releases/tag/v0.1.0), with an ARM64 APK to download from the release page. We plan to bring it to the mainstream app stores too.
+
+## The napplets are the hero
+
+I wanted the shell to be simple, minimal and secure. The napplets are the hero, so the shell should give them room and handle the shared responsibilities around them.
+
+Hypergolic lets people discover and open published napplets, review the access they request, and keep several in one workspace. Identity selection, permissions and signing stay with the shell. Napplets don't receive the private keys.
+
+<HypergolicScreens />
+
+There are already some amazing napplets being published, from games to creative tools. We're doing our best to support as many of them as possible. That means continuing to build out support for the NAP specifications that define how napplets work with their shell, and checking how real napplets behave inside Hypergolic.
+
+This is an early release. Security hardening and compatibility work are ongoing, and the release page records the known issues and current testing limits.
+
+## Where we want to take it
+
+AI makes the potential especially exciting. It's becoming so simple to develop a napplet, and a shell people can trust gives those small applications somewhere to run. I wouldn't be surprised if we see complete napplet implementations of some of the biggest SaaS platforms out there.
+
+All built on Nostr. The possibility of an unstoppable ecosystem of applications is what excites me. I think this is the next internet.
+
+Our own roadmap starts with broader NAP support, continued security hardening and getting Hypergolic into the app stores. We'll also be building a series of napplets of our own, working towards a full-blown client for notes and other stuff. Those features will live in napplets, keeping the shell focused on its job.
+
+We've built Hypergolic as part of [Nostrocket](https://github.com/nostrocket). Once we reach v1, we plan to set up a Rocket so contributors can earn merits and own a piece of the project.
