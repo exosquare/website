@@ -1,9 +1,41 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 
 const site = new URL(process.env.DEPLOYED_URL);
 assert.equal(site.protocol, 'https:', 'Expected an HTTPS deployment URL');
+const expectedIdentity = JSON.parse(
+  await readFile(
+    new URL('../public/.well-known/nostr.json', import.meta.url),
+    'utf8',
+  ),
+);
 async function check() {
+  const identityURL = new URL('.well-known/nostr.json?name=_', site);
+  const identity = await fetch(identityURL, {
+    redirect: 'manual',
+    headers: { Origin: 'https://njump.me' },
+    signal: AbortSignal.timeout(10000),
+  });
+  assert.equal(
+    identity.status,
+    200,
+    'NIP-05 must return 200 without redirects',
+  );
+  assert.match(
+    identity.headers.get('content-type') || '',
+    /^application\/json\b/,
+  );
+  assert.equal(
+    identity.headers.get('access-control-allow-origin'),
+    '*',
+    'NIP-05 must allow browser clients',
+  );
+  assert.deepEqual(
+    await identity.json(),
+    expectedIdentity,
+    'Live NIP-05 mapping',
+  );
   for (const route of ['', 'writing/', 'work/']) {
     const url = new URL(route, site);
     const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
