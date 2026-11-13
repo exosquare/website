@@ -1,0 +1,103 @@
+---
+import { withBase } from '../../lib/paths';
+
+const screens = [
+  {
+    name: 'discover-light',
+    label: 'Light mode',
+    alt: 'Hypergolic Discover in light mode, with search, categories and published napplets including Nappakura, Boost Ball and ZapSlingers.',
+  },
+  {
+    name: 'discover-dark',
+    label: 'Dark mode',
+    alt: 'The same Hypergolic Discover screen in dark mode, with a minimal shell header and controls to open published napplets.',
+  },
+];
+---
+
+<figure class="hypergolic-screens">
+  <div class="screens">
+    {
+      screens.map((screen) => (
+        <div class="screen">
+          <p class="screen-label">{screen.label}</p>
+          <a
+            href={withBase(`/images/hypergolic/${screen.name}.png`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${screen.label.toLowerCase()} screenshot at full size (new tab)`}
+          >
+            <img
+              src={withBase(`/images/hypergolic/${screen.name}.png`)}
+              alt={screen.alt}
+              width="1080"
+              height="2400"
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+        </div>
+      ))
+    }
+  </div>
+  <figcaption>
+    Discover in light and dark mode. Captured from the released Android v0.1.0
+    app in an emulator, using a disposable identity and the live napplet
+    directory.
+    <span>Open either image to see it at full size.</span>
+  </figcaption>
+</figure>
+
+<style>
+  .hypergolic-screens {
+    margin: 40px 0 44px;
+    container-type: inline-size;
+  }
+  .screens {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .screen {
+    min-width: 0;
+  }
+  .screen-label {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .screen a {
+    display: block;
+  }
+  .screen img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1080 / 2400;
+    filter: none;
+    border: 1px solid var(--rule);
+  }
+  figcaption {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  figcaption span {
+    display: block;
+    margin-top: 4px;
+  }
+  @container (max-width: 480px) {
+    .screens {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .screen {
+      width: min(100%, 340px);
+      margin-inline: auto;
+    }
+  }
+</style>
