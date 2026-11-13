@@ -1,7 +1,19 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { decode } from 'nostr-tools/nip19';
 const root = path.resolve('dist');
+const site = JSON.parse(await readFile('src/data/site.json', 'utf8'));
+const identity = decode(site.links.npub);
+assert.equal(identity.type, 'npub', 'Expected a public Nostr key');
+const nip05 = JSON.parse(
+  await readFile(path.join(root, '.well-known/nostr.json'), 'utf8'),
+);
+assert.deepEqual(
+  nip05.names,
+  { _: identity.data },
+  'NIP-05 must match the site public key',
+);
 const basePath = (process.env.BASE_PATH || '').replace(/\/$/, '');
 async function walk(dir) {
   const files = await readdir(dir, { withFileTypes: true });

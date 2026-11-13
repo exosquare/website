@@ -26,10 +26,18 @@ jobs:
           SITE_URL: ${{ steps.pages.outputs.origin }}
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
           ASTRO_TELEMETRY_DISABLED: '1'
+      - name: Package the tested build including the NIP-05 path
+        run: |
+          tar --dereference --hard-dereference --directory dist \
+            -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
+          tar -tf "$RUNNER_TEMP/artifact.tar" | grep -Fx './.well-known/nostr.json'
       - name: Upload the tested build
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-artifact@v7.0.1
         with:
-          path: dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
       - name: Save failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v7.0.1
