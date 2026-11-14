@@ -581,9 +581,16 @@ function applyHot(id, instant) {
   nodes.forEach((node) => {
     if (!node.dataset.id) return;
     const group = node.dataset.group;
-    const on = Boolean(id) && (node.dataset.id === id || (group && node.classList.contains('object-row') && stage.querySelector(`[data-id="${CSS.escape(id)}"]`)?.dataset.group === group));
-    node.classList.toggle('is-hot', on);
-    node.classList.toggle('is-dim', Boolean(id) && !on && (node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')));
+    const sameGroup = Boolean(
+      group
+      && node.classList.contains('object-row')
+      && stage.querySelector(`[data-id="${CSS.escape(id)}"]`)?.dataset.group === group,
+    );
+    const on = Boolean(id) && (node.dataset.id === id || sameGroup);
+    node.classList.toggle('is-hot', Boolean(on));
+    node.classList.toggle('is-dim', Boolean(
+      id && !on && (node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')),
+    ));
   });
   block.setHot(id);
 }

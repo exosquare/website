@@ -640,9 +640,9 @@ export function createVisionBlock(canvas, overlay) {
     setHot(id) {
       state.hot = id;
       overlay.querySelectorAll('[data-id]').forEach((node) => {
-        const on = id && node.dataset.id === id;
+        const on = Boolean(id) && node.dataset.id === id;
         node.classList.toggle('is-hot', Boolean(on));
-        node.classList.toggle('is-dim', Boolean(id) && !on);
+        node.classList.toggle('is-dim', Boolean(id && !on));
       });
     },
     fail() {
