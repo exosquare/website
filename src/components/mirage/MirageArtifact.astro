@@ -1,0 +1,56 @@
+---
+import { withBase } from '../../lib/paths';
+
+const url = withBase('/experiments/mirage/');
+const playUrl = withBase('/experiments/play/mirage/');
+---
+
+<figure class="mirage-artifact">
+  <iframe
+    src={url}
+    title="On-device Mirage vision. Choose an image, download the model, then press Run."
+    sandbox="allow-scripts allow-same-origin"
+    loading="lazy"></iframe>
+  <figcaption>
+    On-device Mirage. The model is 21.6 MB the first time and is saved in your
+    browser. Your image never leaves this device.{' '}
+    <a href={playUrl} target="_blank" rel="noopener noreferrer">Open a larger view</a>.
+  </figcaption>
+</figure>
+
+<style>
+  .mirage-artifact {
+    margin: 36px 0;
+    width: calc(100% + var(--article-gutter, 0px));
+    margin-left: calc(-1 * var(--article-gutter, 0px));
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 2100px;
+    border: 1px solid var(--rule);
+    background: #f2f2f2;
+  }
+  figcaption {
+    margin-top: 12px;
+    margin-left: var(--article-gutter, 0px);
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  @media (min-width: 761px) {
+    .mirage-artifact {
+      --article-gutter: 200px;
+    }
+  }
+  @media (min-width: 1001px) {
+    .mirage-artifact {
+      --article-gutter: 284px;
+    }
+  }
+  @media (max-width: 700px) {
+    iframe {
+      height: 2560px;
+    }
+  }
+</style>
