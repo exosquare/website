@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'" />
+    <title>On-device vision</title>
+    <link rel="icon" type="image/png" href="../../logo.png" />
+    <link rel="stylesheet" href="mirage.css" />
+  </head>
+  <body>
+    <main>
+      <h1>On-device vision</h1>
+      <section class="stage" id="stage" aria-label="On-device vision">
+        <div class="stage-top">
+          <p class="stage-brand">EXPERIMENT DEMO</p>
+          <p id="status" role="status">Model not loaded</p>
+        </div>
+        <div class="workspace">
+          <div class="well-col">
+            <div class="well">
+              <div class="frame" id="frame">
+                <canvas id="mark" aria-label="Wireframe block">A wireframe block shows the chosen image.</canvas>
+                <div class="overlay" id="overlay" hidden>
+                  <svg id="boxes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <div class="labels"></div>
+                </div>
+              </div>
+            </div>
+            <div class="samples">
+              <button type="button" class="thumb" data-sample="receipt" aria-pressed="false">
+                <img src="samples/receipt.jpg" alt="Shop receipt" width="64" height="64" />
+              </button>
+              <button type="button" class="thumb" data-sample="parking" aria-pressed="false">
+                <img src="samples/parking.jpg" alt="Street parking sign" width="64" height="64" />
+              </button>
+              <button type="button" class="thumb" data-sample="desk" aria-pressed="false">
+                <img src="samples/desk.jpg" alt="Desk with a laptop and a cup" width="64" height="64" />
+              </button>
+              <button type="button" class="thumb" data-sample="menu" aria-pressed="false">
+                <img src="samples/menu.jpg" alt="Chinese menu" width="64" height="64" />
+              </button>
+              <button type="button" class="own" id="own">Use your own image</button>
+              <input id="file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+              <p id="scale-note" hidden></p>
+            </div>
+          </div>
+          <div class="readout">
+            <section id="decision" aria-labelledby="decision-heading">
+              <h2 id="decision-heading">Decision</h2>
+              <div id="decision-empty">
+                <p>Results will appear here. Download the model to begin.</p>
+                <p>Choose an image, then press Run.</p>
+              </div>
+              <div id="decision-body" hidden>
+                <p id="verdict"></p>
+                <div id="because"></div>
+                <p id="rule-line" class="rule-line"></p>
+              </div>
+            </section>
+            <section aria-labelledby="objects-heading">
+              <h2 id="objects-heading">Objects</h2>
+              <p class="legend">solid: object, dashed: text</p>
+              <div class="rows" id="object-rows"></div>
+            </section>
+            <section aria-labelledby="text-heading">
+              <h2 id="text-heading">Text</h2>
+              <p class="script-note">Reads plain Latin-script text only, such as English or French. It can't read Chinese, Japanese or other scripts.</p>
+              <div class="rows" id="text-rows"></div>
+            </section>
+          </div>
+        </div>
+        <div class="controls">
+          <div class="action-line">
+            <button id="action" type="button">Download model</button>
+            <p id="action-hint">21.6 MB once, then saved in your browser. Your image never leaves this device.</p>
+            <table class="net-proof">
+              <thead>
+                <tr>
+                  <th scope="col"></th>
+                  <th scope="col">Requests</th>
+                  <th scope="col">Transferred</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr id="net-page" class="quiet"><th scope="row">Page</th><td id="page-count">0</td><td id="page-bytes">0 B</td></tr>
+                <tr id="net-model" class="quiet"><th scope="row">Model</th><td id="model-count">0</td><td id="model-bytes">0 B</td></tr>
+                <tr id="net-run"><th scope="row">While running</th><td id="run-count">0</td><td id="run-bytes">0 B</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="progress-wrap" hidden>
+            <progress id="progress-bar" class="bar" max="100" value="0" aria-label="Model load progress"></progress>
+            <p id="progress-label">Preparing download</p>
+          </div>
+          <p id="vision-error" role="alert"></p>
+        </div>
+      </section>
+      <details id="network" class="diagnostics">
+        <summary>Network &amp; model details</summary>
+        <div class="network-content">
+          <p>Mirage (<span class="mono">mirage.cact</span>, 21.6 MB) and the Cactus 4.1.0 runtime run in this browser. Both are Apache-2.0. <a href="../../licenses/cactus-Apache-2.0.txt">Licence notice</a></p>
+          <h3>Sample images</h3>
+          <p>Shop receipt. <a href="https://commons.wikimedia.org/wiki/File:ReceiptSwiss.jpg">Audrius Meskauskas, Wikimedia Commons</a>, CC BY-SA 3.0. Cropped to the items and the total. The header and the footer, which named people and a telephone number, are not included.</p>
+          <p>Street parking sign. <a href="https://commons.wikimedia.org/wiki/File:2_hour_disc_parking_sign,_Stadskanaal_(2019)_05.jpg">Donald Trung, Wikimedia Commons</a>, CC BY-SA 4.0. Cropped to the sign.</p>
+          <p>Desk. <a href="https://www.pexels.com/photo/workplace-with-laptop-and-notepad-placed-near-coffee-cup-5668471/">Sora Shimazaki, Pexels</a>. Cropped to the laptop, notebook and cup.</p>
+          <p>Chinese menu. <a href="https://commons.wikimedia.org/wiki/File:Chinese_menu.jpg">Roland Tanglao, Wikimedia Commons</a>, CC0. The Chinese column was kept and the English column was left out.</p>
+          <p>Your image never leaves this device. After the model is saved, running it makes no network requests.</p>
+          <p>An image longer than 1600 px on its long side is scaled down in this browser before it is read. The whole frame stays visible.</p>
+          <p>The model is stored in Cache Storage (<span class="mono">mirage-model</span>). The page, worker, and runtime are in the service worker cache (<span class="mono">mirage-shell</span>). To remove them, use DevTools, Application, Storage, Clear site data.</p>
+          <p id="sw-note">The service worker records fetches from this page and from the vision worker. The page also records resource timing and wraps fetch, XMLHttpRequest, WebSocket, and sendBeacon.</p>
+          <h3>While running</h3>
+          <div id="run-requests"></div>
+          <h3>Requests</h3>
+          <div id="requests"></div>
+          <p class="foot">
+            <a href="vision-worker.js">Vision worker</a>
+            <a href="rules.js">Page rules</a>
+            <a href="sw.js">Service worker</a>
+            <a href="observe.js">Request ledger</a>
+            <a href="vendor/cactus.js">cactus.js</a>
+            <a href="vendor/cactus.wasm">cactus.wasm</a>
+          </p>
+        </div>
+      </details>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

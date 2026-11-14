@@ -1,0 +1,48 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { withBase } from '../../../lib/paths';
+
+const url = withBase('/experiments/mirage/');
+---
+
+<Base
+  title="On-device vision"
+  description="Choose an image, load Mirage in the browser, and read the decision made by the page rules. The image stays on this device."
+>
+  <div class="play-view">
+    <h1>On-device vision</h1>
+    <p>
+      Choose an image, download the model, then press Run. Your image stays on this device.
+      <a href={url}>Open the standalone demo</a>.
+    </p>
+    <iframe
+      src={url}
+      title="On-device Mirage vision. Choose an image, download the model, then press Run."
+      sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</Base>
+
+<style>
+  .play-view {
+    width: min(100% - 32px, 1100px);
+    margin: 40px auto 64px;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+  p {
+    max-width: 680px;
+    margin: 12px 0 24px;
+    line-height: 1.6;
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 2100px;
+    border: 1px solid var(--rule);
+    background: #f2f2f2;
+  }
+  @media (max-width: 640px) {
+    iframe { height: 2560px; }
+  }
+</style>

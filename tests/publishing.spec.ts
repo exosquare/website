@@ -16,6 +16,7 @@ function pages(dir: string): string[] {
 // The speech page has its own checks and no canonical link.
 const tetrisRoute = 'experiments/local-tetris.html';
 const moonshineRoute = 'experiments/moonshine-stt/';
+const mirageRoute = 'experiments/mirage/';
 const routes = pages('dist')
   .map((file) => path.relative('dist', file).split(path.sep).join('/'))
   .filter((file) => file !== '404.html')
@@ -40,7 +41,9 @@ for (const route of routes) {
         ? 'tetris'
         : route === moonshineRoute
           ? 'moonshine'
-          : 'page';
+          : route === mirageRoute
+            ? 'mirage'
+            : 'page';
     const errors: string[] = [];
     const consoleErrors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -89,6 +92,22 @@ for (const route of routes) {
       await expect(page.locator('#network')).toContainText('Clear site data');
       await expect(page.locator('body')).not.toContainText('154 MB');
       await expect(page.locator('body')).not.toContainText('150 MB');
+    }
+    if (kind === 'mirage') {
+      await expect(page).toHaveTitle('On-device vision');
+      await expect(page.getByRole('button', { name: 'Download model' })).toBeVisible();
+      await expect(page.locator('#action-hint')).toContainText('21.6 MB');
+      await expect(page.locator('#action-hint')).toContainText('never leaves');
+      await expect(page.locator('.script-note')).toContainText('Latin-script');
+      await expect(page.locator('.script-note')).toContainText("can't read Chinese");
+      await expect(page.locator('.net-proof')).toBeVisible();
+      await expect(page.locator('#net-run')).toContainText('While running');
+      await expect(page.locator('#run-count')).toHaveText('0');
+      await expect(page.locator('#network')).not.toHaveAttribute('open');
+      await expect(page.locator('#network')).toContainText('Cache Storage');
+      await expect(page.locator('#network')).toContainText('Clear site data');
+      await expect(page.locator('#network')).toContainText('1600 px');
+      await expect(page.locator('#progress-wrap')).toBeHidden();
     }
     await expect(page.locator('h1')).toBeVisible();
     if (kind === 'page') {
