@@ -216,15 +216,20 @@ function renderAction() {
   else actionHint.textContent = `${SIZE_LABEL} once, then saved in your browser. Your image never leaves this device.`;
 }
 
+function stageLength(name) {
+  const value = parseFloat(getComputedStyle(stage).getPropertyValue(name));
+  return Number.isFinite(value) ? value : 0;
+}
+
 function fitFrame() {
   const well = frame.parentElement;
   const styles = getComputedStyle(well);
   const pad = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
   const column = Math.max(120, well.clientWidth - pad);
-  const maxH = narrowMedia.matches ? 360 : 440;
+  const maxH = stageLength('--mirage-well-max');
   if (!state.image) {
     frame.style.width = '100%';
-    frame.style.height = narrowMedia.matches ? '280px' : '400px';
+    frame.style.height = `${stageLength('--mirage-frame-empty')}px`;
     return;
   }
   const aspect = state.image.width / state.image.height;
@@ -300,7 +305,7 @@ function selectThumb(name) {
 async function chooseSample(button) {
   const image = button.querySelector('img');
   selectThumb(button.dataset.sample);
-  await setImage(image, image.alt);
+  await setImage(image, `${image.alt}, sample`);
 }
 
 function sniff(bytes) {
@@ -459,10 +464,17 @@ function renderDecision(decision) {
   ruleLine.textContent = decision.rule;
   because.replaceChildren();
   for (const line of decision.because) {
+    if (!line.id) {
+      const paragraph = document.createElement('p');
+      paragraph.className = 'because';
+      paragraph.textContent = line.text;
+      because.append(paragraph);
+      continue;
+    }
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'because';
-    button.dataset.id = line.id || '';
+    button.dataset.id = line.id;
     button.textContent = line.text;
     because.append(button);
   }
@@ -571,7 +583,7 @@ function applyHot(id, instant) {
     const group = node.dataset.group;
     const on = Boolean(id) && (node.dataset.id === id || (group && node.classList.contains('object-row') && stage.querySelector(`[data-id="${CSS.escape(id)}"]`)?.dataset.group === group));
     node.classList.toggle('is-hot', on);
-    node.classList.toggle('is-dim', Boolean(id) && !on && (node.classList.contains('evidence-row') || node.classList.contains('because') || node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')));
+    node.classList.toggle('is-dim', Boolean(id) && !on && (node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')));
   });
   block.setHot(id);
 }

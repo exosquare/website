@@ -13,8 +13,18 @@ function track(page: Page) {
   return { outside, seen };
 }
 
+test('the trailing-slash URL serves the experiment', async ({ page }) => {
+  const response = await page.goto('experiments/mirage/');
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname.endsWith('/experiments/mirage/')).toBe(true);
+  await expect(page).toHaveTitle('On-device vision');
+  await expect(page.locator('#mark')).toHaveAttribute('role', 'img');
+  await expect(page.getByRole('button', { name: 'Download model' })).toBeVisible();
+});
+
 async function ready(page: Page) {
   await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await expect(page.locator('#mark')).toHaveAttribute('aria-label', 'Shop receipt, sample');
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await expect(page.locator('#status')).toHaveText('Ready');

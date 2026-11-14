@@ -1,21 +1,88 @@
-/** Timings shared by the stage. Durations are milliseconds. Curves are cubic-bezier control points. */
+/**
+ * Timings shared by the stage. The numbers live on `.stage` in mirage.css.
+ * Durations are milliseconds. Curves are cubic-bezier control points.
+ */
 export const mirageMotion = {
-  fast: 120,
-  base: 200,
-  slow: 320,
-  fade: 120,
-  out: [0.23, 1, 0.32, 1],
-  inOut: [0.77, 0, 0.175, 1],
-  hover: [0.25, 0.1, 0.25, 1],
-  scanPass: 1200,
-  scanHoldAt: 0.9,
-  boxStagger: 30,
-  boxStaggerWindow: 240,
-  boxStaggerCap: 24,
-  dimOpacity: 0.4,
-  linkStroke: 2,
-  instantThreshold: 200,
+  fast: 0,
+  base: 0,
+  slow: 0,
+  fade: 0,
+  out: [0, 0, 1, 1],
+  inOut: [0, 0, 1, 1],
+  hover: [0, 0, 1, 1],
+  scanPass: 0,
+  scanHoldAt: 0,
+  boxStagger: 0,
+  boxStaggerWindow: 0,
+  boxStaggerCap: 0,
+  dimOpacity: 0,
+  linkStroke: 0,
+  instantThreshold: 0,
 };
+
+function readNumber(style, name) {
+  const value = parseFloat(style.getPropertyValue(name));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function readCurve(style, name) {
+  const parts = style.getPropertyValue(name).match(/-?\d*\.?\d+/g) || [];
+  const curve = parts.slice(0, 4).map(Number);
+  return curve.length === 4 ? curve : [0, 0, 1, 1];
+}
+
+function applyMotionStyle(style) {
+  mirageMotion.fast = readNumber(style, '--motion-duration-fast');
+  mirageMotion.base = readNumber(style, '--motion-duration-base');
+  mirageMotion.slow = readNumber(style, '--motion-duration-slow');
+  mirageMotion.fade = readNumber(style, '--motion-duration-fade');
+  mirageMotion.out = readCurve(style, '--motion-ease-out');
+  mirageMotion.inOut = readCurve(style, '--motion-ease-in-out');
+  mirageMotion.hover = readCurve(style, '--motion-ease-hover');
+  mirageMotion.scanPass = readNumber(style, '--mirage-scan-pass');
+  mirageMotion.scanHoldAt = readNumber(style, '--mirage-scan-hold-at');
+  mirageMotion.boxStagger = readNumber(style, '--mirage-box-stagger');
+  mirageMotion.boxStaggerWindow = readNumber(style, '--mirage-box-stagger-window');
+  mirageMotion.boxStaggerCap = readNumber(style, '--mirage-box-stagger-cap');
+  mirageMotion.dimOpacity = readNumber(style, '--mirage-dim-opacity');
+  mirageMotion.linkStroke = readNumber(style, '--mirage-link-stroke');
+  mirageMotion.instantThreshold = readNumber(style, '--mirage-instant-threshold');
+}
+
+/** Copy the stage custom properties into {@link mirageMotion}. */
+export function bindStageMotion(element) {
+  applyMotionStyle(getComputedStyle(element));
+}
+
+function stageBlock(css) {
+  const start = css.indexOf('.stage {');
+  if (start < 0) return '';
+  let depth = 0;
+  for (let index = css.indexOf('{', start); index < css.length; index += 1) {
+    if (css[index] === '{') depth += 1;
+    else if (css[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return css.slice(start, index + 1);
+    }
+  }
+  return '';
+}
+
+if (typeof document !== 'undefined') {
+  const stage = document.querySelector('.stage');
+  if (stage) bindStageMotion(stage);
+} else {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('./mirage.css', import.meta.url), 'utf8');
+  const block = stageBlock(css);
+  applyMotionStyle({
+    getPropertyValue(name) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = block.match(new RegExp(`${escaped}\\s*:\\s*([^;]+)`));
+      return match ? match[1].trim() : '';
+    },
+  });
+}
 
 function bezierComponent(t, a, b) {
   const c = 3 * a;

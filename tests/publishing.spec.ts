@@ -95,6 +95,8 @@ for (const route of routes) {
     }
     if (kind === 'mirage') {
       await expect(page).toHaveTitle('On-device vision');
+      expect(new URL(page.url()).pathname.endsWith('/experiments/mirage/')).toBe(true);
+      await expect(page.locator('#mark')).toHaveAttribute('role', 'img');
       await expect(page.getByRole('button', { name: 'Download model' })).toBeVisible();
       await expect(page.locator('#action-hint')).toContainText('21.6 MB');
       await expect(page.locator('#action-hint')).toContainText('never leaves');

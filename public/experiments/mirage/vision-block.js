@@ -1,7 +1,19 @@
-import { approach, ease, mirageMotion as motion, scanState } from './motion.js';
+import { approach, bindStageMotion, ease, mirageMotion as motion, scanState } from './motion.js';
 
-const MESH = [209, 230, 237];
-const MUTED = [155, 169, 175];
+function channels(value) {
+  const text = String(value).trim();
+  const hex = text.match(/^#([\da-f]{6})$/i);
+  if (hex) {
+    const bits = Number.parseInt(hex[1], 16);
+    return [(bits >> 16) & 255, (bits >> 8) & 255, bits & 255];
+  }
+  const short = text.match(/^#([\da-f]{3})$/i);
+  if (short) {
+    return short[1].split('').map((digit) => Number.parseInt(digit + digit, 16));
+  }
+  const nums = text.match(/[\d.]+/g);
+  return nums && nums.length >= 3 ? nums.slice(0, 3).map(Number) : [0, 0, 0];
+}
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
@@ -68,11 +80,18 @@ function project(point, pose) {
   return [pose.cx + x1 * pose.hx * factor + cabinet * 0.65, pose.cy + y1 * pose.hy * factor + cabinet, z2];
 }
 
-function strokeColour(ink) {
-  const red = lerp(MESH[0], MUTED[0], ink);
-  const green = lerp(MESH[1], MUTED[1], ink);
-  const blue = lerp(MESH[2], MUTED[2], ink);
-  const alpha = lerp(1, 0.4, ink);
+function stageStyleOf(node) {
+  return getComputedStyle(node);
+}
+
+function strokeColour(style, ink) {
+  const mesh = channels(style.getPropertyValue('--mesh'));
+  const muted = channels(style.getPropertyValue('--stage-muted'));
+  const errorAlpha = parseFloat(style.getPropertyValue('--mirage-error-grid-opacity'));
+  const red = lerp(mesh[0], muted[0], ink);
+  const green = lerp(mesh[1], muted[1], ink);
+  const blue = lerp(mesh[2], muted[2], ink);
+  const alpha = lerp(1, Number.isFinite(errorAlpha) ? errorAlpha : 1, ink);
   return `rgba(${red | 0}, ${green | 0}, ${blue | 0}, ${alpha})`;
 }
 
@@ -122,6 +141,8 @@ export function createVisionBlock(canvas, overlay) {
     finish: null,
     hot: null,
   };
+
+  bindStageMotion(canvas);
 
   function slabDepth() {
     const raw = getComputedStyle(canvas).getPropertyValue('--mirage-slab-depth');
@@ -225,12 +246,12 @@ export function createVisionBlock(canvas, overlay) {
       const elapsed = now - state.stage.started;
       const following = state.stage.hasProgress && Math.abs(state.stage.shown - state.stage.reported) > 0.001;
       const traveling = !state.stage.hasProgress && elapsed < motion.instantThreshold + motion.scanPass;
-      const fadingIn = elapsed < motion.instantThreshold + motion.fade;
+      const fadingIn = elapsed < motion.instantThreshold + motion.fast;
       if (following || traveling || fadingIn) moving = true;
     }
     if (state.finish) {
       const since = now - state.finish.endedAt;
-      if (since > motion.fast + motion.fade) state.finish = null;
+      if (since > motion.fast + motion.fast) state.finish = null;
       else moving = true;
     }
     const due = dueCount();
@@ -271,14 +292,17 @@ export function createVisionBlock(canvas, overlay) {
     context.globalAlpha = state.imageOpacity;
     context.drawImage(state.image, bounds.x, bounds.y, bounds.w, bounds.h);
     context.restore();
-    const overlayAlpha = 0.1 * state.imageOpacity * (1 - state.gridFade) * (state.ink > 0 ? lerp(1, 0.4, state.ink) : 1);
+    const style = stageStyleOf(canvas);
+    const gridOpacity = parseFloat(style.getPropertyValue('--mirage-image-grid-opacity'));
+    const errorAlpha = parseFloat(style.getPropertyValue('--mirage-error-grid-opacity'));
+    const overlayAlpha = (Number.isFinite(gridOpacity) ? gridOpacity : 0) * state.imageOpacity * (1 - state.gridFade) * (state.ink > 0 ? lerp(1, Number.isFinite(errorAlpha) ? errorAlpha : 1, state.ink) : 1);
     if (overlayAlpha <= 0.001) return;
     context.save();
     context.beginPath();
     context.rect(bounds.x, bounds.y, bounds.w, bounds.h);
     context.clip();
     context.globalAlpha = overlayAlpha;
-    context.strokeStyle = strokeColour(0);
+    context.strokeStyle = strokeColour(style, 0);
     context.lineWidth = 1;
     const gap = 28;
     context.beginPath();
@@ -324,7 +348,7 @@ export function createVisionBlock(canvas, overlay) {
     if (!scan || scan.opacity <= 0.001) return;
     context.save();
     context.globalAlpha = scan.opacity;
-    context.strokeStyle = '#d1e6ed';
+    context.strokeStyle = stageStyleOf(canvas).getPropertyValue('--mesh').trim();
     context.lineWidth = 1;
     const y = bounds.y + scan.y * bounds.h;
     context.beginPath();
@@ -349,7 +373,7 @@ export function createVisionBlock(canvas, overlay) {
     context.clearRect(0, 0, width, height);
     const current = pose();
     const bounds = faceBounds(current);
-    const colour = strokeColour(state.ink);
+    const colour = strokeColour(stageStyleOf(canvas), state.ink);
     if (state.morph < 0.999) drawGrid(current, colour);
     if (state.imageOpacity > 0) drawImage(bounds);
     if (state.image && state.morph > 0.5) drawScan(bounds);
@@ -398,6 +422,7 @@ export function createVisionBlock(canvas, overlay) {
 
   reducedMedia.addEventListener('change', () => {
     reduced = reducedMedia.matches;
+    bindStageMotion(canvas);
     if (reduced) jump();
     else draw();
   });
@@ -445,15 +470,14 @@ export function createVisionBlock(canvas, overlay) {
       if (item.kind === 'text') rect.classList.add('dashed');
       rect.style.setProperty('--perim', String(perimeter));
       svg.append(rect);
-      const hit = document.createElement('button');
-      hit.type = 'button';
+      const hit = document.createElement('div');
       hit.className = 'box-hit';
       hit.dataset.id = item.id;
+      hit.setAttribute('aria-hidden', 'true');
       hit.style.left = `${x / 10}%`;
       hit.style.top = `${y / 10}%`;
       hit.style.width = `${w / 10}%`;
       hit.style.height = `${h / 10}%`;
-      hit.setAttribute('aria-label', `${item.name} ${item.percent}%`);
       overlay.append(hit);
       const tab = document.createElement('span');
       tab.className = 'tag';
@@ -547,7 +571,8 @@ export function createVisionBlock(canvas, overlay) {
         state.fadeTo = reduced ? 1 : 0;
         state.imageOpacity = reduced ? 1 : 0;
         state.fadeStarted = nowMs();
-        state.fadeDelay = reduced ? 0 : 240;
+        const delay = parseFloat(getComputedStyle(canvas).getPropertyValue('--mirage-image-delay'));
+        state.fadeDelay = reduced ? 0 : (Number.isFinite(delay) ? delay : 0);
         state.fadeDuration = motion.base;
         if (!reduced) {
           state.fadeTo = 1;
@@ -568,7 +593,7 @@ export function createVisionBlock(canvas, overlay) {
       state.fadeTo = 0;
       state.fadeStarted = nowMs();
       state.fadeDelay = 0;
-      state.fadeDuration = motion.fade;
+      state.fadeDuration = motion.fast;
       state.gridFadeFrom = state.gridFade;
       state.gridFadeTo = 0;
       state.gridFadeStarted = nowMs();
