@@ -723,7 +723,13 @@ stage.addEventListener('pointermove', (event) => {
   const moved = state.pointerX != null && (event.clientX !== state.pointerX || event.clientY !== state.pointerY);
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
-  if (moved) state.modality = 'pointer';
+  if (!moved) return;
+  const taking = state.modality === 'keyboard';
+  state.modality = 'pointer';
+  if (!taking || !finePointer.matches) return;
+  state.keyboard = false;
+  const node = event.target?.closest?.('[data-id], [data-ids]');
+  applyHot(node && stage.contains(node) ? node : null, false);
 });
 stage.addEventListener('pointerover', (event) => {
   if (!finePointer.matches || state.modality === 'keyboard') return;
@@ -768,6 +774,9 @@ document.addEventListener('pointerdown', (event) => {
 document.addEventListener('keydown', () => {
   state.keyboard = true;
   state.modality = 'keyboard';
+  const node = document.activeElement?.closest?.('[data-id], [data-ids]');
+  if (node && stage.contains(node)) applyHot(node, true);
+  else applyHot(null, true);
 });
 narrowMedia.addEventListener('change', fitFrame);
 window.addEventListener('resize', () => { fitFrame(); measureTop(); });
