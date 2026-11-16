@@ -115,13 +115,14 @@ function totalFromRow(lines) {
   if (!total) return null;
   const row = lines.filter((line) => Math.abs(line.bbox[1] - total.bbox[1]) < 50);
   const inline = row.find((line) => moneyIn(line.string));
-  if (inline) return { amount: moneyIn(inline.string), line: inline, total };
-  const currency = row.map((line) => currencyWord(line.string)).find(Boolean);
+  if (inline) return { amount: moneyIn(inline.string), line: inline, total, currencyLine: null };
+  const currencyLine = row.find((line) => currencyWord(line.string) && !amountToken(line.string) && !hasTotalWord(line.string));
   const amountLine = row.find((line) => amountToken(line.string));
+  const currency = currencyLine ? currencyWord(currencyLine.string) : null;
   if (!currency || !amountLine) return null;
   const amount = amountToken(amountLine.string);
   const text = currency.length === 1 ? `${currency}${amount}` : `${currency} ${amount}`;
-  return { amount: text, line: amountLine, total };
+  return { amount: text, line: amountLine, total, currencyLine };
 }
 
 function hasTotalWord(value) {
@@ -148,9 +149,14 @@ export function readableLatin(line) {
   return unitScore(line?.score) >= TEXT_CONFIDENCE;
 }
 
+function citedIds(item) {
+  const ids = item?.ids ?? (item?.id ? [item.id] : []);
+  return ids.filter(Boolean);
+}
+
 /** Cited lines stay, even when they are not readable Latin. Everything else must pass. */
 export function shownText(lines, because) {
-  const cited = new Set((because || []).map((item) => item?.id).filter(Boolean));
+  const cited = new Set((because || []).flatMap((item) => citedIds(item)));
   return lines.filter((line) => cited.has(line.id) || readableLatin(line));
 }
 
@@ -281,11 +287,13 @@ function gate(decision, lines) {
   const weak = [];
   const seen = new Set();
   for (const item of decision.because || []) {
-    const line = item?.id ? byId.get(item.id) : null;
-    if (!line || seen.has(line.id)) continue;
-    if (unitScore(line.score) < TEXT_CONFIDENCE) {
-      seen.add(line.id);
-      weak.push(line);
+    for (const id of citedIds(item)) {
+      const line = byId.get(id);
+      if (!line || seen.has(line.id)) continue;
+      if (unitScore(line.score) < TEXT_CONFIDENCE) {
+        seen.add(line.id);
+        weak.push(line);
+      }
     }
   }
   if (!weak.length) return decision;
@@ -318,12 +326,14 @@ function receiptDecision(lines) {
       }
     }
   }
+  let currencyLine = null;
   if (!amount) {
     const joined = totalFromRow(lines);
     if (joined) {
       amount = joined.amount;
       amountLine = joined.line;
       quoted = joined.total;
+      currencyLine = joined.currencyLine;
     }
   }
   if (!amount || !totalLines.length) return null;
@@ -332,7 +342,11 @@ function receiptDecision(lines) {
   const category = foodLine ? ' as food and drink' : '';
   const when = date ? date.label : 'date not found';
   const because = [
-    { text: `Total line: ${quote(quoted.string === amountLine.string ? amountLine.string : `${quoted.string} ${amount}`)}`, id: quoted.id },
+    {
+      text: `Total line: ${quote(quoted.string === amountLine.string ? amountLine.string : `${quoted.string} ${amount}`)}`,
+      id: quoted.id,
+      ids: [quoted.id, currencyLine?.id, amountLine.id].filter(Boolean),
+    },
     date
       ? { text: `Date line: ${quote(date.line.string)}`, id: date.line.id }
       : { text: 'No date line.', id: totalLines[0].id },

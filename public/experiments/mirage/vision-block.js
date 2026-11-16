@@ -642,11 +642,12 @@ export function createVisionBlock(canvas, overlay) {
       poke();
     },
     setHot(id) {
-      state.hot = id;
+      const hot = new Set(Array.isArray(id) ? id.filter(Boolean) : (id ? [id] : []));
+      state.hot = [...hot][0] || null;
       overlay.querySelectorAll('[data-id]').forEach((node) => {
-        const on = Boolean(id) && node.dataset.id === id;
-        node.classList.toggle('is-hot', Boolean(on));
-        node.classList.toggle('is-dim', Boolean(id && !on));
+        const on = hot.has(node.dataset.id);
+        node.classList.toggle('is-hot', on);
+        node.classList.toggle('is-dim', hot.size > 0 && !on);
       });
     },
     fail() {

@@ -41,6 +41,18 @@ test('a total, a currency word, and an amount on one row are joined', () => {
   expect(decision.because[0].text).toBe('Total line: "Total: CHF 54.50"');
 });
 
+test('a weak amount on the total row is not logged', () => {
+  const decision = decide({
+    text: [
+      { id: 'total', string: 'Total:', bbox: [20, 440, 40, 480], score: 0.9 },
+      { id: 'cur', string: 'CHF', bbox: [48, 440, 58, 480], score: 0.9 },
+      { id: 'amt', string: '54.50', bbox: [64, 440, 84, 480], score: 0.05 },
+    ],
+  }, fridayAfternoon);
+  expect(decision.verdict).toBe("Can't tell.");
+  expect(decision.because[0].text).toBe('"54.50" is below the confidence threshold.');
+});
+
 test('a receipt without a date says date not found', () => {
   const decision = decide({
     text: [

@@ -150,9 +150,36 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(textRow).toHaveClass(/is-hot/);
   await expect(page.locator('.text-row.is-hot')).toHaveCount(1);
   await expect(page.locator('.object-row.is-hot')).toHaveCount(0);
-  const hotBecause = await page.locator('.because.is-hot').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
-  expect(hotBecause.every((id) => id === textId)).toBe(true);
+  const hotBecause = await page.locator('.because.is-hot').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.ids || (node as HTMLElement).dataset.id || ''));
+  expect(hotBecause.every((ids) => ids.split(/[\s,]+/).includes(textId || ''))).toBe(true);
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
+});
+
+test('the total line lights the amount and the currency', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the total row.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  const because = page.locator('#because button.because', { hasText: 'Total line' });
+  await expect(because).toBeVisible();
+  const ids = ((await because.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  expect(ids).toHaveLength(3);
+  await because.hover();
+  for (const id of ids) {
+    await expect(page.locator(`.text-row[data-id="${id}"]`)).toHaveClass(/is-hot/);
+    await expect(page.locator(`svg .box[data-id="${id}"]`)).toHaveClass(/is-hot/);
+  }
+  await expect(page.locator('.text-row.is-hot')).toHaveCount(3);
+  await expect(page.locator('svg .box.is-hot')).toHaveCount(3);
+  await because.focus();
+  await expect(because).toBeFocused();
+  for (const id of ids) {
+    await expect(page.locator(`.text-row[data-id="${id}"]`)).toHaveClass(/is-hot/);
+    await expect(page.locator(`svg .box[data-id="${id}"]`)).toHaveClass(/is-hot/);
+  }
 });
 
 test('a because line links to its text row and box', async ({ page }, testInfo) => {

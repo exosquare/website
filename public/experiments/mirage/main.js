@@ -474,7 +474,8 @@ function renderDecision(decision) {
   ruleLine.textContent = decision.rule;
   because.replaceChildren();
   for (const line of decision.because) {
-    if (!line.id) {
+    const ids = (line.ids?.length ? line.ids : (line.id ? [line.id] : [])).filter(Boolean);
+    if (!ids.length) {
       const paragraph = document.createElement('p');
       paragraph.className = 'because';
       paragraph.textContent = line.text;
@@ -484,7 +485,8 @@ function renderDecision(decision) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'because';
-    button.dataset.id = line.id;
+    button.dataset.id = ids[0];
+    button.dataset.ids = ids.join(' ');
     button.textContent = line.text;
     because.append(button);
   }
@@ -598,25 +600,35 @@ async function runImage() {
   setTimeout(armScroll, 0);
 }
 
-function applyHot(id, instant) {
-  state.hot = id || null;
+function nodeIds(node) {
+  const raw = node?.dataset?.ids || node?.dataset?.id || '';
+  return String(raw).split(/[\s,]+/).filter(Boolean);
+}
+
+function applyHot(source, instant) {
+  const origin = source && source.dataset ? source : null;
+  const hot = new Set(origin ? nodeIds(origin) : []);
+  const primary = [...hot][0] || '';
+  state.hot = primary || null;
   stage.classList.toggle('instant', Boolean(instant));
-  const nodes = stage.querySelectorAll('[data-id]');
+  const nodes = stage.querySelectorAll('[data-id], [data-ids]');
   nodes.forEach((node) => {
-    if (!node.dataset.id) return;
+    const ids = nodeIds(node);
+    if (!ids.length) return;
     const group = node.dataset.group;
     const sameGroup = Boolean(
       group
       && node.classList.contains('object-row')
-      && stage.querySelector(`[data-id="${CSS.escape(id)}"]`)?.dataset.group === group,
+      && primary
+      && stage.querySelector(`[data-id="${CSS.escape(primary)}"]`)?.dataset.group === group,
     );
-    const on = Boolean(id) && (node.dataset.id === id || sameGroup);
+    const on = ids.some((id) => hot.has(id)) || sameGroup;
     node.classList.toggle('is-hot', Boolean(on));
     node.classList.toggle('is-dim', Boolean(
-      id && !on && (node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')),
+      hot.size && !on && (node.classList.contains('box') || node.classList.contains('tag') || node.classList.contains('box-hit')),
     ));
   });
-  block.setHot(id);
+  block.setHot([...hot]);
 }
 
 async function registerObserver() {
@@ -668,28 +680,28 @@ actionButton.addEventListener('click', () => {
 
 stage.addEventListener('pointerover', (event) => {
   if (!finePointer.matches) return;
-  const id = event.target.closest?.('[data-id]')?.dataset.id;
-  if (id) applyHot(id, false);
+  const node = event.target.closest?.('[data-id], [data-ids]');
+  if (node) applyHot(node, false);
 });
 stage.addEventListener('pointerout', (event) => {
   if (!finePointer.matches || state.held) return;
-  const next = event.relatedTarget?.closest?.('[data-id]');
+  const next = event.relatedTarget?.closest?.('[data-id], [data-ids]');
   if (!next) applyHot(null, false);
 });
 stage.addEventListener('focusin', (event) => {
-  const id = event.target.closest?.('[data-id]')?.dataset.id;
-  if (id) applyHot(id, state.keyboard);
+  const node = event.target.closest?.('[data-id], [data-ids]');
+  if (node) applyHot(node, state.keyboard);
 });
 stage.addEventListener('focusout', (event) => {
-  const next = event.relatedTarget?.closest?.('[data-id]');
+  const next = event.relatedTarget?.closest?.('[data-id], [data-ids]');
   if (!next) applyHot(null, state.keyboard);
 });
 stage.addEventListener('pointerup', (event) => {
   if (finePointer.matches) return;
-  const id = event.target.closest?.('[data-id]')?.dataset.id;
-  if (!id) return;
+  const node = event.target.closest?.('[data-id], [data-ids]');
+  if (!node) return;
   state.held = true;
-  applyHot(id, false);
+  applyHot(node, false);
 });
 document.addEventListener('pointerdown', (event) => {
   state.keyboard = false;
