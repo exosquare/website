@@ -493,7 +493,11 @@ function parkingDecision(lines, now) {
   const blocked = rows.some((row) => !row.clean);
   const disc = rows.some((row) => row.disc);
   const dayLines = dayLinesOf(lines);
-  const looksLikeParking = Boolean(dayRows.length || spans.length || disc || blocked || dayLines.length || lines.some((line) => /\bparking\b/i.test(line.string)) || lines.some((line) => unresolvedClock(line.string)));
+  const looksLikeParking = Boolean(
+    dayRows.length || spans.length || disc || dayLines.length
+    || lines.some((line) => /\bparking\b/i.test(line.string))
+    || lines.some((line) => unresolvedClock(line.string) || clockShape(line.string)),
+  );
   if (!looksLikeParking) return null;
   const windows = distinctWindows(spans);
   const clockish = lines.some((line) => unresolvedClock(line.string) || clockShape(line.string));

@@ -9,7 +9,6 @@ const saturday = new Date(2026, 10, 14, 12, 0, 0);
 
 const parking = {
   text: [
-    { id: 'sign', string: 'NO PARKING', bbox: [20, 18, 80, 26], score: 0.66 },
     { id: 'hours', string: '8 AM- 7 PM', bbox: [17, 33, 66, 40], score: 0.67 },
     { id: 'days', string: 'MON -FRI', bbox: [21, 48, 63, 56], score: 0.65 },
   ],
