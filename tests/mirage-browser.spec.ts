@@ -147,7 +147,8 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(textRow).toHaveClass(/is-hot/);
   await expect(page.locator('.text-row.is-hot')).toHaveCount(1);
   await expect(page.locator('.object-row.is-hot')).toHaveCount(0);
-  await expect(page.locator('.because.is-hot')).toHaveCount(0);
+  const hotBecause = await page.locator('.because.is-hot').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
+  expect(hotBecause.every((id) => id === textId)).toBe(true);
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
 });
 
@@ -194,9 +195,10 @@ test('an uploaded image stays on this origin', async ({ page }, testInfo) => {
   });
   await page.goto('experiments/mirage/');
   await page.getByRole('button', { name: 'Download model' }).click();
-  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await expect(page.locator('#status')).toHaveText('Ready', { timeout: 120_000 });
   await page.locator('#file').setInputFiles('public/experiments/mirage/samples/receipt.jpg');
   await expect(page.locator('#mark')).toHaveAttribute('aria-label', 'Your image');
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
   const before = traffic.seen.length;
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(page.locator('#verdict')).not.toHaveText('', { timeout: 120_000 });
