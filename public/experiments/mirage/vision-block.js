@@ -486,7 +486,7 @@ export function createVisionBlock(canvas, overlay) {
       const tab = document.createElement('span');
       tab.className = 'tag';
       tab.dataset.id = item.id;
-      tab.textContent = `${item.name} ${item.percent}%`;
+      tab.textContent = `${item.name} ${Number(item.percent).toFixed(1)}%`;
       labels.append(tab);
       const tagHeight = 16;
       const tagWidth = Math.min(boundsWidth(), Math.max(36, tab.textContent.length * 6.4 + 8));

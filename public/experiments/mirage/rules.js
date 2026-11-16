@@ -22,7 +22,12 @@ export const TEXT_CONFIDENCE = 0.15;
 export function percent(score) {
   if (!Number.isFinite(score)) return 0;
   const value = score > 1 ? score : score * 100;
-  return Math.max(0, Math.min(100, Math.round(value)));
+  const clamped = Math.max(0, Math.min(100, value));
+  return Math.round(clamped * 10) / 10;
+}
+
+export function percentText(score) {
+  return `${percent(score).toFixed(1)}%`;
 }
 
 export function readingOrder(items) {
@@ -492,7 +497,7 @@ function deskDecision(objects) {
     paperNames.set(name, (paperNames.get(name) || 0) + 1);
   }
   const paperText = [...paperNames.entries()].map(([name, count]) => paperPhrase(name, count)).join(' and ');
-  const because = [{ text: `Laptop frame, ${percent(laptop.score)}%.`, id: laptop.id }];
+  const because = [{ text: `Laptop frame, ${percentText(laptop.score)}.`, id: laptop.id }];
   if (!cupCount && !papers.length) {
     because.push({ text: 'No cups or paper inside that frame.', id: laptop.id });
     return result(

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { decide, groupObjects, percent, readingOrder, shownText } from '../public/experiments/mirage/rules.js';
+import { decide, groupObjects, percent, percentText, readingOrder, shownText } from '../public/experiments/mirage/rules.js';
 import { boxStagger, linesDue, scanState } from '../public/experiments/mirage/motion.js';
 
 const fridayAfternoon = new Date(2026, 10, 13, 15, 0, 0);
@@ -228,7 +228,16 @@ test('object rows sort by confidence and text stays in reading order', () => {
   expect(groups.map((group) => group.name)).toEqual(['cup', 'laptop']);
   expect(groups[0].count).toBe(2);
   expect(groups[0].bestId).toBe('b');
-  expect(percent(0.876)).toBe(88);
+  expect(percent(0.876)).toBe(87.6);
+  expect(percent(0.495)).toBe(49.5);
+  expect(percentText(0.495)).toBe('49.5%');
+  expect(percentText(0.4996)).toBe('50.0%');
+  const edge = shownText([
+    { id: 'edge', string: 'Cafe', score: 0.495, bbox: [10, 10, 40, 20] },
+    { id: 'rounded', string: 'Cafe', score: 0.4996, bbox: [10, 24, 40, 34] },
+    { id: 'kept', string: 'Cafe', score: 0.5, bbox: [10, 30, 40, 40] },
+  ], []);
+  expect(edge.map((line: { id: string }) => line.id)).toEqual(['kept']);
   const lines = readingOrder([
     { id: 'low', bbox: [50, 40, 80, 50] },
     { id: 'high', bbox: [10, 10, 40, 20] },

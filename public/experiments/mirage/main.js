@@ -1,5 +1,5 @@
 import { createVisionBlock } from './vision-block.js';
-import { decide, groupObjects, percent, readingOrder, shownText } from './rules.js';
+import { decide, groupObjects, percent, percentText, readingOrder, shownText } from './rules.js';
 import { createLedger, formatBytes, installNetworkHooks, resourceFromEntry, watchResources } from './observe.js';
 import { mirageMotion as motion } from './motion.js';
 
@@ -540,7 +540,7 @@ function objectRow(group) {
   count.textContent = String(group.count);
   const score = document.createElement('span');
   score.className = 'meta';
-  score.textContent = `${percent(group.score)}%`;
+  score.textContent = percentText(group.score);
   button.append(name, count, score);
   return button;
 }
@@ -578,7 +578,7 @@ function renderText(lines) {
     copy.textContent = line.string || '(blank)';
     const score = document.createElement('span');
     score.className = 'meta';
-    score.textContent = `${percent(line.score)}%`;
+    score.textContent = percentText(line.score);
     button.append(copy, score);
     textRows.append(button);
   }
