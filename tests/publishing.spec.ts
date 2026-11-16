@@ -99,7 +99,7 @@ for (const route of routes) {
       await expect(page.locator('#mark')).toHaveAttribute('role', 'img');
       await expect(page.getByRole('button', { name: 'Download model' })).toBeVisible();
       await expect(page.locator('#action-hint')).toContainText('21.6 MB');
-      await expect(page.locator('#action-hint')).toContainText('stays on this device');
+      await expect(page.locator('#action-hint')).toContainText('check the While running row');
       await expect(page.locator('.script-note')).toContainText('Latin-script');
       await expect(page.locator('.script-note')).toContainText("can't read Chinese");
       await expect(page.locator('.net-proof')).toBeVisible();

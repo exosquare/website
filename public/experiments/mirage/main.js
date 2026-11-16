@@ -211,9 +211,9 @@ function renderAction() {
         : 'Download model';
   if (!state.image && state.ready) actionHint.textContent = 'Choose an image first';
   else if (state.running) actionHint.textContent = 'Reading this image on this device.';
-  else if (state.ready) actionHint.textContent = 'This demo is built so your image stays on this device. After the model is saved, running it makes no network requests.';
-  else if (state.cached) actionHint.textContent = 'Uses the model already saved in this browser. This demo is built so your image stays on this device.';
-  else actionHint.textContent = `${SIZE_LABEL} once, then saved in your browser. This demo is built so your image stays on this device.`;
+  else if (state.ready) actionHint.textContent = 'Built so your image stays on this device: check the While running row. After the model is saved, running it makes no network requests.';
+  else if (state.cached) actionHint.textContent = 'Uses the model already saved in this browser. Built so your image stays on this device: check the While running row.';
+  else actionHint.textContent = `${SIZE_LABEL} once, then saved in your browser. Built so your image stays on this device: check the While running row.`;
 }
 
 function stageLength(name) {
