@@ -349,7 +349,7 @@ function receiptDecision(lines) {
     },
     date
       ? { text: `Date line: ${quote(date.line.string)}`, id: date.line.id }
-      : { text: 'No date line.', id: totalLines[0].id },
+      : { text: 'No date line.', id: null },
   ];
   if (foodLine) because.push({ text: `Food and drink is named: ${quote(foodLine.string)}`, id: foodLine.id });
   return result(
@@ -386,7 +386,7 @@ function parkingDecision(lines, now) {
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
   if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
   if (dayLine) because.push({ text: `Days on the sign: ${quote(dayLine.string)}`, id: dayLine.id });
-  else because.push({ text: 'No day line. The hours are taken as every day.', id: rangeLine.id });
+  else because.push({ text: 'No day line. The hours are taken as every day.', id: null });
   return result(
     'parking',
     verdict,

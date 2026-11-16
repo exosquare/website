@@ -61,6 +61,7 @@ test('a receipt without a date says date not found', () => {
     ],
   }, fridayAfternoon);
   expect(decision.verdict).toBe('Log $12.00 as food and drink, date not found.');
+  expect(decision.because.find((line) => line.text === 'No date line.')?.id).toBeNull();
 });
 
 const discSign = {
@@ -74,6 +75,7 @@ test('a disc zone allows two hours inside the signed hours', () => {
   const inside = decide(discSign, fridayAfternoon);
   expect(inside.verdict).toBe('Should I park here now? Yes, for up to 2 hours with a parking disc, until 7pm.');
   expect(inside.because.map((line) => line.text)).toContain('Time limit on the sign: 2 hours with a parking disc.');
+  expect(inside.because.find((line) => line.text.startsWith('No day line'))?.id).toBeNull();
 });
 
 test('a disc zone has no time limit outside the signed hours', () => {
