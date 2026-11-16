@@ -199,6 +199,33 @@ test('a partial day expression is not a complete schedule', () => {
   expect(disc.because[0].text).toBe(UNREAD_SCHEDULE);
 });
 
+test('unresolved sign text blocks a parking permission', () => {
+  const mondayEvening = new Date(2026, 10, 16, 19, 0, 0);
+  const cases = [
+    ['MON', 'NO PARKING EXCEPT 09:00-18:00'],
+    ['NO PARKING EXCEPT 09:00-18:00', 'MON'],
+    ['MON', 'EXCEPT 09:00-18:00'],
+    ['MON 09:00-18:00', 'EXCEPT'],
+    ['MON EXCEPT 09:00-18:00'],
+    ['MON', 'ZA 09:00-18:00'],
+    ['MON', '09:00-18:00 / 20:00 ? 22:00'],
+    ['MON 09:00-18:00', '10:00 UNTIL 11:00'],
+    ['MON09:00-18:00'],
+  ];
+  for (const strings of cases) {
+    const decision = decide({
+      text: strings.map((string, index) => pair(`raw-${index}`, string, 10 + index * 30)),
+    }, mondayEvening);
+    expect(decision.verdict).toBe("Can't tell.");
+    expect(decision.because[0].text).toBe(UNREAD_DAYS);
+    expect([...(decision.because[0].ids || [])].sort()).toEqual(strings.map((_, index) => `raw-${index}`).sort());
+  }
+  const split = decide({
+    text: [pair('day', 'MON', 10), pair('hours', '09:00-18:00', 40)],
+  }, mondayEvening);
+  expect(split.verdict).toBe('Should I park here now? Yes. The restriction ended at 6pm.');
+});
+
 test('an invalid clock never becomes a parking permission', () => {
   const mondayEvening = new Date(2026, 10, 16, 20, 0, 0);
   for (const string of ['MON 09:00-18:99', 'MON 09:60-18:00', 'MON 24:01-18:00', 'MON 25:00-18:00', 'MON 9-18pm', 'MON 22:00-06:00']) {

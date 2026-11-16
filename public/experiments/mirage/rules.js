@@ -421,24 +421,40 @@ function receiptDecision(lines) {
   );
 }
 
-function discLine(lines) {
-  return lines.find((line) => /\bmax\s*2\b|\b2\s*h\b|\b2\s*u(?:ur)?\b|parkeerschijf|blauwe\s+zone/i.test(line.string)) || null;
-}
-
 const DAY_WORD = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|mo|di|mi|do|fr|sa|so|ma|wo|vr|za|zo)\b/i;
 
 function dayLinesOf(lines) {
   return lines.filter((line) => DAY_WORD.test(line.string));
 }
 
-function hourSpans(lines) {
-  const spans = [];
-  for (const line of lines) {
-    for (const range of rangesInText(line.string)) {
-      spans.push({ ...range, line });
-    }
-  }
-  return spans;
+function isDiscLine(value) {
+  return /^(?:max\s*2|2\s*h|2\s*u(?:ur)?|parkeerschijf|blauwe\s+zone)$/i.test(String(value).trim());
+}
+
+function clockShape(value) {
+  return /\d{1,2}(?:[:.]\d{1,2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\/|\bto\b|\buntil\b)\s*\d{1,2}/i.test(String(value));
+}
+
+/** A line is accepted only when every token is one day expression and at most one valid clock. */
+function accountLine(line) {
+  const raw = String(line.string).trim();
+  if (!raw) return { line, disc: false, ranges: [], days: null, clean: true, unresolved: false };
+  if (isDiscLine(raw)) return { line, disc: true, ranges: [], days: null, clean: true, unresolved: false };
+  const ranges = rangesInText(line.string);
+  const days = ranges.length <= 1 ? completeDays(dayExpression(line.string)) : null;
+  const pureClock = ranges.length === 1 && dayExpression(line.string) === '';
+  const pureDay = ranges.length === 0 && days !== null;
+  const dayAndClock = ranges.length === 1 && days !== null;
+  const clean = pureClock || pureDay || dayAndClock;
+  const unresolved = !clean && (clockShape(raw) || ranges.length > 1 || (dayExpression(line.string) !== '' && days === null && ranges.length > 0));
+  return {
+    line,
+    disc: false,
+    ranges: clean ? ranges : ranges,
+    days: clean ? days : null,
+    clean,
+    unresolved: unresolved || !clean,
+  };
 }
 
 function distinctWindows(spans) {
@@ -463,29 +479,46 @@ function unreadSchedule(citedLines) {
   );
 }
 
+function citedScheduleLines(lines, rows) {
+  const extra = new Set(rows.filter((row) => row.ranges.length || !row.clean).map((row) => row.line.id));
+  const days = dayLinesOf(lines);
+  const rest = lines.filter((line) => extra.has(line.id) && !days.some((day) => day.id === line.id));
+  return [...days, ...rest];
+}
+
 function parkingDecision(lines, now) {
-  const spans = hourSpans(lines);
+  const rows = lines.map(accountLine);
+  const spans = rows.filter((row) => row.clean).flatMap((row) => row.ranges.map((range) => ({ ...range, line: row.line })));
+  const dayRows = rows.filter((row) => row.clean && row.days);
+  const blocked = rows.some((row) => !row.clean);
+  const disc = rows.some((row) => row.disc);
   const dayLines = dayLinesOf(lines);
-  const disc = discLine(lines);
-  const looksLikeParking = Boolean(dayLines.length || disc || lines.some((line) => /\bparking\b/i.test(line.string)));
-  if (!spans.length) {
-    const unresolved = lines.filter((line) => unresolvedClock(line.string));
-    if (unresolved.length) return unreadSchedule(unresolved.length ? [...dayLines, ...unresolved] : lines);
-    if (!looksLikeParking) return null;
+  const looksLikeParking = Boolean(dayRows.length || spans.length || disc || blocked || dayLines.length || lines.some((line) => /\bparking\b/i.test(line.string)) || lines.some((line) => unresolvedClock(line.string)));
+  if (!looksLikeParking) return null;
+  const windows = distinctWindows(spans);
+  const clockish = lines.some((line) => unresolvedClock(line.string) || clockShape(line.string));
+  if (blocked || windows.length > 1 || dayRows.length > 1) {
+    if (!windows.length && !clockish) {
+      return result(
+        'unsure',
+        "Can't tell.",
+        [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || rows.find((row) => row.disc)?.line.id || null }],
+        'Page rule: a decision needs a total, parking hours, or a laptop frame.',
+      );
+    }
+    return unreadSchedule(citedScheduleLines(lines, rows));
+  }
+  if (!windows.length) {
     return result(
       'unsure',
       "Can't tell.",
-      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
+      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || rows.find((row) => row.disc)?.line.id || null }],
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
     );
   }
-  const windows = distinctWindows(spans);
-  const dayParse = dayLines.length === 1 ? completeDays(dayExpression(dayLines[0].string)) : null;
-  const singleSchedule = windows.length === 1 && (dayLines.length === 0 || dayParse !== null);
-  if (!singleSchedule) return unreadSchedule([...dayLines, ...spans.map((span) => span.line)]);
   const range = windows[0];
   const rangeLine = range.line;
-  const activeDays = dayLines.length ? dayParse : [0, 1, 2, 3, 4, 5, 6];
+  const activeDays = dayRows.length ? dayRows[0].days : [0, 1, 2, 3, 4, 5, 6];
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const today = now.getDay();
   const openToday = activeDays.includes(today);
@@ -499,11 +532,11 @@ function parkingDecision(lines, now) {
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
   if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
-  if (dayLines.length) {
+  if (dayRows.length) {
     because.push({
-      text: `Days on the sign: ${quote(dayLines[0].string)}`,
-      id: dayLines[0].id,
-      ids: dayLines.map((line) => line.id),
+      text: `Days on the sign: ${quote(dayRows[0].line.string)}`,
+      id: dayRows[0].line.id,
+      ids: [dayRows[0].line.id],
     });
   } else {
     because.push({ text: 'No day line. The hours are taken as every day.', id: null });
