@@ -9,15 +9,14 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; }
+html, body { margin: 0; background: transparent; }
 body {
-  background: var(--page);
   color: var(--fg);
   font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-main { width: min(1000px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 40px; }
+main { width: min(1000px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 40px; background: var(--page); }
 h1 { margin: 0 0 18px; font-weight: 300; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.025em; }
 h2, h3, p { margin: 0; }
 button, summary { -webkit-tap-highlight-color: transparent; }
