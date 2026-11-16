@@ -451,11 +451,12 @@ function showResult(data) {
   const seconds = Math.max(0, data.ms || 0) / 1000;
   setStatus(`Done in ${seconds.toFixed(1)} s`);
   renderDecision(decision);
-  renderObjects(objects);
+  const visibleObjects = objects.filter((item) => !/^text$/i.test(item.name || ''));
+  renderObjects(visibleObjects);
   const readableText = text.filter((item) => plausibleLatinWord(item.string));
   renderText(readableText);
   const boxes = [
-    ...objects.map((item) => ({ id: item.id, kind: 'object', name: item.name || 'object', bbox: item.bbox, score: item.score, percent: percent(item.score), group: item.name || 'object' })),
+    ...visibleObjects.map((item) => ({ id: item.id, kind: 'object', name: item.name || 'object', bbox: item.bbox, score: item.score, percent: percent(item.score), group: item.name || 'object' })),
     ...readableText.map((item) => ({ id: item.id, kind: 'text', name: item.string || 'text', bbox: item.bbox, score: item.score, percent: percent(item.score), group: '' })),
   ];
   block.showBoxes(boxes);
