@@ -491,7 +491,7 @@ function parkingDecision(lines, now) {
   const spans = rows.filter((row) => row.clean).flatMap((row) => row.ranges.map((range) => ({ ...range, line: row.line })));
   const dayRows = rows.filter((row) => row.clean && row.days);
   const blocked = rows.some((row) => !row.clean);
-  const disc = rows.some((row) => row.disc);
+  const disc = rows.find((row) => row.disc)?.line || null;
   const dayLines = dayLinesOf(lines);
   const looksLikeParking = Boolean(
     dayRows.length || spans.length || disc || dayLines.length
@@ -506,7 +506,7 @@ function parkingDecision(lines, now) {
       return result(
         'unsure',
         "Can't tell.",
-        [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || rows.find((row) => row.disc)?.line.id || null }],
+        [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
         'Page rule: a decision needs a total, parking hours, or a laptop frame.',
       );
     }
@@ -516,7 +516,7 @@ function parkingDecision(lines, now) {
     return result(
       'unsure',
       "Can't tell.",
-      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || rows.find((row) => row.disc)?.line.id || null }],
+      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
     );
   }
