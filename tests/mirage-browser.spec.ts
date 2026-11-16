@@ -155,6 +155,67 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
 });
 
+test('Enter on and more focuses the first new row', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Keyboard expansion is checked once.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  const before = await page.locator('#text-rows .text-row').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
+  const more = page.locator('#text-rows .more');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  const after = await page.locator('#text-rows .text-row').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
+  const revealed = after.find((id) => id && !before.includes(id));
+  expect(revealed).toBeTruthy();
+  await expect(page.locator(`#text-rows .text-row[data-id="${revealed}"]`)).toBeFocused();
+});
+
+test('Enter on and more focuses the first new object row', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Keyboard expansion is checked once.');
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    window.Worker = class extends NativeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        const post = this.postMessage.bind(this);
+        this.postMessage = (data: unknown) => {
+          const message = data as { type?: string };
+          if (message?.type === 'load') {
+            this.dispatchEvent(new MessageEvent('message', { data: { type: 'ready' } }));
+            return;
+          }
+          if (message?.type === 'run') {
+            const objects = Array.from({ length: 10 }, (_, index) => ({
+              name: `thing ${index + 1}`,
+              score: 0.9 - index * 0.01,
+              bbox: [20, 20 + index * 30, 80, 40 + index * 30],
+            }));
+            this.dispatchEvent(new MessageEvent('message', { data: { type: 'result', objects, text: [], ms: 10 } }));
+            return;
+          }
+          post(data);
+        };
+      }
+    };
+  });
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#object-rows .more')).toHaveText('and 2 more', { timeout: 30_000 });
+  const before = await page.locator('#object-rows .object-row').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
+  await page.locator('#object-rows .more').focus();
+  await page.keyboard.press('Enter');
+  const after = await page.locator('#object-rows .object-row').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
+  const revealed = after.find((id) => id && !before.includes(id));
+  expect(revealed).toBeTruthy();
+  await expect(page.locator(`#object-rows .object-row[data-id="${revealed}"]`)).toBeFocused();
+});
+
 test('the total line lights the amount and the currency', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the total row.');
   await page.goto('experiments/mirage/');

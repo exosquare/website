@@ -513,8 +513,13 @@ function renderObjects(objects) {
     more.className = 'more';
     more.textContent = `and ${rest} more`;
     more.addEventListener('click', () => {
+      const revealId = groups[limit]?.bestId || '';
       objectRows.dataset.expanded = 'true';
       renderObjects(objects);
+      const next = revealId
+        ? objectRows.querySelector(`.object-row[data-id="${CSS.escape(revealId)}"]`)
+        : null;
+      if (next instanceof HTMLElement) next.focus();
     });
     objectRows.append(more);
   }
@@ -581,8 +586,13 @@ function renderText(lines) {
     more.className = 'more';
     more.textContent = `and ${hidden.length} more`;
     more.addEventListener('click', () => {
+      const revealId = hidden[0]?.id || '';
       textRows.dataset.expanded = 'true';
       renderText(lines);
+      const next = revealId
+        ? textRows.querySelector(`.text-row[data-id="${CSS.escape(revealId)}"]`)
+        : null;
+      if (next instanceof HTMLElement) next.focus();
     });
     textRows.append(more);
   }
