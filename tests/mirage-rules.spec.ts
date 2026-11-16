@@ -154,6 +154,51 @@ test('two day-and-hour lines are not flattened into one permission', () => {
   expect(splitMonday.because[0].ids).toEqual(['am', 'pm']);
 });
 
+const UNREAD_SCHEDULE = "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.";
+const saturdayMorning = new Date(2026, 10, 14, 10, 0, 0);
+
+function oneRow(string: string) {
+  return { text: [{ id: 'row', string, bbox: [10, 20, 90, 40], score: 0.9 }] };
+}
+
+test('a partial day expression is not a complete schedule', () => {
+  const cases: Array<[Date, string]> = [
+    [saturdayMorning, 'MON-FRI, SAT-SUN 09:00-18:00'],
+    [mondayMorning, 'SAT-SUN, MON-FRI 09:00-18:00'],
+    [saturdayMorning, 'MON / ZA 09:00-18:00'],
+    [mondayMorning, 'MON / ZA 09:00-18:00'],
+    [saturdayMorning, 'MON–FRI, SAT–SUN 09:00-18:00'],
+    [mondayMorning, 'SAT—SUN, MON—FRI 09:00-18:00'],
+    [saturdayMorning, 'MON TO FRI, SAT TO SUN 09:00-18:00'],
+    [mondayMorning, 'MON-FRI SAT 09:00-18:00'],
+  ];
+  for (const [when, string] of cases) {
+    const decision = decide(oneRow(string), when);
+    expect(decision.verdict).toBe("Can't tell.");
+    expect(decision.because.map((line) => line.text)).toEqual([UNREAD_SCHEDULE]);
+    expect(decision.because[0].ids).toEqual(['row']);
+  }
+  const applicable = decide(oneRow('MON-FRI 09:00-18:00'), mondayMorning);
+  expect(applicable.verdict).toBe('Should I park here now? Not until 6pm.');
+  const outside = decide(oneRow('MON-FRI 09:00-18:00'), saturdayMorning);
+  expect(outside.verdict).toBe('Should I park here now? Yes. Today is outside Mon to Fri.');
+  expect(decide(oneRow('MON–FRI 09:00-18:00'), saturdayMorning).verdict).toBe('Should I park here now? Yes. Today is outside Mon to Fri.');
+  expect(decide(oneRow('MON—FRI 09:00-18:00'), saturdayMorning).verdict).toBe('Should I park here now? Yes. Today is outside Mon to Fri.');
+  expect(decide(oneRow('MON TO FRI 09:00-18:00'), saturdayMorning).verdict).toBe('Should I park here now? Yes. Today is outside Mon to Fri.');
+  const early = decide(oneRow('MON-FRI 09:00-18:00'), new Date(2026, 10, 16, 7, 0, 0));
+  expect(early.verdict).toBe('Should I park here now? Yes, until 9am.');
+  const late = decide(oneRow('MON-FRI 09:00-18:00'), new Date(2026, 10, 16, 19, 0, 0));
+  expect(late.verdict).toBe('Should I park here now? Yes. The restriction ended at 6pm.');
+  const disc = decide({
+    text: [
+      { id: 'disc', string: '2h', bbox: [10, 10, 40, 24], score: 0.9 },
+      { id: 'row', string: 'MON-FRI, SAT 8 AM- 7 PM', bbox: [10, 40, 90, 56], score: 0.9 },
+    ],
+  }, mondayMorning);
+  expect(disc.verdict).toBe("Can't tell.");
+  expect(disc.because[0].text).toBe(UNREAD_SCHEDULE);
+});
+
 test('one day with one hour window is still decided', () => {
   const decision = decide({
     text: [pair('mon', 'MON 09:00-18:00', 10)],

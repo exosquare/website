@@ -268,24 +268,40 @@ function formatClock(minutes) {
   return minute ? `${hour}:${String(minute).padStart(2, '0')}${suffix}` : `${hour}${suffix}`;
 }
 
-function parseDays(lines) {
-  const blob = lines.map((line) => line.string).join(' ');
-  const compact = blob.toUpperCase().replace(/[^A-Z]/g, '');
-  if (/EVERYDAY|DAILY|ALLDAYS/.test(compact)) return [0, 1, 2, 3, 4, 5, 6];
-  const range = blob.toUpperCase().match(/\b(SUN|MON|TUE|WED|THU|FRI|SAT)(?:DAY)?\s*(?:-|–|—|TO)+\s*(SUN|MON|TUE|WED|THU|FRI|SAT)/);
-  if (range) {
-    const start = DAY_INDEX[range[1]];
-    const end = DAY_INDEX[range[2]];
-    const days = [];
-    for (let step = 0; step < 7; step += 1) {
-      const day = (start + step) % 7;
-      days.push(day);
-      if (day === end) break;
-    }
-    return days;
+const DAY_NAME = '(?:SUN|MON|TUE|WED|THU|FRI|SAT)(?:DAY)?';
+
+function dayExpression(value) {
+  const clock = /\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?/i;
+  return String(value).replace(clock, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function dayKey(token) {
+  return DAY_INDEX[token.slice(0, 3)];
+}
+
+function dayRange(startToken, endToken) {
+  const start = dayKey(startToken);
+  const end = dayKey(endToken);
+  const days = [];
+  for (let step = 0; step < 7; step += 1) {
+    const day = (start + step) % 7;
+    days.push(day);
+    if (day === end) break;
   }
-  const found = [...blob.toUpperCase().matchAll(/\b(SUN|MON|TUE|WED|THU|FRI|SAT)(?:DAY)?\b/g)].map((match) => DAY_INDEX[match[1]]);
-  return [...new Set(found)];
+  return days;
+}
+
+/** Days only when the whole expression is one supported schedule. A first match is not enough. */
+function completeDays(expression) {
+  const text = String(expression).replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  const upper = text.toUpperCase();
+  if (/^(?:EVERY DAY|DAILY|ALL DAYS)$/.test(upper)) return [0, 1, 2, 3, 4, 5, 6];
+  const range = upper.match(new RegExp(`^(${DAY_NAME})\\s*(?:-|–|—)\\s*(${DAY_NAME})$|^(${DAY_NAME})\\s+TO\\s+(${DAY_NAME})$`));
+  if (range) return dayRange(range[1] || range[3], range[2] || range[4]);
+  const single = upper.match(new RegExp(`^(${DAY_NAME})$`));
+  if (single) return [dayKey(single[1])];
+  return null;
 }
 
 function daySpan(days) {
@@ -410,7 +426,6 @@ function discLine(lines) {
 }
 
 const DAY_WORD = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|mo|di|mi|do|fr|sa|so|ma|wo|vr|za|zo)\b/i;
-const ENGLISH_DAY = /\b(?:mon|tue|wed|thu|fri|sat|sun|daily|every day)\b/i;
 
 function dayLinesOf(lines) {
   return lines.filter((line) => DAY_WORD.test(line.string));
@@ -470,14 +485,12 @@ function parkingDecision(lines, now) {
     );
   }
   const windows = distinctWindows(spans);
-  const parsedDays = dayLines.length === 1 && dayLines.every((line) => ENGLISH_DAY.test(line.string))
-    ? parseDays(dayLines)
-    : [];
-  const singleSchedule = windows.length === 1 && (dayLines.length === 0 || parsedDays.length > 0);
+  const dayParse = dayLines.length === 1 ? completeDays(dayExpression(dayLines[0].string)) : null;
+  const singleSchedule = windows.length === 1 && (dayLines.length === 0 || dayParse !== null);
   if (!singleSchedule) return unreadSchedule(dayLines, spans);
   const range = windows[0];
   const rangeLine = range.line;
-  const activeDays = dayLines.length ? parsedDays : [0, 1, 2, 3, 4, 5, 6];
+  const activeDays = dayLines.length ? dayParse : [0, 1, 2, 3, 4, 5, 6];
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const today = now.getDay();
   const openToday = activeDays.includes(today);
