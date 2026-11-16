@@ -153,14 +153,17 @@ test('a cited low-confidence line is not decided', () => {
   expect(decision.because[0].id).toBe('hours');
 });
 
-test('uncited non-latin lines stay out of the text list', () => {
+test('uncited lines need a word or a price at 0.50', () => {
   const lines = [
-    { id: 'price', string: '12.00', score: 0.4, bbox: [10, 10, 40, 20] },
+    { id: 'low', string: '12.00', score: 0.4, bbox: [10, 10, 40, 20] },
+    { id: 'price', string: '18.50', score: 0.6, bbox: [10, 16, 40, 26] },
     { id: 'han', string: '宫保鸡丁', score: 0.9, bbox: [10, 30, 80, 40] },
     { id: 'cited', string: '09. O0-18.OOh', score: 0.05, bbox: [10, 50, 80, 60] },
     { id: 'mark', string: 'M', score: 0.9, bbox: [10, 70, 20, 80] },
+    { id: 'pair', string: 'Te', score: 0.8, bbox: [10, 90, 30, 100] },
+    { id: 'word', string: 'Cafe', score: 0.5, bbox: [10, 110, 40, 120] },
   ];
-  expect(shownText(lines, [{ id: 'cited', text: 'Hours on the sign.' }]).map((line: { id: string }) => line.id)).toEqual(['price', 'cited']);
+  expect(shownText(lines, [{ id: 'cited', text: 'Hours on the sign.' }]).map((line: { id: string }) => line.id)).toEqual(['price', 'cited', 'word']);
 });
 
 test('a receipt without a total says what is missing', () => {

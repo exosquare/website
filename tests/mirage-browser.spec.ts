@@ -180,6 +180,13 @@ test('the total line lights the amount and the currency', async ({ page }, testI
     await expect(page.locator(`.text-row[data-id="${id}"]`)).toHaveClass(/is-hot/);
     await expect(page.locator(`svg .box[data-id="${id}"]`)).toHaveClass(/is-hot/);
   }
+  await expect(page.locator('#text-rows .text-row')).toHaveCount(8);
+  const more = page.locator('#text-rows .more');
+  await expect(more).toHaveText(/^and \d+ more$/);
+  const extra = Number((await more.innerText()).replace(/\D/g, ''));
+  expect(extra).toBeGreaterThan(0);
+  await more.click();
+  await expect(page.locator('#text-rows .text-row')).toHaveCount(8 + extra);
 });
 
 test('a because line links to its text row and box', async ({ page }, testInfo) => {

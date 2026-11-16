@@ -547,7 +547,22 @@ function renderText(lines) {
     textRows.append(empty);
     return;
   }
-  for (const line of lines) {
+  const expanded = textRows.dataset.expanded === 'true';
+  const visible = [];
+  const hidden = [];
+  if (expanded) visible.push(...lines);
+  else {
+    const citedCount = lines.filter((line) => line.cited).length;
+    let uncitedRoom = Math.max(0, 8 - citedCount);
+    for (const line of lines) {
+      if (line.cited) visible.push(line);
+      else if (uncitedRoom > 0) {
+        visible.push(line);
+        uncitedRoom -= 1;
+      } else hidden.push(line);
+    }
+  }
+  for (const line of visible) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'evidence-row text-row';
@@ -559,6 +574,17 @@ function renderText(lines) {
     score.textContent = `${percent(line.score)}%`;
     button.append(copy, score);
     textRows.append(button);
+  }
+  if (hidden.length) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'more';
+    more.textContent = `and ${hidden.length} more`;
+    more.addEventListener('click', () => {
+      textRows.dataset.expanded = 'true';
+      renderText(lines);
+    });
+    textRows.append(more);
   }
 }
 

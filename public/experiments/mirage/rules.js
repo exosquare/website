@@ -154,10 +154,26 @@ function citedIds(item) {
   return ids.filter(Boolean);
 }
 
-/** Cited lines stay, even when they are not readable Latin. Everything else must pass. */
+const PRICE_SHAPE = /\d+[.,]\s?\d{2}/;
+const LIST_SCORE = 0.5;
+
+function latinLetterCount(value) {
+  return [...String(value)].filter((char) => /\p{Script=Latin}/u.test(char)).length;
+}
+
+/** An uncited line needs a real word or a price, and a score of at least 0.50. */
+function listableUncited(line) {
+  const value = String(line?.string || '');
+  const shape = latinLetterCount(value) >= 3 || PRICE_SHAPE.test(value);
+  return shape && unitScore(line?.score) >= LIST_SCORE;
+}
+
+/** Cited lines stay. Uncited lines have to pass the list filter. Order is preserved. */
 export function shownText(lines, because) {
   const cited = new Set((because || []).flatMap((item) => citedIds(item)));
-  return lines.filter((line) => cited.has(line.id) || readableLatin(line));
+  return lines
+    .filter((line) => cited.has(line.id) || listableUncited(line))
+    .map((line) => ({ ...line, cited: cited.has(line.id) }));
 }
 
 export function plausibleLatinWord(value) {
