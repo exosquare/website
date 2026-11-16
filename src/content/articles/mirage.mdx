@@ -1,0 +1,38 @@
+---
+title: 'Trying Mirage to read photos without a connection'
+draft: true
+topic: 'Local models'
+kind: 'Experiment note'
+author: 'Matt'
+standfirst: 'Mirage is small enough to download once and run in the browser without a connection, so I tried it on the kind of everyday decisions that start with a photo.'
+---
+
+import MirageArtifact from '../../components/mirage/MirageArtifact.astro'
+
+After [trying Moonshine for private voice controls](https://exosquare.com/writing/moonshine-base/), a small vision model felt like the natural next step. Plenty of everyday decisions start with a photo, like logging a receipt or working out whether a parking sign applies right now, and I was curious whether that could happen without the photo going anywhere.
+
+Mirage is a vision model from Cactus Compute. It finds objects in an image, puts a box around each one and reads any text it can see. [Model card](https://huggingface.co/Cactus-Compute/mirage), [Cactus's Mirage post](https://cactuscompute.com/blog/mirage).
+
+The model is 21.6 megabytes. In the demo it downloads once from this site and is then kept in the browser's Cache Storage, so a later visit loads it from there and it keeps working without a connection. That's a lot smaller than the 160 megabytes Moonshine put in Cache Storage.
+
+The page runs Cactus's own engine, version 4.1.0, in the browser as WebAssembly. The demo uses the prebuilt files unmodified, and their checksums match the ones Cactus publishes. [Pinned engine files](https://github.com/exosquare/website/blob/main/public/experiments/mirage/vendor/README.md).
+
+Mirage doesn't make the decision. It returns objects and text, and a small set of fixed rules on the page turns those into one answer. The receipt rule looks for a total and a date, the parking rule compares the hours on a sign with the device's clock, and the desk rule counts cups and paper inside the laptop's frame. Because the rules are plain code, each answer can list the lines it was based on. [Page rules](https://github.com/exosquare/website/blob/main/public/experiments/mirage/rules.js).
+
+On the test machine, the four sample photos gave these answers. The Swiss receipt came back as "Log CHF 54,50, date not found." The parking sign, run in the afternoon, gave "Should I park here now? Not until 6pm." The desk photo gave "Tidy up before a video call? Yes: 1 cup and 1 notebook are in shot." The Chinese menu gave "Can't tell." because none of the text it found was readable Latin script. The menu is there on purpose, to show where the text reading stops.
+
+Try it here. Choose one of the four photos or use your own image, press Download model, then press Run. The boxes appear over the photo and the decision appears with the lines behind it. Hovering a row highlights its box. On a later visit the button says Load model.
+
+<MirageArtifact />
+
+Keeping the photo on the device is the point, so the demo includes a few ways to check it. The page's security policy only allows connections back to the same site. The background worker that runs the model refuses any other address and switches off two other ways a page can send data out. An automated browser test runs the real model on the receipt and records every request, and the list stays empty for the whole run. The demo's own request ledger also shows 0 requests and 0 bytes during a run. Your own uploads go through the same worker and are built to stay in the browser, but the automated test only covers the sample receipt. [Worker source](https://github.com/exosquare/website/blob/main/public/experiments/mirage/vision-worker.js), [browser test](https://github.com/exosquare/website/blob/main/tests/mirage-browser.spec.ts).
+
+The browser's Network panel is the easiest way to check it yourself. Clear the panel once the model has loaded, press Run, and nothing new should appear. When I tested it myself, nothing did. The trap from the Moonshine test applies to the download again. Once the model is cached, a later visit looks almost empty, and the developer tools' "Disable cache" option doesn't clear Cache Storage. To see the full download, clear the site's storage under Application in Chrome first. [Chrome's Cache Storage guide](https://developer.chrome.com/docs/devtools/storage/cache).
+
+There are clear limits. Mirage's text reading only handles plain Latin script. A public probe found accents dropped, Cyrillic and Greek returned as Latin look-alikes, and Chinese, Japanese, Korean and Hebrew failing. [Text reading issue](https://github.com/cactus-compute/cactus/issues/190). A printed total often comes back in separate pieces, so the receipt rule has to join the word "total", the currency and the amount from the same line. The parking rule reads the hours, even though the model read some of the zeros as the letter O, but not the Dutch day abbreviations on the sign, so it treats the hours as applying every day. Its answer also depends on the device's clock, so the answer changes with the time of day it runs. A run also takes a few seconds on a single thread. I haven't compared Mirage with other models, and four photos aren't a benchmark.
+
+The model weights and the prebuilt engine files are under the Apache 2.0 licence, although Cactus has said the source for the 4.1.0 engine is private. [Cactus's licence answer](https://github.com/cactus-compute/cactus/issues/189#issuecomment-6868858725).
+
+What I'd like to test next is how the rules hold up on photos taken on the spot rather than tidy samples, and how much of the useful work comes from the model compared with the plain rules around it.
+
+Photo credits: [receipt](https://commons.wikimedia.org/wiki/File:ReceiptSwiss.jpg) by Audrius Meskauskas, Creative Commons BY-SA 3.0, cropped to remove personal details and sharpened. [Parking sign](https://commons.wikimedia.org/wiki/File:2_hour_disc_parking_sign,_Stadskanaal_(2019)_05.jpg) by Donald Trung, Creative Commons BY-SA 4.0, cropped. [Desk](https://www.pexels.com/photo/workplace-with-laptop-and-notepad-placed-near-coffee-cup-5668471/) by Sora Shimazaki, [Pexels Licence](https://www.pexels.com/license/), cropped. [Menu](https://commons.wikimedia.org/wiki/File:Chinese_menu.jpg) by Roland Tanglao, Creative Commons CC0, with the Chinese lines rearranged. The engine is Cactus 4.1.0's prebuilt WebAssembly build, under the [Apache 2.0 licence](https://github.com/exosquare/website/blob/main/public/licenses/cactus-Apache-2.0.txt).
