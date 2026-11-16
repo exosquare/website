@@ -155,6 +155,71 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
 });
 
+test('a new result collapses an expanded list', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Expansion reset is checked once.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#text-rows .more')).toBeVisible({ timeout: 120_000 });
+  await page.locator('#text-rows .more').click();
+  const expanded = await page.locator('#text-rows .text-row').count();
+  expect(expanded).toBeGreaterThan(8);
+  await page.getByRole('button', { name: 'Desk with a laptop and a cup' }).click();
+  await page.getByRole('button', { name: 'Run again' }).click();
+  await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Run again' }).click();
+  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#text-rows .text-row')).toHaveCount(8);
+  await expect(page.locator('#text-rows .more')).toBeVisible();
+});
+
+test('a new object result collapses an expanded list', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Expansion reset is checked once.');
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    let runs = 0;
+    window.Worker = class extends NativeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        const post = this.postMessage.bind(this);
+        this.postMessage = (data: unknown) => {
+          const message = data as { type?: string };
+          if (message?.type === 'load') {
+            this.dispatchEvent(new MessageEvent('message', { data: { type: 'ready' } }));
+            return;
+          }
+          if (message?.type === 'run') {
+            runs += 1;
+            const count = runs === 1 ? 10 : 9;
+            const objects = Array.from({ length: count }, (_, index) => ({
+              name: `thing ${index + 1}`,
+              score: 0.9 - index * 0.01,
+              bbox: [20, 20 + index * 20, 80, 36 + index * 20],
+            }));
+            this.dispatchEvent(new MessageEvent('message', { data: { type: 'result', objects, text: [], ms: 10 } }));
+            return;
+          }
+          post(data);
+        };
+      }
+    };
+  });
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#object-rows .more')).toHaveText('and 2 more', { timeout: 30_000 });
+  await page.locator('#object-rows .more').click();
+  await expect(page.locator('#object-rows .object-row')).toHaveCount(10);
+  await page.getByRole('button', { name: 'Run again' }).click();
+  await expect(page.locator('#object-rows .object-row')).toHaveCount(8, { timeout: 30_000 });
+  await expect(page.locator('#object-rows .more')).toHaveText('and 1 more');
+});
+
 test('Enter on and more focuses the first new row', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Keyboard expansion is checked once.');
   await page.goto('experiments/mirage/');

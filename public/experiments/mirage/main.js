@@ -452,6 +452,8 @@ function showResult(data) {
   const decision = decide({ objects, text }, new Date());
   const seconds = Math.max(0, data.ms || 0) / 1000;
   setStatus(`Done in ${seconds.toFixed(1)} s`);
+  delete objectRows.dataset.expanded;
+  delete textRows.dataset.expanded;
   renderDecision(decision);
   const visibleObjects = objects.filter((item) => !/^text$/i.test(item.name || ''));
   renderObjects(visibleObjects);
