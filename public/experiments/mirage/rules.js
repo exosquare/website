@@ -197,16 +197,40 @@ function findDate(lines) {
   return null;
 }
 
-function parseRange(value) {
-  const match = String(value).match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/i);
-  if (!match) return null;
-  const startHour = Number(match[1]);
-  const endHour = Number(match[4]);
-  let start = clockToMinutes(startHour, match[2], match[3], endHour, match[6], 'start');
-  let end = clockToMinutes(endHour, match[5], match[6], startHour, match[3], 'end');
-  if (end <= start) end += 12 * 60;
-  if (end <= start || end - start > 18 * 60) return null;
-  return { start, end, raw: match[0].replace(/\s+/g, ' ').trim() };
+function clockText(value) {
+  return String(value)
+    .replace(/[Oo](?=[\d.])|(?<=[\d.])[Oo]/g, '0')
+    .replace(/\.\s+/g, '.');
+}
+
+function rangesInText(value) {
+  const source = clockText(value);
+  const pattern = /(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/gi;
+  const found = [];
+  let match = pattern.exec(source);
+  while (match) {
+    const startHour = Number(match[1]);
+    const endHour = Number(match[4]);
+    let start = clockToMinutes(startHour, match[2], match[3], endHour, match[6], 'start');
+    let end = clockToMinutes(endHour, match[5], match[6], startHour, match[3], 'end');
+    if (end <= start) end += 12 * 60;
+    if (end > start && end - start <= 18 * 60 && startHour <= 24 && endHour <= 24) {
+      found.push({
+        start,
+        end,
+        raw: match[0].replace(/\s+/g, ' ').trim(),
+        index: match.index,
+        length: match[0].length,
+      });
+    }
+    match = pattern.exec(source);
+  }
+  return found.filter((item, index, all) => !all.some((other, otherIndex) => (
+    otherIndex !== index
+    && other.index <= item.index
+    && other.index + other.length >= item.index + item.length
+    && other.length > item.length
+  )));
 }
 
 function clockToMinutes(hour, minuteText, meridiem, otherHour, otherMeridiem, role) {
@@ -380,29 +404,72 @@ function discLine(lines) {
   return lines.find((line) => /\bmax\s*2\b|\b2\s*h\b|\b2\s*u(?:ur)?\b|parkeerschijf|blauwe\s+zone/i.test(line.string)) || null;
 }
 
+const DAY_WORD = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|mo|di|mi|do|fr|sa|so|ma|wo|vr|za|zo)\b/i;
+const ENGLISH_DAY = /\b(?:mon|tue|wed|thu|fri|sat|sun|daily|every day)\b/i;
+
+function dayLinesOf(lines) {
+  return lines.filter((line) => DAY_WORD.test(line.string));
+}
+
+function hourSpans(lines) {
+  const spans = [];
+  for (const line of lines) {
+    for (const range of rangesInText(line.string)) {
+      spans.push({ ...range, line, duration: range.end - range.start });
+    }
+  }
+  return spans;
+}
+
 function parkingDecision(lines, now) {
-  const rangeLine = lines.find((line) => parseRange(line.string));
-  if (!rangeLine) return null;
-  const range = parseRange(rangeLine.string);
-  const days = parseDays(lines);
-  const activeDays = days.length ? days : [0, 1, 2, 3, 4, 5, 6];
-  const dayLine = lines.find((line) => /\b(mon|tue|wed|thu|fri|sat|sun|daily|every day)\b/i.test(line.string));
+  const spans = hourSpans(lines);
+  const dayLines = dayLinesOf(lines);
+  const english = dayLines.filter((line) => ENGLISH_DAY.test(line.string));
+  const parsed = english.length ? parseDays(english) : [];
+  const clean = dayLines.length > 0 && english.length === dayLines.length && parsed.length > 0;
+  const disc = discLine(lines);
+  const looksLikeParking = Boolean(dayLines.length || disc || lines.some((line) => /\bparking\b/i.test(line.string)));
+  if (!spans.length) {
+    if (!looksLikeParking) return null;
+    return result(
+      'unsure',
+      "Can't tell.",
+      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
+      'Page rule: a decision needs a total, parking hours, or a laptop frame.',
+    );
+  }
+  const chosen = clean ? spans[0] : spans.reduce((best, span) => (span.duration > best.duration ? span : best));
+  const range = chosen;
+  const rangeLine = chosen.line;
+  const activeDays = clean ? parsed : [0, 1, 2, 3, 4, 5, 6];
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const today = now.getDay();
   const openToday = activeDays.includes(today);
   const inside = openToday && nowMinutes >= range.start && nowMinutes < range.end;
-  const disc = discLine(lines);
   let verdict;
   if (disc && inside) verdict = `Should I park here now? Yes, for up to 2 hours with a parking disc, until ${formatClock(range.end)}.`;
   else if (disc) verdict = 'Should I park here now? Yes, no time limit now.';
-  else if (!openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
+  else if (clean && !openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
   else if (inside) verdict = `Should I park here now? Not until ${formatClock(range.end)}.`;
   else if (nowMinutes < range.start) verdict = `Should I park here now? Yes, until ${formatClock(range.start)}.`;
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
   if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
-  if (dayLine) because.push({ text: `Days on the sign: ${quote(dayLine.string)}`, id: dayLine.id });
-  else because.push({ text: 'No day line. The hours are taken as every day.', id: null });
+  if (clean) {
+    because.push({
+      text: `Days on the sign: ${quote(english[0].string)}`,
+      id: english[0].id,
+      ids: dayLines.map((line) => line.id),
+    });
+  } else if (dayLines.length) {
+    because.push({
+      text: `Day lines found but not read cleanly, so this uses the longest hours on the sign (${formatClock(range.start)} to ${formatClock(range.end)}).`,
+      id: dayLines[0].id,
+      ids: dayLines.map((line) => line.id),
+    });
+  } else {
+    because.push({ text: 'No day line. The hours are taken as every day.', id: null });
+  }
   return result(
     'parking',
     verdict,
@@ -485,7 +552,7 @@ function nothingDecision(objects, lines) {
 /**
  * @param {{ objects?: Array<Record<string, any>>, text?: Array<Record<string, any>> }} vision
  * @param {Date} [now] device-local clock
- * @returns {{ kind: string, verdict: string, because: Array<{ text: string, id: string | null }>, rule: string }}
+ * @returns {{ kind: string, verdict: string, because: Array<{ text: string, id: string | null, ids?: string[] }>, rule: string }}
  */
 export function decide(vision, now = new Date()) {
   const objects = withIds(vision?.objects || [], 'object');

@@ -88,6 +88,33 @@ test('parking hours without a duration are unchanged', () => {
   expect(decision.because.some((line) => line.text.startsWith('Duration'))).toBe(false);
 });
 
+test('unreadable day lines use the longest hours', () => {
+  const decision = decide({
+    text: [
+      { id: 'd1', string: 'Ma.t/m Vr.', bbox: [10, 10, 80, 24], score: 0.6 },
+      { id: 'short', string: '09.00-18.00', bbox: [10, 30, 80, 44], score: 0.8 },
+      { id: 'long', string: '09.00-21.00', bbox: [10, 50, 80, 64], score: 0.8 },
+      { id: 'd2', string: 'Za.', bbox: [10, 70, 40, 84], score: 0.7 },
+    ],
+  }, fridayAfternoon);
+  expect(decision.verdict).toBe('Should I park here now? Not until 9pm.');
+  const line = decision.because.find((item) => item.text.startsWith('Day lines found'));
+  expect(line?.text).toBe('Day lines found but not read cleanly, so this uses the longest hours on the sign (9am to 9pm).');
+  expect(line?.ids).toEqual(['d1', 'd2']);
+  expect(decision.because[0].id).toBe('long');
+});
+
+test('a parking sign with no readable hours is not decided', () => {
+  const decision = decide({
+    text: [
+      { id: 'days', string: 'MON - FRI', bbox: [10, 10, 80, 24], score: 0.8 },
+      { id: 'word', string: 'parking', bbox: [10, 30, 80, 44], score: 0.8 },
+    ],
+  }, fridayAfternoon);
+  expect(decision.verdict).toBe("Can't tell.");
+  expect(decision.because[0].text).toBe('No hours found. The sign does not show a start and end time.');
+});
+
 test('parking hours are compared with the device clock', () => {
   expect(decide(parking, fridayAfternoon).verdict).toBe('Should I park here now? Not until 7pm.');
   expect(decide(parking, fridayMorning).verdict).toBe('Should I park here now? Yes, until 8am.');
