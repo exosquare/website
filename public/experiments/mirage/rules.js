@@ -16,6 +16,9 @@ const NON_LATIN = /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Scr
 /** Cups and paper this far outside the laptop box still count as in its frame. */
 export const FRAME_MARGIN = 40;
 
+/** Same floor as text_conf in the vision worker. A decision cannot rest on a weaker line. */
+export const TEXT_CONFIDENCE = 0.15;
+
 export function percent(score) {
   if (!Number.isFinite(score)) return 0;
   const value = score > 1 ? score : score * 100;
@@ -123,6 +126,32 @@ function totalFromRow(lines) {
 
 function hasTotalWord(value) {
   return /(?:^|[^a-z])total(?:[^a-z]|$)/i.test(value) || /total\s*hk\$/i.test(value);
+}
+
+function unitScore(score) {
+  if (!Number.isFinite(score)) return 0;
+  return score > 1 ? score / 100 : score;
+}
+
+function hasNonLatinLetter(value) {
+  for (const char of String(value)) {
+    if (/\p{L}/u.test(char) && !/\p{Script=Latin}/u.test(char)) return true;
+  }
+  return false;
+}
+
+/** Latin or digits, long enough to read, and at or above the confidence floor. */
+export function readableLatin(line) {
+  const value = String(line?.string || '');
+  if (!value || hasNonLatinLetter(value)) return false;
+  if (!/(?:\p{Script=Latin}|\d){2,}/u.test(value)) return false;
+  return unitScore(line?.score) >= TEXT_CONFIDENCE;
+}
+
+/** Cited lines stay, even when they are not readable Latin. Everything else must pass. */
+export function shownText(lines, because) {
+  const cited = new Set((because || []).map((item) => item?.id).filter(Boolean));
+  return lines.filter((line) => cited.has(line.id) || readableLatin(line));
 }
 
 export function plausibleLatinWord(value) {
@@ -244,6 +273,33 @@ function quote(value) {
 
 function result(kind, verdict, because, rule) {
   return { kind, verdict, because, rule };
+}
+
+function gate(decision, lines) {
+  if (!decision) return decision;
+  const byId = new Map(lines.map((line) => [line.id, line]));
+  const weak = [];
+  const seen = new Set();
+  for (const item of decision.because || []) {
+    const line = item?.id ? byId.get(item.id) : null;
+    if (!line || seen.has(line.id)) continue;
+    if (unitScore(line.score) < TEXT_CONFIDENCE) {
+      seen.add(line.id);
+      weak.push(line);
+    }
+  }
+  if (!weak.length) return decision;
+  return result(
+    'unsure',
+    "Can't tell.",
+    [{
+      text: weak.length === 1
+        ? `${quote(weak[0].string)} is below the confidence threshold.`
+        : `${weak.length} lines this rests on are below the confidence threshold.`,
+      id: weak[0].id,
+    }],
+    'Page rule: a decision does not rest on a line below the confidence threshold.',
+  );
 }
 
 function receiptDecision(lines) {
@@ -405,18 +461,18 @@ export function decide(vision, now = new Date()) {
   const objects = withIds(vision?.objects || [], 'object');
   const lines = readingOrder(withIds(vision?.text || [], 'text'));
   const receipt = receiptDecision(lines);
-  if (receipt) return receipt;
+  if (receipt) return gate(receipt, lines);
   const parking = parkingDecision(lines, now);
-  if (parking) return parking;
+  if (parking) return gate(parking, lines);
   const desk = deskDecision(objects);
-  if (desk) return desk;
+  if (desk) return gate(desk, lines);
   const script = lines.length ? scriptDecision(lines, objects) : null;
-  if (script) return script;
+  if (script) return gate(script, lines);
 
   const prices = lines.filter((line) => /\d+[.,]\d{2}/.test(line.string));
   const mentionsReceipt = lines.some((line) => /\breceipt\b/i.test(line.string));
   if (mentionsReceipt || prices.length >= 2 || lines.some((line) => hasTotalWord(line.string))) {
-    return result(
+    return gate(result(
       'unsure',
       "Can't tell.",
       [
@@ -424,24 +480,24 @@ export function decide(vision, now = new Date()) {
         { text: 'A currency total is missing.', id: lines[0]?.id || null },
       ],
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
-    );
+    ), lines);
   }
   if (lines.some((line) => /\bparking\b/i.test(line.string))) {
-    return result(
+    return gate(result(
       'unsure',
       "Can't tell.",
       [
         { text: 'No hours found. The sign does not show a start and end time.', id: lines[0]?.id || null },
       ],
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
-    );
+    ), lines);
   }
   const empty = nothingDecision(objects, lines);
-  if (empty) return empty;
-  return result(
+  if (empty) return gate(empty, lines);
+  return gate(result(
     'unsure',
     "Can't tell.",
     [{ text: 'No receipt total, parking hours, or laptop frame came back.', id: objects[0]?.id || lines[0]?.id || null }],
     'Page rule: a decision needs a total, parking hours, or a laptop frame.',
-  );
+  ), lines);
 }

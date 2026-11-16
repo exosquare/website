@@ -1,5 +1,5 @@
 import { createVisionBlock } from './vision-block.js';
-import { decide, groupObjects, percent, plausibleLatinWord, readingOrder } from './rules.js';
+import { decide, groupObjects, percent, readingOrder, shownText } from './rules.js';
 import { createLedger, formatBytes, installNetworkHooks, resourceFromEntry, watchResources } from './observe.js';
 import { mirageMotion as motion } from './motion.js';
 
@@ -455,7 +455,7 @@ function showResult(data) {
   renderDecision(decision);
   const visibleObjects = objects.filter((item) => !/^text$/i.test(item.name || ''));
   renderObjects(visibleObjects);
-  const readableText = text.filter((item) => plausibleLatinWord(item.string));
+  const readableText = shownText(text, decision.because);
   renderText(readableText);
   const boxes = [
     ...visibleObjects.map((item) => ({ id: item.id, kind: 'object', name: item.name || 'object', bbox: item.bbox, score: item.score, percent: percent(item.score), group: item.name || 'object' })),
