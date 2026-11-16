@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { decide, groupObjects, percent, readingOrder } from '../public/experiments/mirage/rules.js';
+import { decide, groupObjects, percent, readingOrder, shownText } from '../public/experiments/mirage/rules.js';
 import { boxStagger, linesDue, scanState } from '../public/experiments/mirage/motion.js';
 
 const fridayAfternoon = new Date(2026, 10, 13, 15, 0, 0);
@@ -125,6 +125,28 @@ test('non-latin text is left unread', () => {
   expect(han.verdict).toBe("Text found, but it isn't Latin script, so it couldn't be read.");
   expect(han.because.map((line) => line.text)).toEqual(['That line is not readable Latin.']);
   expect(han.kind).toBe('script');
+});
+
+test('a cited low-confidence line is not decided', () => {
+  const decision = decide({
+    text: [
+      { id: 'hours', string: '8 AM- 7 PM', bbox: [17, 33, 66, 40], score: 0.1 },
+      { id: 'days', string: 'MON -FRI', bbox: [21, 48, 63, 56], score: 0.9 },
+    ],
+  }, fridayAfternoon);
+  expect(decision.verdict).toBe("Can't tell.");
+  expect(decision.because.map((line) => line.text)).toEqual(['"8 AM- 7 PM" is below the confidence threshold.']);
+  expect(decision.because[0].id).toBe('hours');
+});
+
+test('uncited non-latin lines stay out of the text list', () => {
+  const lines = [
+    { id: 'price', string: '12.00', score: 0.4, bbox: [10, 10, 40, 20] },
+    { id: 'han', string: '宫保鸡丁', score: 0.9, bbox: [10, 30, 80, 40] },
+    { id: 'cited', string: '09. O0-18.OOh', score: 0.05, bbox: [10, 50, 80, 60] },
+    { id: 'mark', string: 'M', score: 0.9, bbox: [10, 70, 20, 80] },
+  ];
+  expect(shownText(lines, [{ id: 'cited', text: 'Hours on the sign.' }]).map((line: { id: string }) => line.id)).toEqual(['price', 'cited']);
 });
 
 test('a receipt without a total says what is missing', () => {

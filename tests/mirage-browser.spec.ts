@@ -154,6 +154,38 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
 });
 
+test('a because line links to its text row and box', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the link.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Street parking sign' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).not.toHaveText('', { timeout: 120_000 });
+  const because = page.locator('#because button.because').first();
+  await expect(because).toBeVisible();
+  const id = await because.getAttribute('data-id');
+  expect(id).toBeTruthy();
+  const row = page.locator(`.text-row[data-id="${id}"]`);
+  const box = page.locator(`svg .box[data-id="${id}"]`);
+  await expect(row).toBeVisible();
+  await expect(box).toHaveCount(1);
+  await expect(page.locator('.text-row', { hasText: /\p{Script=Han}/u })).toHaveCount(0);
+
+  await because.hover();
+  await expect(row).toHaveClass(/is-hot/);
+  await expect(box).toHaveClass(/is-hot/);
+  await expect(box).toHaveCSS('stroke-width', '2px');
+  await expect(page.locator('svg .box.is-dim').first()).toHaveCSS('opacity', '0.4');
+  await expect(row).toHaveCSS('border-left-width', '2px');
+
+  await because.focus();
+  await expect(because).toBeFocused();
+  await expect(row).toHaveClass(/is-hot/);
+  await expect(box).toHaveClass(/is-hot/);
+  await expect(page.locator('svg .box.is-dim').first()).toHaveCSS('opacity', '0.4');
+});
+
 test('a second photo stays on the stage with reduced motion', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the second photo.');
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -255,13 +287,26 @@ test('the frame matches a dark page when the system is light', async ({ page }) 
   expect(underPixel).toEqual(pagePixel);
 });
 
-async function pixelAt(page: Page, x: number, y: number) {
-  const buffer = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
-  const start = buffer.indexOf(Buffer.from('IDAT'));
-  expect(start).toBeGreaterThan(0);
-  const length = buffer.readUInt32BE(start - 4);
-  const inflated = inflateSync(buffer.subarray(start + 4, start + 4 + length));
+function pngPixel(buffer: Buffer) {
+  let offset = 8;
+  const parts: Buffer[] = [];
+  while (offset + 8 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IDAT') parts.push(data);
+    if (type === 'IEND') break;
+    offset += 12 + length;
+  }
+  const inflated = inflateSync(Buffer.concat(parts));
   return [inflated[1], inflated[2], inflated[3]];
+}
+
+async function pixelAt(page: Page, x: number, y: number) {
+  await page.evaluate((point) => window.scrollTo(0, Math.max(0, point - 40)), y);
+  const top = await page.evaluate(() => window.scrollY);
+  const buffer = await page.screenshot({ clip: { x, y: y - top, width: 1, height: 1 } });
+  return pngPixel(buffer);
 }
 
 test('the stage is still once idle', async ({ page }, testInfo) => {
