@@ -33,6 +33,8 @@ There are clear limits. Mirage's text reading only handles plain Latin script. A
 
 The model weights and the prebuilt engine files are under the Apache 2.0 licence, although Cactus has said the source for the 4.1.0 engine is private. [Cactus's licence answer](https://github.com/cactus-compute/cactus/issues/189#issuecomment-6868858725).
 
-What I'd like to test next is how the rules hold up on photos taken on the spot rather than tidy samples, and how much of the useful work comes from the model compared with the plain rules around it.
+I also tried it on some receipts I found online, and the results were mixed. About two thirds worked as expected. Every one of them had a total line, but the most common problem was that the model didn't pick it out. It's still impressive for just over 20 megabytes, but it isn't something I'd use in a production app yet.
+
+I'll keep an eye on new models. Next I'd like to try photos taken on the spot rather than tidy samples, and see how many of those missed totals the plain rules around the model could recover on their own.
 
 Photo credits: [receipt](https://commons.wikimedia.org/wiki/File:ReceiptSwiss.jpg) by Audrius Meskauskas, Creative Commons BY-SA 3.0, cropped to remove personal details and sharpened. [Parking sign](https://commons.wikimedia.org/wiki/File:2_hour_disc_parking_sign,_Stadskanaal_(2019)_05.jpg) by Donald Trung, Creative Commons BY-SA 4.0, cropped. [Desk](https://www.pexels.com/photo/workplace-with-laptop-and-notepad-placed-near-coffee-cup-5668471/) by Sora Shimazaki, [Pexels Licence](https://www.pexels.com/license/), cropped. [Menu](https://commons.wikimedia.org/wiki/File:Chinese_menu.jpg) by Roland Tanglao, Creative Commons CC0, with the Chinese lines rearranged. The engine is Cactus 4.1.0's prebuilt WebAssembly build, under the [Apache 2.0 licence](https://github.com/exosquare/website/blob/main/public/licenses/cactus-Apache-2.0.txt).
