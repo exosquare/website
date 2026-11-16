@@ -175,13 +175,14 @@ p.because { cursor: auto; }
 .mono, .meta, .path { font: 0.6875rem/1.55 var(--font-mono); overflow-wrap: anywhere; }
 #requests .req, #run-requests .req {
   display: grid;
-  grid-template-columns: 4.75rem minmax(0, 1fr) auto auto;
+  grid-template-columns: 4.75rem minmax(0, 1fr) 2.5rem 5.5rem;
   gap: 4px 12px;
   align-items: baseline;
   padding: 8px 0;
   border-bottom: 1px solid var(--rule);
 }
 .req .path { grid-column: 1 / -1; }
+.req-bytes { text-align: right; }
 .foot { margin-top: 8px; font-size: 0.75rem; }
 .foot a { margin-right: 10px; color: inherit; }
 @media (hover: hover) and (pointer: fine) {
