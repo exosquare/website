@@ -495,6 +495,13 @@ function renderDecision(decision) {
 function renderObjects(objects) {
   objectRows.replaceChildren();
   const groups = groupObjects(objects);
+  if (!groups.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'No objects found.';
+    objectRows.append(empty);
+    return;
+  }
   const limit = objectRows.dataset.expanded === 'true' ? groups.length : 8;
   groups.slice(0, limit).forEach((group) => objectRows.append(objectRow(group)));
   const rest = groups.length - limit;
