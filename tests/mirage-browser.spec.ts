@@ -178,6 +178,28 @@ test('a second photo stays on the stage with reduced motion', async ({ page }, t
   expect(colourful).toBeGreaterThan(0);
 });
 
+test('an uploaded image stays on this origin', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'One real inference covers an upload.');
+  const traffic = track(page);
+  await page.context().route('**/*', (route) => {
+    const url = new URL(route.request().url());
+    if (url.hostname === '127.0.0.1') return route.fallback();
+    return route.abort();
+  });
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.locator('#file').setInputFiles('public/experiments/mirage/samples/receipt.jpg');
+  await expect(page.locator('#mark')).toHaveAttribute('aria-label', 'Your image');
+  const before = traffic.seen.length;
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).not.toHaveText('', { timeout: 120_000 });
+  await expect(page.locator('#run-count')).toHaveText('0');
+  await expect(page.locator('#run-bytes')).toHaveText('0 B');
+  expect(traffic.seen.slice(before)).toEqual([]);
+  expect(traffic.outside).toEqual([]);
+});
+
 test('the stage is still once idle', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Motion idle is checked once.');
   await page.goto('experiments/mirage/');
