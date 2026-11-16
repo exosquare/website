@@ -373,7 +373,7 @@ test('a second photo stays on the stage with reduced motion', async ({ page }, t
   await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
   await page.getByRole('button', { name: 'Street parking sign' }).click();
   await page.getByRole('button', { name: 'Run again' }).click();
-  await expect(page.locator('#verdict')).toContainText(/park/i, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText("Can't tell.", { timeout: 120_000 });
   const colourful = await page.locator('#mark').evaluate((canvas) => {
     const node = canvas as HTMLCanvasElement;
     const context = node.getContext('2d');
