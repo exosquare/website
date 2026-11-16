@@ -439,6 +439,141 @@ test('the first real pointer move takes the highlight', async ({ page }, testInf
   }
 });
 
+test('a cold keyboard session yields on the first pointer move', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Pointer and keyboard modality is checked once.');
+  test.setTimeout(300_000);
+
+  async function keyboardRun() {
+    await page.goto('experiments/mirage/');
+    await page.evaluate(() => {
+      const log: Array<Record<string, unknown>> = [];
+      document.querySelector('#stage')?.addEventListener('pointermove', (event) => {
+        const pointer = event as PointerEvent;
+        log.push({
+          x: pointer.clientX,
+          y: pointer.clientY,
+          mx: pointer.movementX,
+          my: pointer.movementY,
+          id: (pointer.target as HTMLElement | null)?.closest?.('[data-id], [data-ids]')?.getAttribute('data-id') || '',
+        });
+      }, true);
+      (window as unknown as { __moves: typeof log }).__moves = log;
+    });
+    await page.getByRole('button', { name: 'Shop receipt' }).focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: /Download model|Load model/ }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+    await page.getByRole('button', { name: 'Run' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  }
+
+  function inside(box: { x: number, y: number, width: number, height: number }, x: number, y: number) {
+    return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+  }
+
+  for (const [width, height, reduced, target] of [
+    [1440, 900, false, 'row'],
+    [1440, 900, true, 'empty'],
+    [390, 844, false, 'row'],
+    [390, 844, true, 'empty'],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
+    await keyboardRun();
+    const citation = page.locator('#because button.because').first();
+    const owned = ((await citation.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+    const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
+      const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
+      return (row as HTMLElement | undefined)?.dataset.id || '';
+    }, owned);
+    const other = page.locator(`#text-rows .text-row[data-id="${otherId}"]`);
+    const ownedRow = page.locator(`.text-row[data-id="${owned[0]}"]`);
+    await citation.evaluate((element) => (element as HTMLElement).focus({ preventScroll: true }));
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(ownedRow).toHaveClass(/is-hot/);
+
+    const stage = await page.locator('#stage').boundingBox();
+    expect(stage).toBeTruthy();
+    let outsideX = Math.max(0, stage!.x - 30);
+    let outsideY = Math.max(0, stage!.y - 24);
+    if (inside(stage!, outsideX, outsideY)) {
+      outsideX = Math.min(width - 2, stage!.x + stage!.width + 8);
+      outsideY = 2;
+    }
+    expect(inside(stage!, outsideX, outsideY)).toBe(false);
+    await page.mouse.move(outsideX, outsideY, { steps: 1 });
+    const before = await page.evaluate(() => (window as unknown as { __moves: unknown[] }).__moves.length);
+
+    const destination = target === 'row' ? other : page.locator('#verdict');
+    await destination.scrollIntoViewIfNeeded();
+    const spot = await destination.boundingBox();
+    expect(spot).toBeTruthy();
+    const land = { x: spot!.x + Math.min(16, Math.max(3, spot!.width / 2)), y: spot!.y + Math.min(8, Math.max(3, spot!.height / 2)) };
+    await page.mouse.move(land.x, land.y, { steps: 1 });
+    const moves = await page.evaluate(() => (window as unknown as { __moves: Array<{ mx: number, my: number, id: string }> }).__moves);
+    const path = moves.slice(before);
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.some((step) => step.mx !== 0 || step.my !== 0)).toBe(true);
+
+    await expect(citation).toBeFocused();
+    if (target === 'row') {
+      await expect(other).toHaveClass(/is-hot/);
+      await expect(citation).not.toHaveClass(/is-hot/);
+      await expect(ownedRow).not.toHaveClass(/is-hot/);
+    } else {
+      await expect(citation).not.toHaveClass(/is-hot/);
+      await expect(ownedRow).not.toHaveClass(/is-hot/);
+      await expect(other).not.toHaveClass(/is-hot/);
+    }
+
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(ownedRow).toHaveClass(/is-hot/);
+
+    const still = await other.boundingBox();
+    expect(still).toBeTruthy();
+    const parked = { x: still!.x + Math.min(12, still!.width / 2), y: still!.y + Math.min(8, still!.height / 2) };
+    await page.mouse.move(parked.x, parked.y);
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toHaveClass(/is-hot/);
+    await page.mouse.wheel(0, 120);
+    await page.evaluate((point) => {
+      const under = document.elementFromPoint(point.x, point.y);
+      under?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: point.x, clientY: point.y, pointerType: 'mouse' }));
+      document.querySelector('#stage')?.dispatchEvent(new PointerEvent('pointerout', {
+        bubbles: true,
+        clientX: point.x,
+        clientY: point.y,
+        pointerType: 'mouse',
+        relatedTarget: document.body,
+      }));
+    }, parked);
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(ownedRow).toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+
+    const again = await other.boundingBox();
+    expect(again).toBeTruthy();
+    const nudge = {
+      x: again!.x + Math.min(18, Math.max(4, again!.width / 3)),
+      y: again!.y + Math.min(6, Math.max(2, again!.height / 2)),
+    };
+    if (nudge.x === parked.x && nudge.y === parked.y) nudge.x += 1;
+    await page.mouse.move(nudge.x, nudge.y);
+    await expect(other).toHaveClass(/is-hot/);
+    await expect(citation).not.toHaveClass(/is-hot/);
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+  }
+});
+
 test('an unread script does not light an arbitrary row', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the menu.');
   await page.goto('experiments/mirage/');

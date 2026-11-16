@@ -720,9 +720,13 @@ actionButton.addEventListener('click', () => {
 });
 
 stage.addEventListener('pointermove', (event) => {
-  const moved = state.pointerX != null && (event.clientX !== state.pointerX || event.clientY !== state.pointerY);
+  const seen = state.pointerX != null;
+  const shifted = seen && (event.clientX !== state.pointerX || event.clientY !== state.pointerY);
+  const traveled = event.movementX !== 0 || event.movementY !== 0;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
+  // The first stage event has no stored point. Travel is the movement delta, not a hover.
+  const moved = seen ? shifted : traveled;
   if (!moved) return;
   const taking = state.modality === 'keyboard';
   state.modality = 'pointer';
