@@ -516,12 +516,11 @@ function deskDecision(objects) {
   );
 }
 
-function scriptDecision(lines, objects) {
+function scriptDecision(lines) {
   const nonLatin = lines.find((line) => NON_LATIN.test(line.string));
   const readable = lines.some((line) => plausibleLatinWord(line.string));
   const unread = nonLatin || (lines.length >= 4 && !readable);
   if (!unread) return null;
-  const anchor = nonLatin || lines[0] || objects.find((object) => /text/i.test(object.name));
   return result(
     'script',
     "Text found, but it isn't Latin script, so it couldn't be read.",
@@ -529,8 +528,8 @@ function scriptDecision(lines, objects) {
       {
         text: lines.length === 1
           ? 'That line is not readable Latin.'
-          : `${lines.length} lines are marked, and none of them is readable Latin.`,
-        id: lines.length === 1 ? (anchor?.id ?? null) : (lines[1]?.id || anchor?.id || null),
+          : `${lines.length} text regions found; no readable Latin text identified.`,
+        id: null,
       },
     ],
     'Page rule: text that is not Latin script is left unread.',
@@ -563,7 +562,7 @@ export function decide(vision, now = new Date()) {
   if (parking) return gate(parking, lines);
   const desk = deskDecision(objects);
   if (desk) return gate(desk, lines);
-  const script = lines.length ? scriptDecision(lines, objects) : null;
+  const script = lines.length ? scriptDecision(lines) : null
   if (script) return gate(script, lines);
 
   const prices = lines.filter((line) => /\d+[.,]\d{2}/.test(line.string));

@@ -315,6 +315,21 @@ test('the total line lights the amount and the currency', async ({ page }, testI
   await expect(page.locator('#text-rows .text-row')).toHaveCount(8 + extra);
 });
 
+test('an unread script does not light an arbitrary row', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the menu.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Chinese menu' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toHaveText("Text found, but it isn't Latin script, so it couldn't be read.", { timeout: 120_000 });
+  const evidence = page.locator('#because .because');
+  await expect(evidence).toHaveText(/^\d+ text regions found; no readable Latin text identified\.$/);
+  await expect(evidence).not.toHaveAttribute('data-id', /.+/);
+  await expect(page.locator('#because button')).toHaveCount(0);
+  await expect(page.locator('.box.is-hot, .text-row.is-hot')).toHaveCount(0);
+});
+
 test('a because line links to its text row and box', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the link.');
   await page.goto('experiments/mirage/');
