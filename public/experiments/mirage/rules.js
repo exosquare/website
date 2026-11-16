@@ -426,12 +426,38 @@ function hourSpans(lines) {
   return spans;
 }
 
+function distinctWindows(spans) {
+  const windows = [];
+  for (const span of spans) {
+    if (!windows.some((item) => item.start === span.start && item.end === span.end)) windows.push(span);
+  }
+  return windows;
+}
+
+function scheduleEvidence(dayLines, spans) {
+  return [...new Set([
+    ...dayLines.map((line) => line.id),
+    ...spans.map((span) => span.line.id),
+  ])];
+}
+
+function unreadSchedule(dayLines, spans) {
+  const evidence = scheduleEvidence(dayLines, spans);
+  return result(
+    'unsure',
+    "Can't tell.",
+    [{
+      text: "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.",
+      id: evidence[0] || null,
+      ids: evidence,
+    }],
+    "Page rule: the sign's hours are compared with this device's clock.",
+  );
+}
+
 function parkingDecision(lines, now) {
   const spans = hourSpans(lines);
   const dayLines = dayLinesOf(lines);
-  const english = dayLines.filter((line) => ENGLISH_DAY.test(line.string));
-  const parsed = english.length ? parseDays(english) : [];
-  const clean = dayLines.length > 0 && english.length === dayLines.length && parsed.length > 0;
   const disc = discLine(lines);
   const looksLikeParking = Boolean(dayLines.length || disc || lines.some((line) => /\bparking\b/i.test(line.string)));
   if (!spans.length) {
@@ -443,26 +469,15 @@ function parkingDecision(lines, now) {
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
     );
   }
-  if (dayLines.length && !clean) {
-    const evidence = [...new Set([
-      ...dayLines.map((line) => line.id),
-      ...spans.map((span) => span.line.id),
-    ])];
-    return result(
-      'unsure',
-      "Can't tell.",
-      [{
-        text: "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.",
-        id: evidence[0] || null,
-        ids: evidence,
-      }],
-      "Page rule: the sign's hours are compared with this device's clock.",
-    );
-  }
-  const chosen = spans[0];
-  const range = chosen;
-  const rangeLine = chosen.line;
-  const activeDays = clean ? parsed : [0, 1, 2, 3, 4, 5, 6];
+  const windows = distinctWindows(spans);
+  const parsedDays = dayLines.length === 1 && dayLines.every((line) => ENGLISH_DAY.test(line.string))
+    ? parseDays(dayLines)
+    : [];
+  const singleSchedule = windows.length === 1 && (dayLines.length === 0 || parsedDays.length > 0);
+  if (!singleSchedule) return unreadSchedule(dayLines, spans);
+  const range = windows[0];
+  const rangeLine = range.line;
+  const activeDays = dayLines.length ? parsedDays : [0, 1, 2, 3, 4, 5, 6];
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const today = now.getDay();
   const openToday = activeDays.includes(today);
@@ -470,16 +485,16 @@ function parkingDecision(lines, now) {
   let verdict;
   if (disc && inside) verdict = `Should I park here now? Yes, for up to 2 hours with a parking disc, until ${formatClock(range.end)}.`;
   else if (disc) verdict = 'Should I park here now? Yes, no time limit now.';
-  else if (clean && !openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
+  else if (dayLines.length && !openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
   else if (inside) verdict = `Should I park here now? Not until ${formatClock(range.end)}.`;
   else if (nowMinutes < range.start) verdict = `Should I park here now? Yes, until ${formatClock(range.start)}.`;
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
   if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
-  if (clean) {
+  if (dayLines.length) {
     because.push({
-      text: `Days on the sign: ${quote(english[0].string)}`,
-      id: english[0].id,
+      text: `Days on the sign: ${quote(dayLines[0].string)}`,
+      id: dayLines[0].id,
       ids: dayLines.map((line) => line.id),
     });
   } else {

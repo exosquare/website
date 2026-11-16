@@ -108,6 +108,60 @@ test('unreadable day lines are not a parking permission', () => {
   }
 });
 
+const mondayMorning = new Date(2026, 10, 16, 10, 0, 0);
+const UNREAD_DAYS = "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.";
+
+function pair(id, string, top) {
+  return { id, string, bbox: [10, top, 90, top + 16], score: 0.9 };
+}
+
+test('two day-and-hour lines are not flattened into one permission', () => {
+  const sign = {
+    text: [
+      pair('tue', 'TUE 08:00–09:00', 10),
+      pair('mon', 'MON 09:00–18:00', 40),
+    ],
+  };
+  const decision = decide(sign, mondayMorning);
+  expect(decision.verdict).toBe("Can't tell.");
+  expect(decision.because.map((line) => line.text)).toEqual([UNREAD_DAYS]);
+  expect(decision.because[0].ids).toEqual(['tue', 'mon']);
+  const reversed = decide({
+    text: [
+      pair('mon', 'MON 09:00–18:00', 10),
+      pair('tue', 'TUE 08:00–09:00', 40),
+    ],
+  }, mondayMorning);
+  expect(reversed.verdict).toBe("Can't tell.");
+  expect(reversed.because[0].text).toBe(UNREAD_DAYS);
+  expect(reversed.because[0].ids).toEqual(['mon', 'tue']);
+  const weekend = decide({
+    text: [
+      pair('sat', 'SAT 10:00-12:00', 10),
+      pair('sun', 'SUN 14:00-16:00', 40),
+    ],
+  }, mondayMorning);
+  expect(weekend.verdict).toBe("Can't tell.");
+  expect(weekend.because[0].ids).toEqual(['sat', 'sun']);
+  const splitMonday = decide({
+    text: [
+      pair('am', 'MON 09:00-12:00', 10),
+      pair('pm', 'MON 13:00-18:00', 40),
+    ],
+  }, mondayMorning);
+  expect(splitMonday.verdict).toBe("Can't tell.");
+  expect(splitMonday.because[0].text).toBe(UNREAD_DAYS);
+  expect(splitMonday.because[0].ids).toEqual(['am', 'pm']);
+});
+
+test('one day with one hour window is still decided', () => {
+  const decision = decide({
+    text: [pair('mon', 'MON 09:00-18:00', 10)],
+  }, mondayMorning);
+  expect(decision.verdict).toBe('Should I park here now? Not until 6pm.');
+  expect(decision.because[0].id).toBe('mon');
+});
+
 test('a parking sign with no readable hours is not decided', () => {
   const decision = decide({
     text: [
