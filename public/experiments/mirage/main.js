@@ -3,6 +3,8 @@ import { decide, groupObjects, percent, plausibleLatinWord, readingOrder } from 
 import { createLedger, formatBytes, installNetworkHooks, resourceFromEntry, watchResources } from './observe.js';
 import { mirageMotion as motion } from './motion.js';
 
+if (window.top === window) document.documentElement.classList.add('standalone');
+
 const MODEL_HREF = new URL('models/mirage/3d03cee88c0acbe4e71b94b567ab14e6e55f40c9/mirage.cact', document.baseURI).href;
 const WASM_HREF = new URL('vendor/cactus.wasm', document.baseURI).href;
 const MODEL_CACHE = 'mirage-model';
