@@ -420,7 +420,7 @@ function hourSpans(lines) {
   const spans = [];
   for (const line of lines) {
     for (const range of rangesInText(line.string)) {
-      spans.push({ ...range, line, duration: range.end - range.start });
+      spans.push({ ...range, line });
     }
   }
   return spans;
@@ -443,7 +443,23 @@ function parkingDecision(lines, now) {
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
     );
   }
-  const chosen = clean ? spans[0] : spans.reduce((best, span) => (span.duration > best.duration ? span : best));
+  if (dayLines.length && !clean) {
+    const evidence = [...new Set([
+      ...dayLines.map((line) => line.id),
+      ...spans.map((span) => span.line.id),
+    ])];
+    return result(
+      'unsure',
+      "Can't tell.",
+      [{
+        text: "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.",
+        id: evidence[0] || null,
+        ids: evidence,
+      }],
+      "Page rule: the sign's hours are compared with this device's clock.",
+    );
+  }
+  const chosen = spans[0];
   const range = chosen;
   const rangeLine = chosen.line;
   const activeDays = clean ? parsed : [0, 1, 2, 3, 4, 5, 6];
@@ -464,12 +480,6 @@ function parkingDecision(lines, now) {
     because.push({
       text: `Days on the sign: ${quote(english[0].string)}`,
       id: english[0].id,
-      ids: dayLines.map((line) => line.id),
-    });
-  } else if (dayLines.length) {
-    because.push({
-      text: `Day lines found but not read cleanly, so this uses the longest hours on the sign (${formatClock(range.start)} to ${formatClock(range.end)}).`,
-      id: dayLines[0].id,
       ids: dayLines.map((line) => line.id),
     });
   } else {
