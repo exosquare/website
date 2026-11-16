@@ -111,7 +111,7 @@ test('unreadable day lines are not a parking permission', () => {
 const mondayMorning = new Date(2026, 10, 16, 10, 0, 0);
 const UNREAD_DAYS = "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.";
 
-function pair(id, string, top) {
+function pair(id: string, string: string, top: number) {
   return { id, string, bbox: [10, top, 90, top + 16], score: 0.9 };
 }
 
