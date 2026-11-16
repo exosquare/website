@@ -17,10 +17,24 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const d = entry.data;
+const authorUrl = d.author === 'Matt' ? withBase('/studio/#matt') : withBase('/studio/');
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const absolute = (path: string) => Astro.site ? new URL(path, Astro.site).href : undefined;
+const schema = {
+  '@context': 'https://schema.org', '@type': 'BlogPosting',
+  headline: d.title, description: d.standfirst, url: canonical,
+  mainEntityOfPage: canonical, inLanguage: 'en',
+  ...(d.publishedAt ? { datePublished: d.publishedAt.toISOString() } : {}),
+  ...(d.updatedAt ? { dateModified: d.updatedAt.toISOString() } : {}),
+  author: { '@type': d.author === 'ExoSquare' ? 'Organization' : 'Person', name: d.author,
+    ...(d.author === 'Matt' || d.author === 'ExoSquare' ? { url: absolute(authorUrl) } : {}) },
+  publisher: { '@type': 'Organization', name: 'ExoSquare', url: absolute(withBase('/')) },
+  ...(d.socialImage ? { image: absolute(withBase(d.socialImage.src)) } : {}),
+};
 ---
 
-<Base title={d.title} description={d.standfirst} draft={d.draft}
-  ><article class="wrap">
+<Base title={d.title} description={d.standfirst} draft={d.draft} author={d.author} socialImage={d.socialImage} article
+  ><script slot="head" type="application/ld+json" is:inline set:html={JSON.stringify(schema).replace(/</g, "\\u003c")} /><article class="wrap">
     <header class="article-header editorial-grid">
       <div class="side-note"><a href={withBase("/writing/")}>← All writing</a></div><div>
         <div class="eyebrow">{d.kind} · {d.topic}</div><h1>{d.title}</h1><p
@@ -28,7 +42,7 @@ const d = entry.data;
         >
           {d.standfirst}
         </p><div class="article-meta">
-          <span>{d.author}</span><span>{readingTime(entry.body)} min read</span
+          <span>{d.author === "Matt" || d.author === "ExoSquare" ? <a rel="author" href={authorUrl}>{d.author}</a> : d.author}</span><span>{readingTime(entry.body)} min read</span
           >{
             d.publishedAt ? (
               <time datetime={formatDate(d.publishedAt)}>
@@ -54,7 +68,9 @@ const d = entry.data;
       </aside><div>
         <div class="prose">
           {d.hero && <Figure {...d.hero} hero />}<Content />
-        </div><NostrLine nostr={d.nostr} />
+        </div>{d.author === 'Matt' && <aside class="prose" aria-label="Author information">
+          <p><a href={withBase('/studio/#matt')}>About Matt</a>: experiments and writing at ExoSquare. <a href={withBase('/studio/#editorial')}>Editorial approach</a> · <a href={withBase('/contact/')}>Send a correction or question</a>.</p>
+        </aside>}<NostrLine nostr={d.nostr} />
       </div>
     </div>{
       d.record && (

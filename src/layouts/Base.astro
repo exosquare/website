@@ -9,11 +9,15 @@ interface Props {
   title: string;
   description?: string;
   draft?: boolean;
+  author?: string;
+  socialImage?: { src: string; alt: string };
+  article?: boolean;
 }
 const {
   title,
   description = 'An independent idea and experimental technology studio.',
   draft = false,
+  author, socialImage, article = false,
 } = Astro.props;
 const designPreview = import.meta.env.DEV || previewDrafts;
 const noindex = designPreview || draft || !Astro.site;
@@ -38,7 +42,19 @@ const noindex = designPreview || draft || !Astro.site;
     <meta property="og:title" content={title} /><meta
       property="og:description"
       content={description}
-    /><meta property="og:type" content="website" />
+    /><meta property="og:type" content={article ? "article" : "website"} />
+    {author && <meta name="author" content={author} />}
+    {Astro.site && <meta property="og:url" content={new URL(Astro.url.pathname, Astro.site).href} />}
+    {socialImage && Astro.site && <>
+      <meta property="og:image" content={new URL(withBase(socialImage.src), Astro.site).href} />
+      <meta property="og:image:alt" content={socialImage.alt} />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:image" content={new URL(withBase(socialImage.src), Astro.site).href} />
+      <meta name="twitter:image:alt" content={socialImage.alt} />
+    </>}
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <slot name="head" />
     <link rel="icon" type="image/png" href={withBase("/logo.png")} />
     <script is:inline>
       (() => {

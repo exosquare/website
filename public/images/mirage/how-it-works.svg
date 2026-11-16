@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">Mirage: reading text and making decisions</title>
+<desc id="desc">A scan reads text for application code to use. A form request uses the image and supplied choices without running the text reader.</desc>
+<rect width="1200" height="630" fill="#111b24"/>
+<g font-family="Arial, sans-serif" fill="#f1f0e9">
+<text x="64" y="68" font-size="18" letter-spacing="3" fill="#9cd4c5">EXOSQUARE / EXPERIMENT NOTE</text>
+<text x="64" y="132" font-size="46" font-weight="700">Trying Mirage</text>
+<text x="64" y="177" font-size="25" fill="#c4ced3">What can a 22 MB vision model do?</text>
+<rect x="64" y="220" width="520" height="290" rx="12" fill="#20343b"/>
+<rect x="616" y="220" width="520" height="290" rx="12" fill="#25303b"/>
+<text x="94" y="265" font-size="27" font-weight="700" fill="#9cd4c5">Read the receipt</text>
+<text x="94" y="318" font-size="23">Image → scan → extracted text</text>
+<path d="M110 340v38m-8-8 8 8 8-8" stroke="#9cd4c5" stroke-width="3" fill="none"/>
+<text x="94" y="417" font-size="23">App finds the total</text>
+<text x="94" y="457" font-size="23">and compares the amount</text>
+<text x="646" y="265" font-size="27" font-weight="700" fill="#9cd4c5">Choose a sign type</text>
+<text x="646" y="318" font-size="23">Image + form + answer choices</text>
+<path d="M662 340v38m-8-8 8 8 8-8" stroke="#9cd4c5" stroke-width="3" fill="none"/>
+<text x="646" y="417" font-size="23">Mirage selects an answer</text>
+<text x="646" y="457" font-size="23">or abstains</text>
+<text x="64" y="565" font-size="23" fill="#c4ced3">The form request does not run the text reader or use an earlier scan's text.</text>
+</g></svg>

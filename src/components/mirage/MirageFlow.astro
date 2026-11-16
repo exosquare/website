@@ -1,0 +1,13 @@
+---
+import { withBase } from '../../lib/paths';
+---
+<figure class="content-figure">
+  <picture>
+    <source media="(max-width: 600px)" srcset={withBase('/images/mirage/how-it-works-mobile.webp')} width="600" height="800" />
+    <img src={withBase('/images/mirage/how-it-works.webp')} width="1200" height="630" loading="lazy" decoding="async" alt="Two separate paths: a scan reads receipt text for the app to process. A form request uses the image and supplied answer choices, without the text reader or earlier scan text." />
+  </picture>
+  <figcaption>The two paths we were mixing up. Reading the receipt and comparing its total needs application code around Mirage.</figcaption>
+</figure>
+<style>
+  img { filter: none; aspect-ratio: auto; }
+</style>
