@@ -314,7 +314,7 @@ function parkingDecision(lines, now) {
   else if (nowMinutes < range.start) verdict = `Should I park here now? Yes, until ${formatClock(range.start)}.`;
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
-  if (disc) because.push({ text: `Duration on the sign: ${quote(disc.string)}`, id: disc.id });
+  if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
   if (dayLine) because.push({ text: `Days on the sign: ${quote(dayLine.string)}`, id: dayLine.id });
   else because.push({ text: 'No day line. The hours are taken as every day.', id: rangeLine.id });
   return result(

@@ -61,7 +61,7 @@ const discSign = {
 test('a disc zone allows two hours inside the signed hours', () => {
   const inside = decide(discSign, fridayAfternoon);
   expect(inside.verdict).toBe('Should I park here now? Yes, for up to 2 hours with a parking disc, until 7pm.');
-  expect(inside.because.map((line) => line.text)).toContain('Duration on the sign: "2h"');
+  expect(inside.because.map((line) => line.text)).toContain('Time limit on the sign: 2 hours with a parking disc.');
 });
 
 test('a disc zone has no time limit outside the signed hours', () => {
