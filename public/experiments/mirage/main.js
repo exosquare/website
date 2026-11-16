@@ -175,27 +175,33 @@ function renderNetwork() {
   for (const row of ledger.rows) requestList.append(requestItem(row));
 }
 
+function requestCell(className, text) {
+  const cell = document.createElement('span');
+  cell.className = className;
+  cell.textContent = text;
+  return cell;
+}
+
 function requestItem(row) {
   const item = document.createElement('article');
   item.className = 'req';
-  const title = document.createElement('p');
-  title.className = 'req-title';
   let host = row.url;
-  try { host = new URL(row.url).host; } catch { /* keep the raw url */ }
-  title.textContent = `${row.phase} · ${host}`;
-  const meta = document.createElement('p');
-  meta.className = 'meta';
-  const transferred = row.transferBytes == null ? 'transferred n/a' : `transferred ${row.phase === 'run' ? exactBytes(row.transferBytes) : formatBytes(row.transferBytes)}`;
-  meta.textContent = `${row.method || 'GET'} · ${transferred}`;
-  const path = document.createElement('p');
-  path.className = 'path';
+  let pathText = row.url;
   try {
     const url = new URL(row.url);
-    path.textContent = `${url.pathname}${url.search}`;
-  } catch {
-    path.textContent = row.url;
-  }
-  item.append(title, meta, path);
+    host = url.host;
+    pathText = `${url.pathname}${url.search}`;
+  } catch { /* keep the raw url */ }
+  const transferred = row.transferBytes == null
+    ? 'n/a'
+    : (row.phase === 'run' ? exactBytes(row.transferBytes) : formatBytes(row.transferBytes));
+  item.append(
+    requestCell('req-phase', row.phase),
+    requestCell('req-host meta', host),
+    requestCell('req-method meta', row.method || 'GET'),
+    requestCell('req-bytes meta', transferred),
+    requestCell('path', pathText),
+  );
   return item;
 }
 
