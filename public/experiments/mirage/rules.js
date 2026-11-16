@@ -202,30 +202,43 @@ function findDate(lines) {
   return null;
 }
 
-function clockText(value) {
-  return String(value)
-    .replace(/[Oo](?=[\d.])|(?<=[\d.])[Oo]/g, '0')
-    .replace(/\.\s+/g, '.');
+function clockParts(hourText, minuteText, meridiem) {
+  if (!/^\d{1,2}$/.test(hourText)) return null;
+  const hour = Number(hourText);
+  let minute = 0;
+  if (minuteText != null) {
+    if (!/^\d{2}$/.test(minuteText) || Number(minuteText) > 59) return null;
+    minute = Number(minuteText);
+  }
+  const mark = (meridiem || '').replace(/\./g, '').toLowerCase();
+  if (mark && mark !== 'am' && mark !== 'pm') return null;
+  if (mark) {
+    if (hour < 1 || hour > 12) return null;
+  } else if (hour > 23) return null;
+  let h = hour;
+  if (mark === 'pm' && h < 12) h += 12;
+  if (mark === 'am' && h === 12) h = 0;
+  if (h > 23) return null;
+  return h * 60 + minute;
 }
 
 function rangesInText(value) {
-  const source = clockText(value);
-  const pattern = /(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/gi;
+  const source = String(value);
+  const pattern = /(^|\s)(\d{1,2})(?:([:.])(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*(\d{1,2})(?:([:.])(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?(?=$|\s)/gi;
   const found = [];
   let match = pattern.exec(source);
   while (match) {
-    const startHour = Number(match[1]);
-    const endHour = Number(match[4]);
-    let start = clockToMinutes(startHour, match[2], match[3], endHour, match[6], 'start');
-    let end = clockToMinutes(endHour, match[5], match[6], startHour, match[3], 'end');
-    if (end <= start) end += 12 * 60;
-    if (end > start && end - start <= 18 * 60 && startHour <= 24 && endHour <= 24) {
+    const prefix = match[1].length;
+    const start = clockParts(match[2], match[4], match[5]);
+    const end = clockParts(match[6], match[8], match[9]);
+    const raw = match[0].slice(prefix);
+    if (start != null && end != null && end > start && end - start <= 18 * 60) {
       found.push({
         start,
         end,
-        raw: match[0].replace(/\s+/g, ' ').trim(),
-        index: match.index,
-        length: match[0].length,
+        raw: raw.replace(/\s+/g, ' ').trim(),
+        index: match.index + prefix,
+        length: raw.length,
       });
     }
     match = pattern.exec(source);
@@ -236,26 +249,6 @@ function rangesInText(value) {
     && other.index + other.length >= item.index + item.length
     && other.length > item.length
   )));
-}
-
-function clockToMinutes(hour, minuteText, meridiem, otherHour, otherMeridiem, role) {
-  let h = hour;
-  const minute = minuteText ? Number(minuteText) : 0;
-  const mark = (meridiem || '').replace(/\./g, '').toLowerCase();
-  const other = (otherMeridiem || '').replace(/\./g, '').toLowerCase();
-  if (mark === 'pm' && h < 12) h += 12;
-  if (mark === 'am' && h === 12) h = 0;
-  if (!mark) {
-    if (h >= 13) return h * 60 + minute;
-    if (role === 'end' && (other === 'am' || (!other && otherHour > hour))) h += h === 12 ? 0 : 12;
-    if (role === 'start' && other === 'pm' && hour > otherHour) h = hour;
-    if (role === 'end' && other === 'pm' && hour <= otherHour) h += h === 12 ? 0 : 12;
-    if (role === 'end' && !other && otherHour <= hour && hour <= 12 && otherHour >= 13) {
-      /* 24h already handled */
-    }
-  }
-  if (h === 24) h = 0;
-  return h * 60 + minute;
 }
 
 function formatClock(minutes) {
@@ -271,8 +264,15 @@ function formatClock(minutes) {
 const DAY_NAME = '(?:SUN|MON|TUE|WED|THU|FRI|SAT)(?:DAY)?';
 
 function dayExpression(value) {
-  const clock = /\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\bto\b)\s*\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?/i;
-  return String(value).replace(clock, ' ').replace(/\s+/g, ' ').trim();
+  const spans = rangesInText(value).sort((a, b) => b.index - a.index);
+  let text = String(value);
+  for (const span of spans) text = `${text.slice(0, span.index)} ${text.slice(span.index + span.length)}`;
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function unresolvedClock(value) {
+  const loose = /\d{1,2}(?:[:.]\d{1,2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|\/|\bto\b|\buntil\b)\s*\d{1,2}/i;
+  return loose.test(String(value)) && rangesInText(value).length === 0;
 }
 
 function dayKey(token) {
@@ -449,15 +449,8 @@ function distinctWindows(spans) {
   return windows;
 }
 
-function scheduleEvidence(dayLines, spans) {
-  return [...new Set([
-    ...dayLines.map((line) => line.id),
-    ...spans.map((span) => span.line.id),
-  ])];
-}
-
-function unreadSchedule(dayLines, spans) {
-  const evidence = scheduleEvidence(dayLines, spans);
+function unreadSchedule(citedLines) {
+  const evidence = [...new Set(citedLines.map((line) => line.id).filter(Boolean))];
   return result(
     'unsure',
     "Can't tell.",
@@ -476,6 +469,8 @@ function parkingDecision(lines, now) {
   const disc = discLine(lines);
   const looksLikeParking = Boolean(dayLines.length || disc || lines.some((line) => /\bparking\b/i.test(line.string)));
   if (!spans.length) {
+    const unresolved = lines.filter((line) => unresolvedClock(line.string));
+    if (unresolved.length) return unreadSchedule(unresolved.length ? [...dayLines, ...unresolved] : lines);
     if (!looksLikeParking) return null;
     return result(
       'unsure',
@@ -487,7 +482,7 @@ function parkingDecision(lines, now) {
   const windows = distinctWindows(spans);
   const dayParse = dayLines.length === 1 ? completeDays(dayExpression(dayLines[0].string)) : null;
   const singleSchedule = windows.length === 1 && (dayLines.length === 0 || dayParse !== null);
-  if (!singleSchedule) return unreadSchedule(dayLines, spans);
+  if (!singleSchedule) return unreadSchedule([...dayLines, ...spans.map((span) => span.line)]);
   const range = windows[0];
   const rangeLine = range.line;
   const activeDays = dayLines.length ? dayParse : [0, 1, 2, 3, 4, 5, 6];

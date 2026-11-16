@@ -199,6 +199,17 @@ test('a partial day expression is not a complete schedule', () => {
   expect(disc.because[0].text).toBe(UNREAD_SCHEDULE);
 });
 
+test('an invalid clock never becomes a parking permission', () => {
+  const mondayEvening = new Date(2026, 10, 16, 20, 0, 0);
+  for (const string of ['MON 09:00-18:99', 'MON 09:60-18:00', 'MON 24:01-18:00', 'MON 25:00-18:00', 'MON 9-18pm', 'MON 22:00-06:00']) {
+    const decision = decide(oneRow(string), mondayEvening);
+    expect(decision.verdict).toBe("Can't tell.");
+    expect(decision.because[0].text).toBe(UNREAD_SCHEDULE);
+    expect(decision.because[0].ids).toEqual(['row']);
+  }
+  expect(decide(oneRow('MON 09:00-18:00'), mondayEvening).verdict).toBe('Should I park here now? Yes. The restriction ended at 6pm.');
+});
+
 test('one day with one hour window is still decided', () => {
   const decision = decide({
     text: [pair('mon', 'MON 09:00-18:00', 10)],
