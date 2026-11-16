@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib';
 import { test, expect, type Page } from '@playwright/test';
 
 test.describe.configure({ timeout: 180_000 });
@@ -46,6 +47,7 @@ test('a real run stays on this origin and makes no requests while running', asyn
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(page.locator('#status')).toHaveText('Finding objects', { timeout: 30_000 });
   await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#object-rows .empty')).toHaveText('No objects found.');
   await expect(page.locator('#rule-line')).toContainText('Page rule');
   await expect(page.locator('#run-count')).toHaveText('0');
   await expect(page.locator('#run-bytes')).toHaveText('0 B');
@@ -207,6 +209,60 @@ test('an uploaded image stays on this origin', async ({ page }, testInfo) => {
   expect(traffic.seen.slice(before)).toEqual([]);
   expect(traffic.outside).toEqual([]);
 });
+
+test('a standalone page uses the page background', async ({ page }) => {
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('experiments/mirage/');
+    await expect(page.locator('html')).toHaveClass(/standalone/);
+    const same = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.background = 'var(--page)';
+      document.body.append(probe);
+      const expected = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      const root = getComputedStyle(document.documentElement).backgroundColor;
+      const body = getComputedStyle(document.body).backgroundColor;
+      return root === expected && body === expected;
+    });
+    expect(same).toBe(true);
+  }
+});
+
+test('the frame matches a dark page when the system is light', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => localStorage.setItem('exo-theme', 'dark'));
+  await page.goto('experiments/play/mirage/');
+  const frame = page.frameLocator('iframe');
+  await expect(frame.locator('html')).not.toHaveClass(/standalone/);
+  const spot = await page.evaluate(() => {
+    const iframe = document.querySelector('iframe');
+    if (!iframe) return null;
+    const rect = iframe.getBoundingClientRect();
+    const main = iframe.contentDocument?.querySelector('main');
+    if (!main) return null;
+    const mainBox = main.getBoundingClientRect();
+    return {
+      pageX: 24,
+      pageY: Math.round(rect.top + 40),
+      underX: Math.round(rect.left + rect.width / 2),
+      underY: Math.round(rect.top + mainBox.bottom + 80),
+    };
+  });
+  expect(spot).not.toBeNull();
+  const pagePixel = await pixelAt(page, spot!.pageX, spot!.pageY);
+  const underPixel = await pixelAt(page, spot!.underX, spot!.underY);
+  expect(underPixel).toEqual(pagePixel);
+});
+
+async function pixelAt(page: Page, x: number, y: number) {
+  const buffer = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
+  const start = buffer.indexOf(Buffer.from('IDAT'));
+  expect(start).toBeGreaterThan(0);
+  const length = buffer.readUInt32BE(start - 4);
+  const inflated = inflateSync(buffer.subarray(start + 4, start + 4 + length));
+  return [inflated[1], inflated[2], inflated[3]];
+}
 
 test('the stage is still once idle', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Motion idle is checked once.');
