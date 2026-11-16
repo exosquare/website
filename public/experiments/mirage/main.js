@@ -725,8 +725,9 @@ stage.addEventListener('pointermove', (event) => {
   const traveled = event.movementX !== 0 || event.movementY !== 0;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
-  // The first stage event has no stored point. Travel is the movement delta, not a hover.
-  const moved = seen ? shifted : traveled;
+  // A stored point can match this event after the pointer leaves and comes back.
+  // Nonzero travel still counts. A hover with no movement does not.
+  const moved = shifted || traveled;
   if (!moved) return;
   const taking = state.modality === 'keyboard';
   state.modality = 'pointer';

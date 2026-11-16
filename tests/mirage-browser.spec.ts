@@ -574,6 +574,157 @@ test('a cold keyboard session yields on the first pointer move', async ({ page }
   }
 });
 
+test('returning to the same point still counts as travel', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Pointer and keyboard modality is checked once.');
+  // Actual travel gives the pointer the element under it, whether or not the
+  // stage already stored that point. A scroll over or out leaves the focused
+  // keyboard owner. The next key returns the highlight to that focus.
+  // A null stored point is the cold-arrival test. This one fills same-point
+  // reentry, a different point, outside, an empty target, a box, a citation,
+  // and the key.
+  await page.goto('experiments/mirage/');
+  await page.evaluate(() => {
+    const log: Array<{ x: number, y: number, mx: number, my: number, id: string }> = [];
+    document.querySelector('#stage')?.addEventListener('pointermove', (event) => {
+      const pointer = event as PointerEvent;
+      log.push({
+        x: pointer.clientX,
+        y: pointer.clientY,
+        mx: pointer.movementX,
+        my: pointer.movementY,
+        id: (pointer.target as HTMLElement | null)?.closest?.('[data-id], [data-ids]')?.getAttribute('data-id') || '',
+      });
+    }, true);
+    (window as unknown as { __moves: typeof log }).__moves = log;
+  });
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+
+  const citation = page.locator('#because button.because').first();
+  const owned = ((await citation.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
+    const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
+    return (row as HTMLElement | undefined)?.dataset.id || '';
+  }, owned);
+  const other = page.locator(`#text-rows .text-row[data-id="${otherId}"]`);
+  const ownedRow = page.locator(`.text-row[data-id="${owned[0]}"]`);
+  const hit = page.locator(`.box-hit[data-id="${otherId}"]`);
+  const blank = page.locator('#verdict');
+
+  function contains(box: { x: number, y: number, width: number, height: number }, x: number, y: number) {
+    return x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height;
+  }
+
+  async function lastMove() {
+    return page.evaluate(() => {
+      const log = (window as unknown as { __moves: Array<{ x: number, y: number, mx: number, my: number, id: string }> }).__moves;
+      return log[log.length - 1];
+    });
+  }
+
+  async function ownCitation() {
+    await citation.evaluate((element) => (element as HTMLElement).focus({ preventScroll: true }));
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(ownedRow).toHaveClass(/is-hot/);
+  }
+
+  for (const [width, height, reduced] of [[1440, 900, false], [1440, 900, true], [390, 844, false], [390, 844, true]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
+    await other.scrollIntoViewIfNeeded();
+    const rowBox = await other.boundingBox();
+    expect(rowBox).toBeTruthy();
+    const land = {
+      x: Math.round(rowBox!.x + Math.min(10, Math.max(2, rowBox!.width / 2))),
+      y: Math.round(rowBox!.y + Math.min(6, Math.max(2, rowBox!.height / 2))),
+    };
+    await page.mouse.move(land.x, land.y, { steps: 1 });
+    const stored = await lastMove();
+    expect(stored.x).toBe(land.x);
+    expect(stored.y).toBe(land.y);
+    await expect(other).toHaveClass(/is-hot/);
+
+    const stage = await page.locator('#stage').boundingBox();
+    expect(stage).toBeTruthy();
+    let outsideX = Math.max(0, Math.round(stage!.x - 24));
+    let outsideY = Math.max(0, Math.round(stage!.y - 20));
+    if (contains(stage!, outsideX, outsideY)) {
+      outsideX = Math.min(width - 2, Math.round(stage!.x + stage!.width + 6));
+      outsideY = 2;
+    }
+    expect(contains(stage!, outsideX, outsideY)).toBe(false);
+    await page.mouse.move(outsideX, outsideY, { steps: 1 });
+    const afterExit = await lastMove();
+    expect(afterExit).toEqual(stored);
+
+    await ownCitation();
+    await expect(other).not.toHaveClass(/is-hot/);
+    await page.mouse.move(stored.x, stored.y, { steps: 1 });
+    const back = await lastMove();
+    expect(back.x).toBe(stored.x);
+    expect(back.y).toBe(stored.y);
+    expect(back.mx !== 0 || back.my !== 0).toBe(true);
+    expect(back.id).toBe(otherId);
+    await expect(citation).toBeFocused();
+    await expect(other).toHaveClass(/is-hot/);
+    await expect(citation).not.toHaveClass(/is-hot/);
+    await expect(ownedRow).not.toHaveClass(/is-hot/);
+
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+    await page.mouse.wheel(0, 80);
+    await page.evaluate((point) => {
+      const under = document.elementFromPoint(point.x, point.y);
+      under?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: point.x, clientY: point.y, pointerType: 'mouse' }));
+      document.querySelector('#stage')?.dispatchEvent(new PointerEvent('pointerout', {
+        bubbles: true,
+        clientX: point.x,
+        clientY: point.y,
+        pointerType: 'mouse',
+        relatedTarget: document.body,
+      }));
+    }, stored);
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+
+    await hit.scrollIntoViewIfNeeded();
+    const hitBox = await hit.boundingBox();
+    expect(hitBox).toBeTruthy();
+    await page.mouse.move(Math.round(hitBox!.x + hitBox!.width / 2), Math.round(hitBox!.y + hitBox!.height / 2), { steps: 1 });
+    await expect(citation).toBeFocused();
+    await expect(other).toHaveClass(/is-hot/);
+    await expect(hit).toHaveClass(/is-hot/);
+    await expect(citation).not.toHaveClass(/is-hot/);
+
+    await blank.scrollIntoViewIfNeeded();
+    const empty = await blank.boundingBox();
+    expect(empty).toBeTruthy();
+    await page.mouse.move(Math.round(empty!.x + 12), Math.round(empty!.y + 8), { steps: 1 });
+    await expect(citation).toBeFocused();
+    await expect(citation).not.toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+    await expect(ownedRow).not.toHaveClass(/is-hot/);
+
+    const citeBox = await citation.boundingBox();
+    expect(citeBox).toBeTruthy();
+    await page.mouse.move(Math.round(citeBox!.x + 8), Math.round(citeBox!.y + 6), { steps: 1 });
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+    await expect(ownedRow).toHaveClass(/is-hot/);
+    await page.keyboard.press('ArrowDown');
+    await expect(citation).toBeFocused();
+    await expect(citation).toHaveClass(/is-hot/);
+  }
+});
+
 test('an unread script does not light an arbitrary row', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the menu.');
   await page.goto('experiments/mirage/');
