@@ -64,6 +64,9 @@ const state = {
   label: 'Wireframe block',
   hot: null,
   keyboard: false,
+  modality: 'pointer',
+  pointerX: null,
+  pointerY: null,
   held: false,
   interacted: false,
   scrollArmed: false,
@@ -716,13 +719,19 @@ actionButton.addEventListener('click', () => {
   });
 });
 
+stage.addEventListener('pointermove', (event) => {
+  const moved = state.pointerX != null && (event.clientX !== state.pointerX || event.clientY !== state.pointerY);
+  state.pointerX = event.clientX;
+  state.pointerY = event.clientY;
+  if (moved) state.modality = 'pointer';
+});
 stage.addEventListener('pointerover', (event) => {
-  if (!finePointer.matches) return;
+  if (!finePointer.matches || state.modality === 'keyboard') return;
   const node = event.target.closest?.('[data-id], [data-ids]');
   if (node) applyHot(node, false);
 });
 stage.addEventListener('pointerout', (event) => {
-  if (!finePointer.matches || state.held) return;
+  if (!finePointer.matches || state.held || state.modality === 'keyboard') return;
   const next = event.relatedTarget?.closest?.('[data-id], [data-ids]');
   if (!next) applyHot(null, false);
 });
@@ -738,18 +747,28 @@ stage.addEventListener('pointerup', (event) => {
   if (finePointer.matches) return;
   const node = event.target.closest?.('[data-id], [data-ids]');
   if (!node) return;
+  state.modality = 'pointer';
   state.held = true;
   applyHot(node, false);
 });
 document.addEventListener('pointerdown', (event) => {
+  state.modality = 'pointer';
   state.keyboard = false;
-  if (finePointer.matches || !state.held) return;
-  if (!event.target.closest?.('[data-id]')) {
-    state.held = false;
-    applyHot(null, false);
+  if (!finePointer.matches) {
+    if (!state.held) return;
+    if (!event.target.closest?.('[data-id]')) {
+      state.held = false;
+      applyHot(null, false);
+    }
+    return;
   }
+  const node = event.target.closest?.('[data-id], [data-ids]');
+  if (node) applyHot(node, false);
 });
-document.addEventListener('keydown', () => { state.keyboard = true; });
+document.addEventListener('keydown', () => {
+  state.keyboard = true;
+  state.modality = 'keyboard';
+});
 narrowMedia.addEventListener('change', fitFrame);
 window.addEventListener('resize', () => { fitFrame(); measureTop(); });
 

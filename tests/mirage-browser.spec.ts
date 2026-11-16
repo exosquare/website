@@ -315,6 +315,63 @@ test('the total line lights the amount and the currency', async ({ page }, testI
   await expect(page.locator('#text-rows .text-row')).toHaveCount(8 + extra);
 });
 
+test('keyboard focus keeps the highlight while the pointer stays still', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Pointer and keyboard modality is checked once.');
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Shop receipt' }).click();
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  const because = page.locator('#because button.because', { hasText: 'Total line' });
+  const owned = ((await because.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  expect(owned.length).toBeGreaterThan(0);
+  const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
+    const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
+    return (row as HTMLElement | undefined)?.dataset.id || '';
+  }, owned);
+  expect(otherId).not.toBe('');
+  const other = page.locator(`#text-rows .text-row[data-id="${otherId}"]`);
+  await expect(other).toBeVisible();
+
+  async function stillOwned() {
+    await expect(because).toBeFocused();
+    await expect(page.locator(`.text-row[data-id="${owned[0]}"]`)).toHaveClass(/is-hot/);
+    await expect(page.locator(`svg .box[data-id="${owned[0]}"]`)).toHaveClass(/is-hot/);
+    await expect(other).not.toHaveClass(/is-hot/);
+  }
+
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: width === 390 ? 'reduce' : 'no-preference' });
+    const box = await other.boundingBox();
+    expect(box).toBeTruthy();
+    const point = { x: box!.x + Math.min(12, box!.width / 2), y: box!.y + Math.min(8, box!.height / 2) };
+    await page.mouse.move(point.x, point.y);
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })));
+    await because.focus();
+    await page.mouse.wheel(0, 180);
+    await page.evaluate((spot) => {
+      const under = document.elementFromPoint(spot.x, spot.y);
+      under?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: spot.x, clientY: spot.y, pointerType: 'mouse' }));
+      document.querySelector('#stage')?.dispatchEvent(new PointerEvent('pointerout', {
+        bubbles: true,
+        clientX: spot.x,
+        clientY: spot.y,
+        pointerType: 'mouse',
+        relatedTarget: document.body,
+      }));
+    }, point);
+    await stillOwned();
+  }
+
+  const box = await other.boundingBox();
+  await page.mouse.move(box!.x + 4, box!.y + 4);
+  await other.hover();
+  await expect(other).toHaveClass(/is-hot/);
+  await expect(page.locator(`.text-row[data-id="${owned[0]}"]`)).not.toHaveClass(/is-hot/);
+});
+
 test('an unread script does not light an arbitrary row', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the menu.');
   await page.goto('experiments/mirage/');
