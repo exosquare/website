@@ -125,7 +125,7 @@ function hasTotalWord(value) {
   return /(?:^|[^a-z])total(?:[^a-z]|$)/i.test(value) || /total\s*hk\$/i.test(value);
 }
 
-function plausibleLatinWord(value) {
+export function plausibleLatinWord(value) {
   const words = String(value).match(/[A-Za-z]{4,}/g) || [];
   return words.some((word) => word === word.toUpperCase() || word === word.toLowerCase() || /^[A-Z][a-z]+$/.test(word));
 }
@@ -371,14 +371,13 @@ function scriptDecision(lines, objects) {
   const anchor = nonLatin || lines[0] || objects.find((object) => /text/i.test(object.name));
   return result(
     'script',
-    "Can't tell.",
+    "Text found, but it isn't Latin script, so it couldn't be read.",
     [
-      { text: "Text found, but it isn't Latin script, so it wasn't read.", id: anchor?.id ?? null },
       {
         text: lines.length === 1
           ? 'That line is not readable Latin.'
           : `${lines.length} lines are marked, and none of them is readable Latin.`,
-        id: lines[1]?.id || anchor?.id || null,
+        id: lines.length === 1 ? (anchor?.id ?? null) : (lines[1]?.id || anchor?.id || null),
       },
     ],
     'Page rule: text that is not Latin script is left unread.',

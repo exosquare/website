@@ -117,12 +117,13 @@ test('non-latin text is left unread', () => {
       { id: 'f', string: 'M', bbox: [10, 110, 20, 120], score: 0.4 },
     ],
   }, fridayAfternoon);
-  expect(menu.verdict).toBe("Can't tell.");
-  expect(menu.because[0].text).toBe("Text found, but it isn't Latin script, so it wasn't read.");
+  expect(menu.verdict).toBe("Text found, but it isn't Latin script, so it couldn't be read.");
+  expect(menu.because.map((line) => line.text)).toEqual(['6 lines are marked, and none of them is readable Latin.']);
   const han = decide({
     text: [{ id: 'han', string: '宫保鸡丁', bbox: [10, 10, 80, 30], score: 0.4 }],
   }, fridayAfternoon);
-  expect(han.because[0].text).toBe("Text found, but it isn't Latin script, so it wasn't read.");
+  expect(han.verdict).toBe("Text found, but it isn't Latin script, so it couldn't be read.");
+  expect(han.because.map((line) => line.text)).toEqual(['That line is not readable Latin.']);
   expect(han.kind).toBe('script');
 });
 

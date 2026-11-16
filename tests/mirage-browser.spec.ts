@@ -134,7 +134,13 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(page.locator('.because.is-hot')).toHaveCount(0);
   await expect(page.locator('.text-row.is-hot')).toHaveCount(0);
 
-  const textRow = page.locator('.text-row').first();
+  let textRow = page.locator('.text-row').first();
+  if (await textRow.count() === 0) {
+    await page.getByRole('button', { name: 'Shop receipt' }).click();
+    await page.getByRole('button', { name: 'Run again' }).click();
+    await expect(page.locator('#verdict')).toContainText(/CHF|Log/, { timeout: 120_000 });
+    textRow = page.locator('.text-row').first();
+  }
   await expect(textRow).toBeVisible();
   const textId = await textRow.getAttribute('data-id');
   await textRow.hover();

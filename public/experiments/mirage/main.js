@@ -1,5 +1,5 @@
 import { createVisionBlock } from './vision-block.js';
-import { decide, groupObjects, percent, readingOrder } from './rules.js';
+import { decide, groupObjects, percent, plausibleLatinWord, readingOrder } from './rules.js';
 import { createLedger, formatBytes, installNetworkHooks, resourceFromEntry, watchResources } from './observe.js';
 import { mirageMotion as motion } from './motion.js';
 
@@ -452,10 +452,11 @@ function showResult(data) {
   setStatus(`Done in ${seconds.toFixed(1)} s`);
   renderDecision(decision);
   renderObjects(objects);
-  renderText(text);
+  const readableText = text.filter((item) => plausibleLatinWord(item.string));
+  renderText(readableText);
   const boxes = [
     ...objects.map((item) => ({ id: item.id, kind: 'object', name: item.name || 'object', bbox: item.bbox, score: item.score, percent: percent(item.score), group: item.name || 'object' })),
-    ...text.map((item) => ({ id: item.id, kind: 'text', name: item.string || 'text', bbox: item.bbox, score: item.score, percent: percent(item.score), group: '' })),
+    ...readableText.map((item) => ({ id: item.id, kind: 'text', name: item.string || 'text', bbox: item.bbox, score: item.score, percent: percent(item.score), group: '' })),
   ];
   block.showBoxes(boxes);
   renderAction();
@@ -527,6 +528,13 @@ function objectRow(group) {
 
 function renderText(lines) {
   textRows.replaceChildren();
+  if (!lines.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'No readable Latin text found.';
+    textRows.append(empty);
+    return;
+  }
   for (const line of lines) {
     const button = document.createElement('button');
     button.type = 'button';
