@@ -290,6 +290,10 @@ function receiptDecision(lines) {
   );
 }
 
+function discLine(lines) {
+  return lines.find((line) => /\bmax\s*2\b|\b2\s*h\b|\b2\s*u(?:ur)?\b|parkeerschijf|blauwe\s+zone/i.test(line.string)) || null;
+}
+
 function parkingDecision(lines, now) {
   const rangeLine = lines.find((line) => parseRange(line.string));
   if (!rangeLine) return null;
@@ -301,12 +305,16 @@ function parkingDecision(lines, now) {
   const today = now.getDay();
   const openToday = activeDays.includes(today);
   const inside = openToday && nowMinutes >= range.start && nowMinutes < range.end;
+  const disc = discLine(lines);
   let verdict;
-  if (!openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
+  if (disc && inside) verdict = `Should I park here now? Yes, for up to 2 hours with a parking disc, until ${formatClock(range.end)}.`;
+  else if (disc) verdict = 'Should I park here now? Yes, no time limit now.';
+  else if (!openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
   else if (inside) verdict = `Should I park here now? Not until ${formatClock(range.end)}.`;
   else if (nowMinutes < range.start) verdict = `Should I park here now? Yes, until ${formatClock(range.start)}.`;
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
+  if (disc) because.push({ text: `Duration on the sign: ${quote(disc.string)}`, id: disc.id });
   if (dayLine) because.push({ text: `Days on the sign: ${quote(dayLine.string)}`, id: dayLine.id });
   else because.push({ text: 'No day line. The hours are taken as every day.', id: rangeLine.id });
   return result(

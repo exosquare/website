@@ -51,6 +51,29 @@ test('a receipt without a date says date not found', () => {
   expect(decision.verdict).toBe('Log $12.00 as food and drink, date not found.');
 });
 
+const discSign = {
+  text: [
+    { id: 'disc', string: '2h', bbox: [20, 18, 40, 26], score: 0.5 },
+    { id: 'hours', string: '8 AM- 7 PM', bbox: [17, 33, 66, 40], score: 0.67 },
+  ],
+};
+
+test('a disc zone allows two hours inside the signed hours', () => {
+  const inside = decide(discSign, fridayAfternoon);
+  expect(inside.verdict).toBe('Should I park here now? Yes, for up to 2 hours with a parking disc, until 7pm.');
+  expect(inside.because.map((line) => line.text)).toContain('Duration on the sign: "2h"');
+});
+
+test('a disc zone has no time limit outside the signed hours', () => {
+  expect(decide(discSign, fridayEvening).verdict).toBe('Should I park here now? Yes, no time limit now.');
+});
+
+test('parking hours without a duration are unchanged', () => {
+  const decision = decide(parking, fridayAfternoon);
+  expect(decision.verdict).toBe('Should I park here now? Not until 7pm.');
+  expect(decision.because.some((line) => line.text.startsWith('Duration'))).toBe(false);
+});
+
 test('parking hours are compared with the device clock', () => {
   expect(decide(parking, fridayAfternoon).verdict).toBe('Should I park here now? Not until 7pm.');
   expect(decide(parking, fridayMorning).verdict).toBe('Should I park here now? Yes, until 8am.');
