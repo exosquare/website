@@ -403,10 +403,14 @@ export function createVisionBlock(canvas, overlay) {
     state.morph = state.morphTo;
     state.aspect = state.aspectTo;
     state.shown = state.reported;
-    state.imageOpacity = state.nextImage ? 1 : state.fadeTo;
     if (state.nextImage) {
+      state.fadeFrom = 1;
+      state.fadeTo = 1;
+      state.imageOpacity = 1;
       state.image = state.nextImage;
       state.nextImage = null;
+    } else {
+      state.imageOpacity = state.fadeTo;
     }
     state.ink = state.inkTo;
     state.gridFade = state.gridFadeTo;

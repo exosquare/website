@@ -145,6 +145,39 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(page.locator(`.box.is-hot[data-id="${textId}"]`)).toHaveCount(1);
 });
 
+test('a second photo stays on the stage with reduced motion', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the second photo.');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('experiments/mirage/');
+  await page.getByRole('button', { name: 'Download model' }).click();
+  await page.getByRole('button', { name: 'Desk with a laptop and a cup' }).click();
+  await page.getByRole('button', { name: 'Run' }).waitFor({ timeout: 120_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
+  await page.getByRole('button', { name: 'Street parking sign' }).click();
+  await page.getByRole('button', { name: 'Run again' }).click();
+  await expect(page.locator('#verdict')).toContainText(/park/i, { timeout: 120_000 });
+  const colourful = await page.locator('#mark').evaluate((canvas) => {
+    const node = canvas as HTMLCanvasElement;
+    const context = node.getContext('2d');
+    if (!context || !node.width || !node.height) return 0;
+    const cols = 8;
+    const rows = 8;
+    let count = 0;
+    for (let y = 1; y <= rows; y += 1) {
+      for (let x = 1; x <= cols; x += 1) {
+        const px = Math.floor((node.width * x) / (cols + 1));
+        const py = Math.floor((node.height * y) / (rows + 1));
+        const [r, g, b, a] = context.getImageData(px, py, 1, 1).data;
+        if (a < 16) continue;
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 18) count += 1;
+      }
+    }
+    return count;
+  });
+  expect(colourful).toBeGreaterThan(0);
+});
+
 test('the stage is still once idle', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Motion idle is checked once.');
   await page.goto('experiments/mirage/');
