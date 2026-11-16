@@ -1,42 +1,90 @@
 ---
-title: 'Trying Mirage to read photos without a connection'
-draft: true
+title: 'Trying Mirage: what can a 22 MB vision model do?'
+draft: false
+publishedAt: 2026-11-16
 topic: 'Local models'
 kind: 'Experiment note'
 author: 'Matt'
-standfirst: 'Mirage is small enough to download once and run in the browser without a connection, so I tried it on the kind of everyday decisions that start with a photo.'
+socialImage:
+  src: '/images/mirage/how-it-works.png'
+  alt: 'Mirage scan results feed receipt-reading code, while form requests select an answer directly from the image.'
+standfirst: 'Objects, text and structured decisions in a model small enough to run locally in a browser. I tried it on everyday photos. Try it yourself with the interactive demo below.'
 ---
+
+import MirageFlow from '../../components/mirage/MirageFlow.astro'
 
 import MirageArtifact from '../../components/mirage/MirageArtifact.astro'
 
-After [trying Moonshine for private voice controls](https://exosquare.com/writing/moonshine-base/), a small vision model felt like the natural next step. Plenty of everyday decisions start with a photo, like logging a receipt or working out whether a parking sign applies right now, and I was curious whether that could happen without the photo going anywhere.
+I've been keeping an eye on small local models, and after [trying Moonshine for private voice controls](https://exosquare.com/writing/moonshine-base/), I wanted to see what was happening on the vision side. I had a local-first bill-splitting app in mind, and tried Mirage to see whether it could read a receipt well enough to help. I also tried signs and a desk photo.
 
-Mirage is a vision model from Cactus Compute. It finds objects in an image, puts a box around each one and reads any text it can see. [Model card](https://huggingface.co/Cactus-Compute/mirage), [Cactus's Mirage post](https://cactuscompute.com/blog/mirage).
+[Mirage](https://cactuscompute.com/blog/mirage), from Cactus Compute, packs object detection, text reading and structured decisions into a model download of just 21.6 MB. The software that runs it is a separate download. It can also describe a scene, identify relationships between objects and mark out their shapes. That's a lot to fit into such a small model. I wanted to see how much of it I could actually use.
 
-The model is 21.6 megabytes. In the demo it downloads once from this site and is then kept in the browser's Cache Storage, so a later visit loads it from there and it keeps working without a connection. That's a lot smaller than the 160 megabytes Moonshine put in Cache Storage. On a fast connection the first load was super quick, a couple of seconds. The Network panel showed 25.3 megabytes transferred, which covers the engine and the page as well as the model, and it had all finished in under two seconds.
+My experiment was small and not a serious benchmark by any means. I tested it locally on a MacBook Air with Chrome and four sample images. I also ran through ten or so other receipts that I found online. It was surprisingly easy to get running and produced some useful detections. There were a couple of gotchas, and I came across a classification error that persisted in Cactus's own runner. Spoiler alert: I wouldn't trust it in a production app just yet.
 
-The page runs Cactus's own engine, version 4.1.0, in the browser as WebAssembly. The demo uses the prebuilt files unmodified, and their checksums match the ones Cactus publishes. [Pinned engine files](https://github.com/exosquare/website/blob/main/public/experiments/mirage/vendor/README.md).
+## What it found in the photos
 
-The model weights and the prebuilt engine files are under the Apache 2.0 licence, although Cactus has said the source for the 4.1.0 engine is private. [Cactus's licence answer](https://github.com/cactus-compute/cactus/issues/189#issuecomment-6868858725).
+The desk photo was a useful starting point. Mirage picked out the laptop, coffee cup, notebook and pen and put boxes around them. It also described the cup resting on a saucer, so it could tell me something about how the objects were arranged.
 
-Mirage doesn't make the decision. It returns objects and text, and a small set of fixed rules on the page turns those into one answer. The receipt rule looks for a total and a date, the parking rule compares the hours on a sign with the device's clock, and the desk rule counts cups and paper inside the laptop's frame. Because the rules are plain code, each answer can list the lines it was based on. [Page rules](https://github.com/exosquare/website/blob/main/public/experiments/mirage/rules.js).
+Text reading, or OCR, was more mixed. Mirage read enough of the Swiss receipt for our code to pick out the total of CHF 54.50. The demo didn't find a date, though, and the Chinese menu produced no useful text.
 
-When I ran the four sample photos, they gave these answers. The Swiss receipt came back as "Log CHF 54,50, date not found." The parking sign gave "Should I park here now? Yes, for up to 2 hours with a parking disc, until 6pm." The desk photo gave "Tidy up before a video call? Yes: 1 cup and 1 notebook are in shot." The Chinese menu gave "Can't tell." because none of the 22 lines of text it marked was readable Latin script. The menu is there on purpose, to show where the text reading stops. Each run took a second or two.
+On the other receipts I'd found online, the demo often failed to find a total even when I could see one. Several receipts used a label other than “Total”, which was the word our code looked for. A label such as “Amount due” wouldn't match that rule.
 
-Try it here. Choose one of the four photos or use your own image, press Download model, then press Run. The boxes appear over the photo and the decision appears with the lines behind it. Hovering a row highlights its box. On a later visit the button says Load model.
+I only checked the final answer. Mirage might have missed or misread the text, or our code might have failed to pick out the total. I couldn't tell which. Cactus [documents text reading](https://cactuscompute.com/blog/structured-perception), but I didn't find a promise that it automatically identifies the final amount payable on a receipt.
+
+There were too many misses for me to trust this setup with the bill-splitting idea yet.
+
+## What I misunderstood about decisions
+
+The decision capability sounded like a way to ask questions about an image, so we tried that too. Mirage accepts a form with named fields and possible answers. We used the question as the field name, with Yes and No as the choices.
+
+On the sample receipt, I asked “Is the total less than 60?” and got Yes. It also said Yes to “Is the total less than 50?” and “Is the total less than 0?” The printed total was CHF 54.50, so only the first answer was right. In a follow-up test, spelling out the numbers made it abstain, meaning it didn't select either answer.
+
+At that point I wondered whether we were using it properly. The [documentation](https://cactuscompute.com/blog/structured-perception) explained one of the gotchas. A form request looks at the image but doesn't run the text reader. It doesn't receive the text from an earlier scan either. I'd assumed it could use the total it had already read. Our app would need to take the amount from the text-reading result and do the comparison itself.
+
+We'd also treated the field name as a place to ask any question we wanted. The documented example uses a field called “sign” and a list of sign types. For broader questions, Cactus [describes using a separate language model](https://cactuscompute.com/blog/mirage) to read Mirage's observations. We weren't doing that.
+
+The earlier parking demo had been misleading too. It could give an answer about whether parking was permitted, but our code made that decision using the text Mirage had read. It wasn't Mirage deciding whether we could park there.
+
+<MirageFlow />
+
+## Trying Cactus's own runner
+
+We then tried the documented format on the parking photo: a field called “sign”, with parking, stop, yield and speed limit as the choices. Mirage chose stop. I wanted to know whether something in our demo was causing that mistake.
+
+To check, we ran the same model on the same image through Cactus's [own software, using its Python runner](https://github.com/cactus-compute/cactus/blob/main/cactus/agent/mirage.py). We gave it the same answer choices. We also tried Cactus's [own stop-sign photo](https://cactuscompute.com/mirage/coco-231049.jpg) to see whether both versions could get that example right.
+
+| Test | Browser runtime | Official Python runner |
+| --- | --- | --- |
+| Published stop-sign photo, choosing stop / yield / speed limit | Stop | Stop |
+| Our parking photo, choosing parking / stop / yield / speed limit | Stop | Stop |
+| Desk photo, choosing cup / pen / laptop / elephant | Laptop | Laptop |
+
+Both got the stop-sign example right, and both called our parking sign a stop sign. The browser gave stop a score of 68.4%, and the Python runner gave it 69.0%. This time the wrong answer showed up outside our demo too. I still don't know why it got that image wrong or how often it would make similar mistakes.
+
+The desk result was easier to explain. I could see a cup, pen and laptop, so getting only laptop back didn't seem very useful. But we'd asked it to pick one answer. The scan had already found the cup and pen, so that was where I needed to look for the other objects.
+
+The receipt questions exposed a mistake in our setup. The parking-sign error also appeared in Cactus's own software.
+
+**Test setup:** The Python check used `cactus-compute` 4.1.0. Both versions used the 4.1.0 engine and the same model weights. The parking comparison used identical RGB image data, so both received the same pixels. These were checks of individual examples, not a measurement of overall accuracy.
+
+## Try it yourself
+
+You can try the same photos below or upload one of your own. Download the model, then press Run to see what it finds. The boxes show where it found objects and text. Open the full scan output to see how it describes the scene and the relationships between objects.
+
+To try its decisions, give it a set of answers to choose from. For these single-choice fields, it will pick one or abstain. The bar compares the scores for those choices. These aren't measured accuracy rates, and a high score can still go with a wrong answer, as it did for our parking sign. Try changing the wording or the choices too. Cactus [explains how that changes the scores](https://cactuscompute.com/blog/structured-perception).
 
 <MirageArtifact />
 
-Keeping the photo on the device is the point, so the demo includes a few ways to check it. The page's security policy only allows connections back to the same site. The background worker that runs the model refuses any other address and switches off WebSockets and beacon requests, two other ways a page can send data out. An automated browser test runs the real model on the receipt and records every request, and the list stays empty for the whole run. [Worker source](https://github.com/exosquare/website/blob/main/public/experiments/mirage/vision-worker.js), [browser test](https://github.com/exosquare/website/blob/main/tests/mirage-browser.spec.ts).
+The demo runs in your browser and saves the files it needs after the first download. The standalone demo can then work offline, as long as your browser keeps those files. I checked the browser's Network panel and saw no new requests while the model was running. Automated checks also saw no requests during the decision calls they tested.
 
-The demo's own request ledger also shows 0 requests and 0 bytes during a run. Your own uploads go through the same worker and are built to stay in the browser, but the automated test only covers the sample receipt.
+The browser version uses Cactus's prebuilt WebAssembly software, with the [exact build recorded here](https://github.com/exosquare/website/blob/2acc98b/public/experiments/mirage/vendor/README.md). Cactus distributes the model and compiled software under Apache 2.0. The source code for this engine version is private, as Cactus confirms in its [licence clarification](https://github.com/cactus-compute/cactus/issues/189#issuecomment-6868858725).
 
-The browser's Network panel is the easiest way to check it yourself. Clear the panel once the model has loaded, press Run, and nothing new should appear. When I tested it myself, nothing did. The trap from the Moonshine test applies to the download again. Once the model is cached, a later visit looks almost empty, and the developer tools' "Disable cache" option doesn't clear Cache Storage. To see the full download, clear the site's storage under Application in Chrome first. [Chrome's Cache Storage guide](https://developer.chrome.com/docs/devtools/storage/cache).
+## What would make it useful to me?
 
-There are clear limits. Mirage's text reading only handles plain Latin script. A public probe found accents dropped, Cyrillic and Greek returned as Latin look-alikes, and Chinese, Japanese, Korean and Hebrew failing. [Text reading issue](https://github.com/cactus-compute/cactus/issues/190). A printed total often comes back in separate pieces, so the receipt rule has to join the word "total", the currency and the amount from the same line. The parking rule reads the hours even though the model returned them as "09. O0-18.OOh", with some of the zeros read as the letter O, and it picks up the two-hour limit from "maX2". It doesn't read the Dutch day abbreviations on the sign, so it treats the hours as applying every day. Its answer also depends on the device's clock, so the answer changes with the time of day it runs. I haven't compared Mirage with other models, and four photos aren't a benchmark.
+I came away less convinced about what I'd use Mirage for. Getting it running was easy, but I'd need more than a few useful detections before building an app around it.
 
-I also tried it on some receipts I found online, and the results were mixed. About two thirds worked as expected. Every one of them had a total line, but the most common problem was that the model didn't pick it out. It's still impressive for just over 20 megabytes, but it isn't something I'd use in a production app yet.
+For the bill-splitting idea, I'd first check the text Mirage read against the receipt, then check whether our code picked the right total. That would tell me which part needed fixing. For an object-detection app, I'd use photos like the ones people would actually upload and record what Mirage found and missed.
 
-I'll keep an eye on new models. Next I'd like to try photos taken on the spot rather than tidy samples, and see how many of those missed totals the plain rules around the model could recover on their own.
+Getting useful results from a model this small still makes me curious about what's coming. If I take this further, I'd pick one of those uses and keep a proper record of what works, what fails and when it abstains. That's the evidence I'd need before trusting it in an app.
 
 Photo credits: [receipt](https://commons.wikimedia.org/wiki/File:ReceiptSwiss.jpg) by Audrius Meskauskas, Creative Commons BY-SA 3.0, cropped to remove personal details and sharpened. [Parking sign](https://commons.wikimedia.org/wiki/File:2_hour_disc_parking_sign,_Stadskanaal_(2019)_05.jpg) by Donald Trung, Creative Commons BY-SA 4.0, cropped. [Desk](https://www.pexels.com/photo/workplace-with-laptop-and-notepad-placed-near-coffee-cup-5668471/) by Sora Shimazaki, [Pexels Licence](https://www.pexels.com/license/), cropped. [Menu](https://commons.wikimedia.org/wiki/File:Chinese_menu.jpg) by Roland Tanglao, Creative Commons CC0, with the Chinese lines rearranged. The engine is Cactus 4.1.0's prebuilt WebAssembly build, under the [Apache 2.0 licence](https://github.com/exosquare/website/blob/main/public/licenses/cactus-Apache-2.0.txt).

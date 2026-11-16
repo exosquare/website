@@ -46,9 +46,14 @@ test('a real run stays on this origin and makes no requests while running', asyn
   const before = traffic.seen.length;
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(page.locator('#status')).toHaveText('Finding objects', { timeout: 30_000 });
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   await expect(page.locator('#object-rows .empty')).toHaveText('No objects found.');
-  await expect(page.locator('#rule-line')).toContainText('Page rule');
+  await expect(page.locator('#rule-line')).toBeEmpty();
+  await page.locator('#text-rows .more').click();
+  // The current UI shows filtered OCR, not the old application's computed total.
+  await expect(page.locator('#text-rows')).toContainText('Total');
+  await expect(page.locator('#text-rows')).toContainText('CHF');
+  await expect(page.locator('#scene-output')).toContainText('objects');
   await expect(page.locator('#run-count')).toHaveText('0');
   await expect(page.locator('#run-bytes')).toHaveText('0 B');
   expect(traffic.seen.slice(before)).toEqual([]);
@@ -95,7 +100,7 @@ test('a same-origin probe is counted on the run row', async ({ page }, testInfo)
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toHaveText('Nothing recognisable found.');
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.');
   await expect(page.locator('#run-count')).not.toHaveText('0');
   await expect(page.locator('#net-run')).toHaveClass(/warn/);
   await expect(page.locator('#run-requests')).toContainText('run-probe.txt');
@@ -112,7 +117,7 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
 
   const objectId = await page.evaluate(() => {
     const linked = new Set(
@@ -141,7 +146,7 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   if (await textRow.count() === 0) {
     await page.getByRole('button', { name: 'Shop receipt' }).click();
     await page.getByRole('button', { name: 'Run again' }).click();
-    await expect(page.locator('#verdict')).toContainText(/CHF|Log/, { timeout: 120_000 });
+    await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
     textRow = page.locator('.text-row').first();
   }
   await expect(textRow).toBeVisible();
@@ -168,10 +173,10 @@ test('a new result collapses an expanded list', async ({ page }, testInfo) => {
   expect(expanded).toBeGreaterThan(8);
   await page.getByRole('button', { name: 'Desk with a laptop and a cup' }).click();
   await page.getByRole('button', { name: 'Run again' }).click();
-  await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   await page.getByRole('button', { name: 'Shop receipt' }).click();
   await page.getByRole('button', { name: 'Run again' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   await expect(page.locator('#text-rows .text-row')).toHaveCount(8);
   await expect(page.locator('#text-rows .more')).toBeVisible();
 });
@@ -227,7 +232,7 @@ test('Enter on and more focuses the first new row', async ({ page }, testInfo) =
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   const before = await page.locator('#text-rows .text-row').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.id));
   const more = page.locator('#text-rows .more');
   await more.focus();
@@ -281,25 +286,25 @@ test('Enter on and more focuses the first new object row', async ({ page }, test
   await expect(page.locator(`#object-rows .object-row[data-id="${revealed}"]`)).toBeFocused();
 });
 
-test('the total line lights the amount and the currency', async ({ page }, testInfo) => {
+test('a receipt text row lights its matching detection', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the total row.');
   await page.goto('experiments/mirage/');
   await page.getByRole('button', { name: 'Shop receipt' }).click();
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
-  const because = page.locator('#because button.because', { hasText: 'Total line' });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
+  const because = page.locator('#text-rows button.text-row').first();
   await expect(because).toBeVisible();
-  const ids = ((await because.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
-  expect(ids).toHaveLength(3);
+  const ids = ((await because.getAttribute('data-ids')) || (await because.getAttribute('data-id')) || '').split(/\s+/).filter(Boolean);
+  expect(ids).toHaveLength(1);
   await because.hover();
   for (const id of ids) {
     await expect(page.locator(`.text-row[data-id="${id}"]`)).toHaveClass(/is-hot/);
     await expect(page.locator(`svg .box[data-id="${id}"]`)).toHaveClass(/is-hot/);
   }
-  await expect(page.locator('.text-row.is-hot')).toHaveCount(3);
-  await expect(page.locator('svg .box.is-hot')).toHaveCount(3);
+  await expect(page.locator('.text-row.is-hot')).toHaveCount(1);
+  await expect(page.locator('svg .box.is-hot')).toHaveCount(1);
   await because.focus();
   await expect(because).toBeFocused();
   for (const id of ids) {
@@ -322,9 +327,9 @@ test('keyboard focus keeps the highlight while the pointer stays still', async (
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
-  const because = page.locator('#because button.because', { hasText: 'Total line' });
-  const owned = ((await because.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
+  const because = page.locator('#text-rows button.text-row').first();
+  const owned = ((await because.getAttribute('data-ids')) || (await because.getAttribute('data-id')) || '').split(/\s+/).filter(Boolean);
   expect(owned.length).toBeGreaterThan(0);
   const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
     const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
@@ -379,9 +384,9 @@ test('the first real pointer move takes the highlight', async ({ page }, testInf
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
-  const citation = page.locator('#because button.because').first();
-  const owned = ((await citation.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
+  const citation = page.locator('#text-rows button.text-row').first();
+  const owned = ((await citation.getAttribute('data-ids')) || (await citation.getAttribute('data-id')) || '').split(/\s+/).filter(Boolean);
   const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
     const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
     return (row as HTMLElement | undefined)?.dataset.id || '';
@@ -466,7 +471,7 @@ test('a cold keyboard session yields on the first pointer move', async ({ page }
     await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
     await page.getByRole('button', { name: 'Run' }).focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+    await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   }
 
   function inside(box: { x: number, y: number, width: number, height: number }, x: number, y: number) {
@@ -482,8 +487,8 @@ test('a cold keyboard session yields on the first pointer move', async ({ page }
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
     await keyboardRun();
-    const citation = page.locator('#because button.because').first();
-    const owned = ((await citation.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+    const citation = page.locator('#text-rows button.text-row').first();
+    const owned = ((await citation.getAttribute('data-ids')) || (await citation.getAttribute('data-id')) || '').split(/\s+/).filter(Boolean);
     const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
       const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
       return (row as HTMLElement | undefined)?.dataset.id || '';
@@ -558,6 +563,7 @@ test('a cold keyboard session yields on the first pointer move', async ({ page }
     await expect(ownedRow).toHaveClass(/is-hot/);
     await expect(other).not.toHaveClass(/is-hot/);
 
+    await other.scrollIntoViewIfNeeded();
     const again = await other.boundingBox();
     expect(again).toBeTruthy();
     const nudge = {
@@ -601,10 +607,10 @@ test('returning to the same point still counts as travel', async ({ page }, test
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/CHF 54[.,]50/, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
 
-  const citation = page.locator('#because button.because').first();
-  const owned = ((await citation.getAttribute('data-ids')) || '').split(/\s+/).filter(Boolean);
+  const citation = page.locator('#text-rows button.text-row').first();
+  const owned = ((await citation.getAttribute('data-ids')) || (await citation.getAttribute('data-id')) || '').split(/\s+/).filter(Boolean);
   const otherId = await page.locator('#text-rows .text-row').evaluateAll((nodes, cited) => {
     const row = nodes.find((node) => !cited.includes((node as HTMLElement).dataset.id || ''));
     return (row as HTMLElement | undefined)?.dataset.id || '';
@@ -713,6 +719,7 @@ test('returning to the same point still counts as travel', async ({ page }, test
     await expect(other).not.toHaveClass(/is-hot/);
     await expect(ownedRow).not.toHaveClass(/is-hot/);
 
+    await citation.scrollIntoViewIfNeeded();
     const citeBox = await citation.boundingBox();
     expect(citeBox).toBeTruthy();
     await page.mouse.move(Math.round(citeBox!.x + 8), Math.round(citeBox!.y + 6), { steps: 1 });
@@ -732,15 +739,14 @@ test('an unread script does not light an arbitrary row', async ({ page }, testIn
   await page.getByRole('button', { name: 'Download model' }).click();
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toHaveText("Text found, but it isn't Latin script, so it couldn't be read.", { timeout: 120_000 });
-  const evidence = page.locator('#because .because');
-  await expect(evidence).toHaveText(/^\d+ text regions found; no readable Latin text identified\.$/);
-  await expect(evidence).not.toHaveAttribute('data-id', /.+/);
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
+  await expect(page.locator('#text-rows .text-row')).toHaveCount(0);
+  await expect(page.locator('#text-rows')).toContainText('No readable Latin text found.');
   await expect(page.locator('#because button')).toHaveCount(0);
   await expect(page.locator('.box.is-hot, .text-row.is-hot')).toHaveCount(0);
 });
 
-test('a because line links to its text row and box', async ({ page }, testInfo) => {
+test('a parking text row links to its detection box', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One real inference covers the link.');
   await page.goto('experiments/mirage/');
   await page.getByRole('button', { name: 'Street parking sign' }).click();
@@ -748,7 +754,7 @@ test('a because line links to its text row and box', async ({ page }, testInfo) 
   await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(page.locator('#verdict')).not.toHaveText('', { timeout: 120_000 });
-  const because = page.locator('#because button.because').first();
+  const because = page.locator('#text-rows button.text-row').first();
   await expect(because).toBeVisible();
   const id = await because.getAttribute('data-id');
   expect(id).toBeTruthy();
@@ -780,10 +786,10 @@ test('a second photo stays on the stage with reduced motion', async ({ page }, t
   await page.getByRole('button', { name: 'Desk with a laptop and a cup' }).click();
   await page.getByRole('button', { name: 'Run' }).waitFor({ timeout: 120_000 });
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.locator('#verdict')).toContainText(/cup|notebook/i, { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   await page.getByRole('button', { name: 'Street parking sign' }).click();
   await page.getByRole('button', { name: 'Run again' }).click();
-  await expect(page.locator('#verdict')).toHaveText("Can't tell.", { timeout: 120_000 });
+  await expect(page.locator('#verdict')).toHaveText('Scan complete.', { timeout: 120_000 });
   const colourful = await page.locator('#mark').evaluate((canvas) => {
     const node = canvas as HTMLCanvasElement;
     const context = node.getContext('2d');

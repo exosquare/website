@@ -191,7 +191,7 @@ p.because { cursor: auto; }
 }
 @media (max-width: 720px) {
   .stage { --mirage-slab-depth: 8px; --mirage-well-max: 360px; --mirage-frame-empty: 280px; }
-  .workspace { grid-template-columns: 1fr; }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
   .stage-top, .samples, .readout, .controls { padding-left: 16px; padding-right: 16px; }
   .well { max-height: none; }
   .readout { margin: 0; border-left: 0; }
@@ -208,3 +208,28 @@ p.because { cursor: auto; }
     --motion-duration-fade: 0ms;
   }
 }
+
+#question, #choices { display: block; width: 100%; box-sizing: border-box; margin: 8px 0; padding: 12px; font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 4px; }
+#ask { padding: 10px 20px; font: inherit; cursor: pointer; }
+#ask:disabled { opacity: .5; cursor: default; }
+.question-help { font-size: .85rem; line-height: 1.5; }
+#answer-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+#answer-badges span { border: 2px solid #777; border-radius: 30px; padding: 8px 14px; }
+#answer-badges .selected { font-weight: 700; outline: 2px solid currentColor; outline-offset: 3px; }
+#answer-badges [data-answer="Yes"].selected { background: #b4e8c4; color: #123b22; }
+#answer-badges [data-answer="No"].selected { background: #ffd1d1; color: #611818; }
+#answer-badges [data-answer="Abstain"].selected { background: #ddd; color: #222; }
+
+#answer-status, .question-help { overflow-wrap: anywhere; }
+
+.probability-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #777; }
+.probability-bar [data-probability="yes"] { background: #b4e8c4; }
+.probability-bar [data-probability="no"] { background: #ffd1d1; }
+.probability-bar [data-probability="-"] { background: #aaa; }
+#probability-labels { font-size: .85rem; line-height: 1.6; }
+
+#scene-output { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; max-height: 500px; overflow-y: auto; }
+#answer-badges .selected { background: #c6d5ff; color: #18243f; }
+
+#question option { color: #161616; background: #fff; }
+#task-prompt { font-size: 1.15rem; line-height: 1.45; margin: 16px 0; }

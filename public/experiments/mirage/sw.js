@@ -5,7 +5,7 @@
  * part of this shell. Cache Storage reads never reach this worker.
  */
 
-const SHELL = 'mirage-shell';
+const SHELL = 'mirage-shell-friendly-v1';
 const FILES = [
   './',
   './index.html',

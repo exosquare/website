@@ -64,6 +64,7 @@ const articles = defineCollection({
       standfirst: z.string(),
       hero: figure.optional(),
       author: z.string().default('ExoSquare'),
+      socialImage: z.object({ src: z.string(), alt: z.string() }).optional(),
       kind: z
         .enum([
           'Article',

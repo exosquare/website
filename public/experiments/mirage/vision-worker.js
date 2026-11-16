@@ -207,10 +207,20 @@ async function run(data) {
   let stageName = 'objects';
   try {
     const rgb = new Uint8Array(data.buffer);
+    if (data.question) {
+      stageName = 'decision';
+      self.postMessage({ type: 'stage', name: 'decision', state: 'start' });
+      const question = String(data.question).trim().slice(0, 240);
+      const result = describe(rgb, data.width, data.height, {
+        form: { [question]: { enum: data.choices } },
+      });
+      self.postMessage({ type: 'stage', name: 'decision', state: 'end' });
+      self.postMessage({ type: 'decision', question, result, ms: performance.now() - started });
+      return;
+    }
     self.postMessage({ type: 'stage', name: 'objects', state: 'start' });
     const objects = describe(rgb, data.width, data.height, {
-      sections: ['objects'],
-      fields: ['bbox', 'score'],
+            fields: ['bbox', 'score'],
       conf: 0.2,
       max_objects: 32,
     });
@@ -226,6 +236,7 @@ async function run(data) {
     self.postMessage({ type: 'stage', name: 'text', state: 'end' });
     self.postMessage({
       type: 'result',
+      scene: objects,
       objects: objects.objects || [],
       text: text.text || [],
       ms: performance.now() - started,

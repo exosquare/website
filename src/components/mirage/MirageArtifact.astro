@@ -18,6 +18,28 @@ const playUrl = withBase('/experiments/play/mirage/');
   </figcaption>
 </figure>
 
+<script>
+  document.querySelectorAll<HTMLIFrameElement>('.mirage-artifact iframe').forEach((frame) => {
+    let observer: ResizeObserver | undefined;
+    const attach = () => {
+      observer?.disconnect();
+      const doc = frame.contentDocument;
+      const main = doc?.querySelector('main');
+      if (!doc || !main) return;
+      const resize = () => {
+        const height = Math.ceil(main.getBoundingClientRect().bottom + (frame.contentWindow?.scrollY || 0) + 32);
+        if (height > 32) frame.style.height = `${height}px`;
+      };
+      observer = new ResizeObserver(resize);
+      observer.observe(main);
+      resize();
+    };
+    frame.addEventListener('load', attach);
+    attach();
+    window.addEventListener('pagehide', () => observer?.disconnect(), { once: true });
+  });
+</script>
+
 <style>
   .mirage-artifact {
     margin: 36px 0;

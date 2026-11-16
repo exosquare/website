@@ -1,5 +1,5 @@
 import { createVisionBlock } from './vision-block.js';
-import { decide, groupObjects, percent, percentText, readingOrder, shownText } from './rules.js';
+import { groupObjects, percent, percentText, readingOrder, shownText } from './rules.js';
 import { createLedger, formatBytes, installNetworkHooks, resourceFromEntry, watchResources } from './observe.js';
 import { mirageMotion as motion } from './motion.js';
 
@@ -33,6 +33,57 @@ const errorLine = document.querySelector('#vision-error');
 const decisionEmpty = document.querySelector('#decision-empty');
 const decisionBody = document.querySelector('#decision-body');
 const verdict = document.querySelector('#verdict');
+const questionInput = document.querySelector('#question');
+const askButton = document.querySelector('#ask');
+const answerStatus = document.querySelector('#answer-status');
+let badges = [];
+const choicesInput = document.querySelector('#choices');
+const tasks = {
+  object: { prompt: 'Which of these objects can you see?', choices: 'cup, pen, laptop, elephant' },
+  sign: { prompt: 'What kind of sign is this?', choices: 'parking, stop, yield, speed limit' },
+  document: { prompt: 'What kind of document is this?', choices: 'receipt, menu, letter' },
+};
+function selectTask(task, defaults = true) {
+  questionInput.value = task;
+  document.querySelector('#task-prompt').textContent = tasks[task].prompt;
+  if (defaults) choicesInput.value = tasks[task].choices;
+  updateChoices();
+}
+
+function choices() { return [...new Set(choicesInput.value.split(',').map(value => value.trim()).filter(Boolean))]; }
+function updateChoices() {
+  const container = document.querySelector('#answer-badges');
+  container.replaceChildren();
+  [...choices(), 'Abstain'].forEach(value => {
+    const badge = document.createElement('span'); badge.dataset.answer = value; badge.textContent = value; container.append(badge);
+  });
+  badges = [...container.children];
+  resetAnswer(); renderAsk();
+}
+choicesInput.addEventListener('input', updateChoices);
+let scanned = false;
+function resetAnswer() {
+  document.querySelector('#answer-distribution').hidden = true;
+  badges.forEach(badge => { badge.classList.remove('selected'); badge.removeAttribute('aria-current'); });
+  answerStatus.textContent = 'No answer yet.';
+}
+function renderAsk() {
+  askButton.disabled = !scanned || state.running || !questionInput.value.trim() || choices().length < 2 || choices().length > 8 || choices().some(value => value === '-' || value.toLowerCase() === 'abstain');
+  questionInput.disabled = state.running;
+  choicesInput.disabled = state.running;
+}
+questionInput.addEventListener('change', () => selectTask(questionInput.value));
+askButton.addEventListener('click', async () => {
+  if (askButton.disabled || !state.image) return;
+  resetAnswer();
+  state.running = true;
+  showError('');
+  renderAction();
+  answerStatus.textContent = 'Considering…';
+  await setPhase('run');
+  const copy = state.image.rgb.slice();
+  state.worker.postMessage({ type: 'run', question: questionInput.value.trim(), choices: choices(), width: state.image.width, height: state.image.height, buffer: copy.buffer }, [copy.buffer]);
+});
 const because = document.querySelector('#because');
 const ruleLine = document.querySelector('#rule-line');
 const objectRows = document.querySelector('#object-rows');
@@ -211,6 +262,8 @@ function requestItem(row) {
 }
 
 function renderAction() {
+  renderAsk();
+  document.querySelectorAll('.thumb, #own, #file').forEach(control => { control.disabled = state.running; });
   const needsImage = state.ready && !state.image;
   actionButton.disabled = state.loading || state.running || needsImage;
   actionButton.textContent = state.loadFailed && !state.ready
@@ -297,6 +350,9 @@ async function setImage(source, label) {
 }
 
 function clearResults() {
+  scanned = false;
+  document.querySelector('#scene-output').textContent = 'Scan an image to see the full output.';
+  resetAnswer();
   decisionBody.hidden = true;
   decisionBody.classList.remove('show');
   decisionEmpty.hidden = false;
@@ -317,6 +373,8 @@ async function chooseSample(button) {
   const image = button.querySelector('img');
   selectThumb(button.dataset.sample);
   await setImage(image, `${image.alt}, sample`);
+  selectTask({ receipt: 'document', parking: 'sign', desk: 'object', menu: 'document' }[button.dataset.sample]);
+  renderAsk();
 }
 
 function sniff(bytes) {
@@ -337,6 +395,8 @@ async function useFile(file) {
   try {
     selectThumb('');
     await setImage(file, 'Your image');
+    selectTask(questionInput.value, false);
+    renderAsk();
   } catch {
     showError("That file isn't an image. Use a JPG, PNG or WebP.");
   }
@@ -429,14 +489,54 @@ function onWorker(data) {
     void setPhase('page');
   }
   if (data.type === 'stage' && data.state === 'start') {
-    setStatus(data.name === 'text' ? 'Reading text' : 'Finding objects');
+    setStatus(data.name === 'decision' ? 'Considering…' : data.name === 'text' ? 'Reading text' : 'Finding objects');
     block.beginStage(false);
   }
   if (data.type === 'stage' && data.state === 'end') block.endStage();
   if (data.type === 'result') showResult(data);
+  if (data.type === 'decision') {
+    state.running = false;
+    const raw = data.result?.form?.[data.question];
+    const abstained = raw && raw.value === null && raw.probabilities && Object.hasOwn(raw.probabilities, '-');
+    const value = typeof raw === 'string' ? raw : raw?.value;
+    const answer = abstained ? 'Abstain' : value;
+    const selected = badges.find(badge => badge.dataset.answer === answer);
+    if (selected) {
+      selected.classList.add('selected');
+      selected.setAttribute('aria-current', 'true');
+      const probabilities = raw?.probabilities;
+      const keys = [...choices(), '-'];
+      const valid = probabilities && keys.every(key => Number.isFinite(probabilities[key]) && probabilities[key] >= 0 && probabilities[key] <= 1);
+      let summary = `Selected: ${answer}.`;
+      if (valid) {
+        const total = keys.reduce((sum, key) => sum + probabilities[key], 0);
+        if (total > 0) {
+          document.querySelector('#answer-distribution').hidden = false;
+          const bar = document.querySelector('.probability-bar'); bar.replaceChildren();
+          keys.forEach((key, index) => {
+            const segment = document.createElement('span');
+            segment.style.width = `${100 * probabilities[key] / total}%`;
+            segment.style.background = key === '-' ? '#aaa' : ['#b4e8c4', '#ffd1d1', '#c6d5ff', '#f1d6a4'][index % 4];
+            bar.append(segment);
+          });
+          document.querySelector('#probability-labels').textContent = keys.map(key => `${key === '-' ? 'Abstain' : key} ${(100 * probabilities[key]).toFixed(1)}%`).join(' · ');
+          if (abstained) summary = 'Mirage abstained.';
+        }
+      }
+      answerStatus.textContent = `${summary} ${tasks[data.question]?.prompt || data.question}`;
+    } else {
+      answerStatus.textContent = 'No valid answer returned. Try another question.';
+      showError('Mirage did not return one of the supported answers.');
+    }
+    setStatus('Ready');
+    renderAction();
+    void setPhase('page');
+  }
   if (data.type === 'error') {
     if (data.during === 'run') {
       state.running = false;
+      resetAnswer();
+      answerStatus.textContent = 'Could not complete the request. Please retry.';
       block.endStage();
       block.fail();
       showError('This image could not be read. Press Run again.');
@@ -452,7 +552,9 @@ function showResult(data) {
   state.ran = true;
   const objects = (data.objects || []).map((item, index) => ({ ...item, id: `object-${index + 1}` }));
   const text = readingOrder((data.text || []).map((item, index) => ({ ...item, id: `text-${index + 1}` })));
-  const decision = decide({ objects, text }, new Date());
+  scanned = true;
+  document.querySelector('#scene-output').textContent = JSON.stringify(data.scene || {}, null, 2);
+  const decision = { verdict: 'Scan complete.', rule: '', because: [] };
   const seconds = Math.max(0, data.ms || 0) / 1000;
   setStatus(`Done in ${seconds.toFixed(1)} s`);
   delete objectRows.dataset.expanded;
@@ -627,6 +729,8 @@ function armScroll() {
 
 async function runImage() {
   if (!state.ready || !state.image || state.running) return;
+  resetAnswer();
+  scanned = false;
   state.running = true;
   showError('');
   block.recover();
@@ -793,6 +897,7 @@ if ('serviceWorker' in navigator) {
 }
 
 setStatus('Model not loaded');
+selectTask('object');
 renderAction();
 renderNetwork();
 measureTop();

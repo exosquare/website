@@ -1,0 +1,31 @@
+import { expect, test } from '@playwright/test';
+
+test('Mirage exposes accurate article metadata, author and share image', async ({ page, request }) => {
+  await page.goto('writing/mirage/');
+  const headline = await page.locator('h1').innerText();
+  const schema = JSON.parse(await page.locator('script[type="application/ld+json"]').innerText());
+  expect(schema['@type']).toBe('BlogPosting');
+  expect(schema.headline).toBe(headline);
+  expect(schema.author.name).toBe('Matt');
+  expect(schema.author.url).toMatch(/\/studio\/#matt$/);
+  expect(schema.publisher.name).toBe('ExoSquare');
+  expect(schema.url).toMatch(/\/writing\/mirage\/$/);
+  expect(schema.datePublished.slice(0, 10)).toBe('2026-11-16');
+  await expect(page.locator('meta[name="author"]')).toHaveAttribute('content', 'Matt');
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'article');
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  const image = await page.locator('meta[property="og:image"]').getAttribute('content');
+  expect(schema.image).toBe(image);
+  const response = await request.get(new URL(image!).pathname);
+  expect(response.ok()).toBeTruthy();
+  expect(response.headers()['content-type']).toContain('image/png');
+  await expect(page.locator('a[rel="author"]')).toHaveText('Matt');
+  const diagram = page.locator('img[alt^="Two separate paths"]');
+  await diagram.scrollIntoViewIfNeeded();
+  await diagram.evaluate((img: HTMLImageElement) => img.decode());
+  expect(await diagram.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  expect(await diagram.evaluate((img: HTMLImageElement) => img.currentSrc)).toContain(page.viewportSize()!.width <= 600 ? 'how-it-works-mobile.webp' : 'how-it-works.webp');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('a[rel="author"]').click();
+  await expect(page.locator('#matt')).toBeVisible();
+});
