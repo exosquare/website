@@ -129,6 +129,7 @@ test('hovering a row lights only that row', async ({ page }, testInfo) => {
   await expect(objectRow).toHaveClass(/is-hot/);
   await expect(page.locator('.object-row.is-hot')).toHaveCount(1);
   await expect(page.locator(`.box.is-hot[data-id="${objectId}"]`)).toHaveCount(1);
+  await expect(page.locator('.tag.shown.is-dim').first()).toHaveCSS('opacity', '0.4');
   await expect(page.locator('.because.is-hot')).toHaveCount(0);
   await expect(page.locator('.text-row.is-hot')).toHaveCount(0);
   await objectRow.hover({ position: { x: 12, y: 8 } });
