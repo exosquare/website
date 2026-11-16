@@ -65,7 +65,8 @@ test('a receipt without a date says date not found', () => {
 
 const discSign = {
   text: [
-    { id: 'disc', string: '2h', bbox: [20, 18, 40, 26], score: 0.5 },
+    { id: 'disc', string: 'parkeerschijf', bbox: [20, 8, 80, 16], score: 0.5 },
+    { id: 'limit', string: '2h', bbox: [20, 18, 40, 26], score: 0.5 },
     { id: 'hours', string: '8 AM- 7 PM', bbox: [17, 33, 66, 40], score: 0.67 },
   ],
 };
@@ -74,12 +75,77 @@ test('a disc zone allows two hours inside the signed hours', () => {
   const inside = decide(discSign, fridayAfternoon);
   expect(inside.verdict).toBe('Should I park here now? Yes, for up to 2 hours with a parking disc, until 7pm.');
   expect(inside.because.map((line) => line.text)).toContain('Time limit on the sign: 2 hours with a parking disc.');
-  expect(inside.because.find((line) => line.text.startsWith('Time limit'))?.id).toBe('disc');
+  expect(inside.because.find((line) => line.text.startsWith('Time limit'))?.ids?.slice().sort()).toEqual(['disc', 'limit']);
   expect(inside.because.find((line) => line.text.startsWith('No day line'))?.id).toBeNull();
 });
 
 test('a disc zone has no time limit outside the signed hours', () => {
   expect(decide(discSign, fridayEvening).verdict).toBe('Should I park here now? Yes, no time limit now.');
+});
+
+test('a two-hour disc needs a duration and a disc indication', () => {
+  const mondayInside = new Date(2026, 10, 16, 10, 0, 0);
+  const mondayOutside = new Date(2026, 10, 16, 20, 0, 0);
+  const allowed = 'Should I park here now? Yes, for up to 2 hours with a parking disc, until 6pm.';
+  const open = 'Should I park here now? Yes, no time limit now.';
+  const line = (id: string, string: string, top: number, score = 0.9) => ({ id, string, bbox: [10, top, 200, top + 16], score });
+  const sign = (rows: Array<[string, string, number]>) => ({
+    text: [
+      line('hours', 'MON 09:00-18:00', 10, 0.9),
+      ...rows.map(([id, string, score], index) => line(id, string, 40 + index * 24, score)),
+    ],
+  });
+  const idsOf = (decision: { because: Array<{ ids?: string[], id?: string | null }> }) => (
+    [...new Set(decision.because.flatMap((item) => item.ids || (item.id ? [item.id] : [])))]
+  );
+
+  const separate = [
+    ['mark', 'parkeerschijf', 0.9],
+    ['limit', '2h', 0.9],
+  ] as Array<[string, string, number]>;
+  for (const rows of [separate, [...separate].reverse()]) {
+    const inside = decide(sign(rows), mondayInside);
+    expect(inside.verdict).toBe(allowed);
+    expect(idsOf(inside).sort()).toEqual(['hours', 'limit', 'mark']);
+    expect(decide(sign(rows), mondayOutside).verdict).toBe(open);
+  }
+
+  for (const rows of [
+    [['both', 'parkeerschijf 2h', 0.9]],
+    [['both', '2h parkeerschijf', 0.9]],
+    [['both', 'blauwe zone 2 uur', 0.9]],
+    [['both', '2 uur blauwe zone', 0.9]],
+    [['both', 'max 2 parkeerschijf', 0.9]],
+    [['mark', 'blauwe zone', 0.9], ['limit', 'max 2', 0.9]],
+    [['limit', '2 uur', 0.9], ['mark', 'parkeerschijf', 0.9]],
+    [['limit', '2h', 0.9], ['extra', '2h', 0.9], ['mark', 'parkeerschijf', 0.9]],
+    [['mark', 'parkeerschijf', 0.9], ['again', 'parkeerschijf', 0.9], ['limit', '2h', 0.9]],
+  ] as Array<Array<[string, string, number]>>) {
+    const decision = decide(sign(rows), mondayInside);
+    expect(decision.verdict).toBe(allowed);
+    const expected = ['hours', ...rows.map(([id]) => id)].sort();
+    expect(idsOf(decision).sort()).toEqual(expected);
+  }
+
+  const boundary = decide(sign([['mark', 'parkeerschijf', 0.9], ['limit', '2h', 0.15]]), mondayInside);
+  expect(boundary.verdict).toBe(allowed);
+  expect(idsOf(boundary).sort()).toEqual(['hours', 'limit', 'mark']);
+
+  for (const rows of [
+    [['mark', 'parkeerschijf', 0.9], ['limit', '2h', 0.149]],
+    [['limit', '2h', 0.149], ['mark', 'parkeerschijf', 0.9]],
+    [['mark', 'parkeerschijf', 0.9]],
+    [['limit', '2h', 0.9]],
+    [['limit', '2 uur', 0.9]],
+    [['mark', 'blauwe zone', 0.9]],
+    [['limit', '2h', 0.9], ['weak', '2h', 0.149], ['mark', 'parkeerschijf', 0.9]],
+    [['both', 'parkeerschijf 2h', 0.149]],
+  ] as Array<Array<[string, string, number]>>) {
+    const decision = decide(sign(rows), mondayInside);
+    expect(decision.verdict).toBe("Can't tell.");
+    expect(decision.because.map((item) => item.text)).toEqual([UNREAD_DAYS]);
+    expect([...(decision.because[0].ids || [])].sort()).toEqual(['hours', ...rows.map(([id]) => id)].sort());
+  }
 });
 
 test('parking hours without a duration are unchanged', () => {

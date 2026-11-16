@@ -358,6 +358,7 @@ function gate(decision, lines) {
     }
   }
   if (!weak.length) return decision;
+  if ((decision.because || []).some((item) => item.text === UNREAD_SCHEDULE)) return decision;
   return result(
     'unsure',
     "Can't tell.",
@@ -427,8 +428,36 @@ function dayLinesOf(lines) {
   return lines.filter((line) => DAY_WORD.test(line.string));
 }
 
-function isDiscLine(value) {
-  return /^(?:max\s*2|2\s*h|2\s*u(?:ur)?|parkeerschijf|blauwe\s+zone)$/i.test(String(value).trim());
+const UNREAD_SCHEDULE = "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.";
+
+/** A disc word names the zone. A duration is a separate token that states the two hours. */
+function discPhrases(value) {
+  let rest = String(value).trim().replace(/\s+/g, ' ');
+  if (!rest) return null;
+  let duration = false;
+  let mark = false;
+  const phrases = [
+    [/^(?:blauwe\s+zone)\b/i, 'mark'],
+    [/^parkeerschijf\b/i, 'mark'],
+    [/^(?:max\s*2)\b/i, 'duration'],
+    [/^(?:2\s*uur)\b/i, 'duration'],
+    [/^(?:2\s*h)\b/i, 'duration'],
+    [/^(?:2\s*u)\b/i, 'duration'],
+  ];
+  while (rest) {
+    let matched = false;
+    for (const [pattern, kind] of phrases) {
+      const found = rest.match(pattern);
+      if (!found) continue;
+      if (kind === 'duration') duration = true;
+      else mark = true;
+      rest = rest.slice(found[0].length).trim();
+      matched = true;
+      break;
+    }
+    if (!matched) return null;
+  }
+  return { duration, mark };
 }
 
 function clockShape(value) {
@@ -438,8 +467,11 @@ function clockShape(value) {
 /** A line is accepted only when every token is one day expression and at most one valid clock. */
 function accountLine(line) {
   const raw = String(line.string).trim();
-  if (!raw) return { line, disc: false, ranges: [], days: null, clean: true, unresolved: false };
-  if (isDiscLine(raw)) return { line, disc: true, ranges: [], days: null, clean: true, unresolved: false };
+  if (!raw) return { line, disc: false, duration: false, ranges: [], days: null, clean: true, unresolved: false };
+  const phrases = discPhrases(raw);
+  if (phrases) {
+    return { line, disc: phrases.mark, duration: phrases.duration, ranges: [], days: null, clean: true, unresolved: false };
+  }
   const ranges = rangesInText(line.string);
   const days = ranges.length <= 1 ? completeDays(dayExpression(line.string)) : null;
   const pureClock = ranges.length === 1 && dayExpression(line.string) === '';
@@ -450,6 +482,7 @@ function accountLine(line) {
   return {
     line,
     disc: false,
+    duration: false,
     ranges: clean ? ranges : ranges,
     days: clean ? days : null,
     clean,
@@ -471,7 +504,7 @@ function unreadSchedule(citedLines) {
     'unsure',
     "Can't tell.",
     [{
-      text: "Day-specific hours were found, but I couldn't read them reliably. Check the sign before parking.",
+      text: UNREAD_SCHEDULE,
       id: evidence[0] || null,
       ids: evidence,
     }],
@@ -491,10 +524,11 @@ function parkingDecision(lines, now) {
   const spans = rows.filter((row) => row.clean).flatMap((row) => row.ranges.map((range) => ({ ...range, line: row.line })));
   const dayRows = rows.filter((row) => row.clean && row.days);
   const blocked = rows.some((row) => !row.clean);
-  const disc = rows.find((row) => row.disc)?.line || null;
+  const markLines = rows.filter((row) => row.disc).map((row) => row.line);
+  const durationLines = rows.filter((row) => row.duration).map((row) => row.line);
   const dayLines = dayLinesOf(lines);
   const looksLikeParking = Boolean(
-    dayRows.length || spans.length || disc || dayLines.length
+    dayRows.length || spans.length || markLines.length || durationLines.length || dayLines.length
     || lines.some((line) => /\bparking\b/i.test(line.string))
     || lines.some((line) => unresolvedClock(line.string) || clockShape(line.string)),
   );
@@ -506,7 +540,7 @@ function parkingDecision(lines, now) {
       return result(
         'unsure',
         "Can't tell.",
-        [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
+        [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || markLines[0]?.id || durationLines[0]?.id || null }],
         'Page rule: a decision needs a total, parking hours, or a laptop frame.',
       );
     }
@@ -516,7 +550,7 @@ function parkingDecision(lines, now) {
     return result(
       'unsure',
       "Can't tell.",
-      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || disc?.id || null }],
+      [{ text: 'No hours found. The sign does not show a start and end time.', id: dayLines[0]?.id || markLines[0]?.id || durationLines[0]?.id || null }],
       'Page rule: a decision needs a total, parking hours, or a laptop frame.',
     );
   }
@@ -527,15 +561,39 @@ function parkingDecision(lines, now) {
   const today = now.getDay();
   const openToday = activeDays.includes(today);
   const inside = openToday && nowMinutes >= range.start && nowMinutes < range.end;
+  const discEvidence = markLines.length + durationLines.length > 0;
+  const durationKnown = durationLines.length > 0 && durationLines.every((line) => unitScore(line.score) >= TEXT_CONFIDENCE);
+  const discZone = markLines.length > 0 && durationKnown;
+  if (discEvidence && !discZone) {
+    const evidence = [];
+    const seen = new Set();
+    const add = (line) => {
+      if (!line?.id || seen.has(line.id)) return;
+      seen.add(line.id);
+      evidence.push(line);
+    };
+    for (const line of dayLines) add(line);
+    add(rangeLine);
+    for (const line of durationLines) add(line);
+    for (const line of markLines) add(line);
+    return unreadSchedule(evidence);
+  }
   let verdict;
-  if (disc && inside) verdict = `Should I park here now? Yes, for up to 2 hours with a parking disc, until ${formatClock(range.end)}.`;
-  else if (disc) verdict = 'Should I park here now? Yes, no time limit now.';
+  if (discZone && inside) verdict = `Should I park here now? Yes, for up to 2 hours with a parking disc, until ${formatClock(range.end)}.`;
+  else if (discZone) verdict = 'Should I park here now? Yes, no time limit now.';
   else if (dayLines.length && !openToday) verdict = `Should I park here now? Yes. Today is outside ${daySpan(activeDays)}.`;
   else if (inside) verdict = `Should I park here now? Not until ${formatClock(range.end)}.`;
   else if (nowMinutes < range.start) verdict = `Should I park here now? Yes, until ${formatClock(range.start)}.`;
   else verdict = `Should I park here now? Yes. The restriction ended at ${formatClock(range.end)}.`;
   const because = [{ text: `Hours on the sign: ${quote(rangeLine.string)}`, id: rangeLine.id }];
-  if (disc) because.push({ text: 'Time limit on the sign: 2 hours with a parking disc.', id: disc.id });
+  if (discZone) {
+    const support = [...new Set([...durationLines, ...markLines].map((line) => line.id))];
+    because.push({
+      text: 'Time limit on the sign: 2 hours with a parking disc.',
+      id: support[0] || null,
+      ids: support,
+    });
+  }
   if (dayRows.length) {
     because.push({
       text: `Days on the sign: ${quote(dayRows[0].line.string)}`,
