@@ -9,10 +9,24 @@ assert.equal(identity.type, 'npub', 'Expected a public Nostr key');
 const nip05 = JSON.parse(
   await readFile(path.join(root, '.well-known/nostr.json'), 'utf8'),
 );
+assert.equal(
+  nip05.names._,
+  identity.data,
+  'Root NIP-05 must match the site public key',
+);
+for (const [name, key] of Object.entries(nip05.names)) {
+  assert.match(name, /^[a-z0-9_.-]+$/, 'Invalid NIP-05 name');
+  assert.equal(typeof key, 'string', `NIP-05 key for ${name} must be a string`);
+  assert.match(
+    key,
+    /^[0-9a-f]{64}$/,
+    `NIP-05 key for ${name} must be lowercase hex`,
+  );
+}
 assert.deepEqual(
-  nip05.names,
-  { _: identity.data },
-  'NIP-05 must match the site public key',
+  nip05,
+  JSON.parse(await readFile('public/.well-known/nostr.json', 'utf8')),
+  'Built NIP-05 mappings must match the published source',
 );
 const basePath = (process.env.BASE_PATH || '').replace(/\/$/, '');
 async function walk(dir) {

@@ -11,31 +11,36 @@ const expectedIdentity = JSON.parse(
   ),
 );
 async function check() {
-  const identityURL = new URL('.well-known/nostr.json?name=_', site);
-  const identity = await fetch(identityURL, {
-    redirect: 'manual',
-    headers: { Origin: 'https://njump.me' },
-    signal: AbortSignal.timeout(10000),
-  });
-  assert.equal(
-    identity.status,
-    200,
-    'NIP-05 must return 200 without redirects',
-  );
-  assert.match(
-    identity.headers.get('content-type') || '',
-    /^application\/json\b/,
-  );
-  assert.equal(
-    identity.headers.get('access-control-allow-origin'),
-    '*',
-    'NIP-05 must allow browser clients',
-  );
-  assert.deepEqual(
-    await identity.json(),
-    expectedIdentity,
-    'Live NIP-05 mapping',
-  );
+  for (const name of Object.keys(expectedIdentity.names)) {
+    const identityURL = new URL(
+      `.well-known/nostr.json?name=${encodeURIComponent(name)}`,
+      site,
+    );
+    const identity = await fetch(identityURL, {
+      redirect: 'manual',
+      headers: { Origin: 'https://njump.me' },
+      signal: AbortSignal.timeout(10000),
+    });
+    assert.equal(
+      identity.status,
+      200,
+      'NIP-05 must return 200 without redirects',
+    );
+    assert.match(
+      identity.headers.get('content-type') || '',
+      /^application\/json\b/,
+    );
+    assert.equal(
+      identity.headers.get('access-control-allow-origin'),
+      '*',
+      'NIP-05 must allow browser clients',
+    );
+    assert.deepEqual(
+      await identity.json(),
+      expectedIdentity,
+      'Live NIP-05 mapping',
+    );
+  }
   for (const route of ['', 'writing/', 'work/']) {
     const url = new URL(route, site);
     const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
