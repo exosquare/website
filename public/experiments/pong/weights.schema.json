@@ -3,14 +3,24 @@
   "title": "Literal Pong weights structural schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "weights"],
+  "required": [
+    "version",
+    "weights"
+  ],
   "properties": {
-    "version": { "const": "pong-feedback-v1" },
+    "version": {
+      "const": "pong-feedback-v1"
+    },
     "weights": {
       "type": "array",
       "minItems": 435,
       "maxItems": 435,
-      "items": { "type": "number", "minimum": -16, "maximum": 16 }
+      "items": {
+        "type": "number",
+        "minimum": -16,
+        "maximum": 16
+      }
     }
-  }
+  },
+  "$comment": "Byte limit, UTF-8, token grammar, precision, finite binary64 values, duplicate keys and response framing require VALIDATION-CONTRACT.md. This schema alone is insufficient. Do not use multipleOf for decimal precision."
 }

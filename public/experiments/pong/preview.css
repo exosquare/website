@@ -100,8 +100,7 @@ h1 {
   padding: 8px 16px 0;
   font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 .hook {
   margin-top: 6px;
@@ -338,10 +337,19 @@ tr.is-selected td:first-child { color: var(--accent); }
     height: auto;
     min-height: 0;
   }
+  .play { display: contents; }
+  .court { order: 1; }
+  .play-row { order: 2; }
+  .decision-summary { order: 3; }
+  .cloud { order: 4; }
+  .score-board { order: 5; }
+  .edit { order: 6; }
+  .mast { order: 0; }
+  #network { height: 280px; }
   .cloud { border-left: 0; border-top: 1px solid var(--rule); }
   .court .canvas-frame, .cloud .canvas-frame { flex: none; }
   #court { height: 200px; }
-  #network { height: 220px; }
+  #network { height: 280px; }
   h1 { font-size: 1.25rem; }
   .name-row { flex-wrap: wrap; }
   .name-row label { flex: 1 1 9rem; }
@@ -350,31 +358,23 @@ tr.is-selected td:first-child { color: var(--accent); }
 }
 
 @media (min-width: 801px) {
+  .canvas-frame { min-height: 22rem; }
   .stage.options-open {
     height: 100dvh;
     overflow: hidden;
-    grid-template-rows: auto 300px auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(26rem, 1fr) auto minmax(11rem, 26vh);
   }
   .stage.options-open .edit { overflow: auto; min-height: 0; }
-  .stage.options-open #court { height: 240px; }
-  .stage.options-open .play { padding-top: 4px; padding-bottom: 4px; }
-  .stage.options-open .score-board {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 12px;
-    margin-top: 4px;
-  }
-  .stage.options-open .score-grid { flex: 1 1 100%; }
-  .stage.options-open #decision-caption,
-  .stage.options-open .exact-scores,
-  .stage.options-open .about-demo { display: none; }
-  .stage.options-open .mast { padding-bottom: 0; }
-  .stage.options-open .opt { margin-top: 4px; }
-  .stage.options-open .group { padding: 0; }
-  .stage.options-open .score-cell { min-height: 0; padding: 2px 6px; }
-  .stage.options-open .group summary { min-height: 32px; }
+  .stage.options-open #court,
+  .stage.options-open #network { height: 100%; min-height: 20rem; }
 }
+html.is-embedded .stage,
+html.is-embedded .stage.options-open {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+html.is-embedded .canvas-frame { min-height: 18rem; }
 .field-note { font-size: 0.875rem; }
 @media (max-width: 420px) {
   .score-cell { display: flex; flex-wrap: nowrap; gap: 8px; align-items: baseline; }
@@ -382,7 +382,7 @@ tr.is-selected td:first-child { color: var(--accent); }
 @media (max-width: 360px) {
   .mast, .legend, .edit, .more summary, .more-body { padding-left: 12px; padding-right: 12px; }
   #court { height: 200px; }
-  #network { height: 230px; }
+  #network { height: 260px; }
   .name-row { display: grid; grid-template-columns: 1fr 1fr; }
   .name-row button { width: 100%; white-space: normal; text-align: left; min-height: 44px; }
   .legend { display: block; }

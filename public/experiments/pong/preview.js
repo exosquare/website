@@ -23,7 +23,7 @@ import { acceptDemonstration } from "./validate.js";
   const PITCH = -0.58;
   const DISTANCE = 3.05;
   const FOCAL = 2.15;
-  const FRAME = 0.5;
+  const FRAME = 0.78;
   const GLYPH = 0.048;
 
   const LAYERS = [
@@ -296,6 +296,28 @@ import { acceptDemonstration } from "./validate.js";
     drawCourt();
     drawCloud();
     renderInspector();
+    postFrameHeight();
+  }
+
+  let postedHeight = 0;
+  function postFrameHeight() {
+    if (window.parent === window) return;
+    if (!document.documentElement.classList.contains("is-embedded")) {
+      document.documentElement.classList.add("is-embedded");
+      requestAnimationFrame(postFrameHeight);
+      return;
+    }
+    const main = document.querySelector("main");
+    const height = Math.ceil(main.getBoundingClientRect().height);
+    if (!Number.isFinite(height) || Math.abs(height - postedHeight) < 2) return;
+    postedHeight = height;
+    let target = "*";
+    try {
+      if (document.referrer) target = new URL(document.referrer).origin;
+    } catch (error) {
+      target = "*";
+    }
+    window.parent.postMessage({ type: "pong-embed-height", height: height }, target);
   }
 
   function drawCourt() {
@@ -399,7 +421,7 @@ import { acceptDemonstration } from "./validate.js";
         z: projected.z,
         sx: width / 2 + (projected.x - origin.x) * scale,
         sy: height / 2 - (projected.y - origin.y) * scale,
-        screen: Math.max(selected.has(index) ? 5 : 1.15, (selected.has(index) ? 1.6 : 0.42) * GLYPH * (FOCAL / projected.z) * scale),
+        screen: Math.max(selected.has(index) ? 3.4 : 2.2, (selected.has(index) ? 1.05 : 0.78) * GLYPH * (FOCAL / projected.z) * scale),
       });
     }
     points.sort(function (a, b) { return b.z - a.z; });
@@ -435,7 +457,7 @@ import { acceptDemonstration } from "./validate.js";
 
   function drawGlyph(ctx, point) {
     const color = point.value === 0 ? "#9ba9af" : point.value > 0 ? "#5ec8c8" : "#e8b060";
-    const alpha = point.selected ? 1 : 0.22;
+    const alpha = point.selected ? 1 : 0.55;
     ctx.save();
     ctx.translate(point.sx, point.sy);
     ctx.lineWidth = point.selected ? 2.2 : 1.5;
@@ -457,8 +479,8 @@ import { acceptDemonstration } from "./validate.js";
     if (point.selected) {
       ctx.beginPath();
       ctx.strokeStyle = "#d1e6ed";
-      ctx.lineWidth = 2;
-      ctx.arc(0, 0, size + 4, 0, Math.PI * 2);
+      ctx.lineWidth = 1.25;
+      ctx.arc(0, 0, size + 2, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
@@ -675,12 +697,6 @@ import { acceptDemonstration } from "./validate.js";
     return "Stay";
   }
 
-  function formatScore(value) {
-    if (Object.is(value, -0)) return "0";
-    const text = Math.abs(value) >= 100 ? value.toFixed(1) : value.toPrecision(6);
-    return value > 0 ? "+" + text.replace(/^\+/, "") : text;
-  }
-
   function stopGame() {
     game.running = false;
     if (game.timer) clearInterval(game.timer);
@@ -713,17 +729,10 @@ import { acceptDemonstration } from "./validate.js";
     const names = ["stay", "up", "down"];
     names.forEach(function (name, index) {
       const cell = document.getElementById("cell-" + name);
-      const raw = document.getElementById("raw-" + name);
-      const quant = document.getElementById("q-" + name);
+      const shown = document.getElementById("show-" + name);
       const chosen = left && left.rawScores && left.action === index;
       if (cell) cell.classList.toggle("is-chosen", Boolean(chosen));
-      if (!left || !left.rawScores) {
-        if (raw) raw.textContent = "—";
-        if (quant) quant.textContent = "—";
-        return;
-      }
-      if (raw) raw.textContent = exactNumber(left.rawScores[index]);
-      if (quant) quant.textContent = String(left.comparisonScores[index]);
+      if (shown) shown.textContent = left && left.rawScores ? displayScore(left.rawScores[index]) : "—";
     });
     const chosen = document.getElementById("chosen-action");
     const rightLine = document.getElementById("right-action");
@@ -760,6 +769,13 @@ import { acceptDemonstration } from "./validate.js";
     span.className = "exact-token";
     span.textContent = text;
     node.appendChild(span);
+  }
+
+  function displayScore(value) {
+    if (!Number.isFinite(value)) return "—";
+    const rounded = Math.round(value * 10) / 10;
+    const text = Object.is(rounded, -0) ? "0.0" : rounded.toFixed(1);
+    return rounded > 0 ? "+" + text : text;
   }
 
   function exactNumber(value) {

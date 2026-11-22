@@ -3,7 +3,7 @@ import Base from '../../../layouts/Base.astro';
 import { withBase } from '../../../lib/paths';
 ---
 
-<Base title="Pong demonstration" description="Play the local Pong demonstration in this tab." draft>
+<Base title="Pong demonstration" description="Play the local Pong demonstration in this tab.">
   <div class="play-view">
     <h1>Pong demonstration</h1>
     <p>
@@ -13,7 +13,25 @@ import { withBase } from '../../../lib/paths';
     <iframe
       src={withBase('/experiments/pong/')}
       title="Pong demonstration. New serve, pause, and step play the authored weights in this frame."
-      sandbox="allow-scripts allow-same-origin"></iframe>
+      sandbox="allow-scripts"></iframe>
+    <script>
+      const frame = document.querySelector<HTMLIFrameElement>('.play-view iframe');
+      if (frame) {
+        let applied = 0;
+        window.addEventListener('message', (event) => {
+          if (event.source !== frame.contentWindow) return;
+          const data = event.data;
+          if (!data || typeof data !== 'object') return;
+          if (data.type !== 'pong-embed-height') return;
+          if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
+          const height = Math.round(data.height);
+          if (height < 480 || height > 6400) return;
+          if (Math.abs(height - applied) < 2) return;
+          applied = height;
+          frame.style.height = `${height}px`;
+        });
+      }
+    </script>
   </div>
 </Base>
 
@@ -33,8 +51,8 @@ import { withBase } from '../../../lib/paths';
   iframe {
     display: block;
     width: 100%;
-    height: calc(100dvh - 180px);
-    min-height: 640px;
+    height: 720px;
+    min-height: 480px;
     border: 1px solid var(--rule);
     background: #101315;
   }

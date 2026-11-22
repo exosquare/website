@@ -86,6 +86,12 @@ function withTimeout(world, elapsedTicks) {
 }
 
 export function stepWorld(world, leftAction, rightAction) {
+  const detailed = stepDetailed(world, leftAction, rightAction);
+  if (detailed.error) return detailed;
+  return detailed.world;
+}
+
+export function stepDetailed(world, leftAction, rightAction) {
   if (world.phase === "terminal") {
     return { error: "terminal" };
   }
@@ -104,7 +110,7 @@ export function stepWorld(world, leftAction, rightAction) {
     const offset = vertical.resolvedY - pLeft;
     if (Math.abs(offset) <= 1) {
       const outgoingVy = offset === -1 ? -2 : offset === 1 ? 2 : signedUnit(vertical.wallVy);
-      return withTimeout({
+      const next = withTimeout({
         ...base,
         x: finite(-tx),
         y: finite(vertical.resolvedY),
@@ -113,8 +119,9 @@ export function stepWorld(world, leftAction, rightAction) {
         phase: "live",
         terminal: null,
       }, nextElapsed);
+      return { world: next, event: contactEvent("left", nextElapsed, offset, tx, vertical, pLeft, world, next) };
     }
-    return {
+    const missed = {
       ...base,
       x: finite(tx),
       y: finite(vertical.resolvedY),
@@ -123,13 +130,14 @@ export function stepWorld(world, leftAction, rightAction) {
       phase: "terminal",
       terminal: { reason: "right-point", winner: "right" },
     };
+    return { world: missed, event: missEvent("left", nextElapsed, offset, tx, vertical, pLeft) };
   }
 
   if (tx >= 31) {
     const offset = vertical.resolvedY - pRight;
     if (Math.abs(offset) <= 1) {
       const outgoingVy = offset === -1 ? -2 : offset === 1 ? 2 : signedUnit(vertical.wallVy);
-      return withTimeout({
+      const next = withTimeout({
         ...base,
         x: finite(62 - tx),
         y: finite(vertical.resolvedY),
@@ -138,8 +146,9 @@ export function stepWorld(world, leftAction, rightAction) {
         phase: "live",
         terminal: null,
       }, nextElapsed);
+      return { world: next, event: contactEvent("right", nextElapsed, offset, tx, vertical, pRight, world, next) };
     }
-    return {
+    const missed = {
       ...base,
       x: finite(tx),
       y: finite(vertical.resolvedY),
@@ -148,9 +157,10 @@ export function stepWorld(world, leftAction, rightAction) {
       phase: "terminal",
       terminal: { reason: "left-point", winner: "left" },
     };
+    return { world: missed, event: missEvent("right", nextElapsed, offset, tx, vertical, pRight) };
   }
 
-  return withTimeout({
+  const moved = withTimeout({
     ...base,
     x: finite(tx),
     y: finite(vertical.resolvedY),
@@ -159,6 +169,36 @@ export function stepWorld(world, leftAction, rightAction) {
     phase: "live",
     terminal: null,
   }, nextElapsed);
+  return { world: moved, event: { type: "move", tick: nextElapsed } };
+}
+
+function contactEvent(side, tick, offset, tx, vertical, center, before, after) {
+  return {
+    tick,
+    side,
+    xBefore: before.x,
+    yBefore: before.y,
+    xEndpoint: tx,
+    yEndpoint: vertical.resolvedY,
+    centerAfterMove: center,
+    offset,
+    vxBefore: before.vx,
+    vyAfterWall: vertical.wallVy,
+    vxAfter: after.vx,
+    vyAfter: after.vy,
+  };
+}
+
+function missEvent(side, tick, offset, tx, vertical, center) {
+  return {
+    tick,
+    side,
+    xEndpoint: tx,
+    yEndpoint: vertical.resolvedY,
+    centerAfterMove: center,
+    offset,
+    missDistance: Math.max(0, Math.abs(offset) - 1),
+  };
 }
 
 export function quantize(raw) {
@@ -442,6 +482,7 @@ export function makeCheckpoint(spec) {
       mode: spec.control?.mode || "live-inference",
       nextActionOffset: spec.control?.nextActionOffset || 0,
     },
+    checkpointSha256: spec.checkpointSha256 || null,
   };
 }
 
@@ -457,6 +498,7 @@ export function cloneCheckpoint(checkpoint) {
     parentParameterFingerprint: checkpoint.parentParameterFingerprint,
     episode: { ...checkpoint.episode },
     control: { ...checkpoint.control },
+    checkpointSha256: checkpoint.checkpointSha256 || null,
   };
 }
 
@@ -494,8 +536,9 @@ export function advanceCheckpoint(checkpoint, weightsBySide) {
   if (left.error) return left;
   const right = decideSide(checkpoint.right, rightWeights, before, "right");
   if (right.error) return right;
-  const world = stepWorld(before, left.action, right.action);
-  if (world.error) return world;
+  const detailed = stepDetailed(before, left.action, right.action);
+  if (detailed.error) return detailed;
+  const world = detailed.world;
   const next = cloneCheckpoint(checkpoint);
   next.world = world;
   next.control.mode = "live-inference";
@@ -503,11 +546,13 @@ export function advanceCheckpoint(checkpoint, weightsBySide) {
   noteRng(next.right, right);
   return {
     checkpoint: next,
+    event: detailed.event,
     left: {
       inputs: left.inputs.slice(),
       rawScores: left.rawScores ? left.rawScores.slice() : null,
       comparisonScores: left.comparisonScores ? left.comparisonScores.slice() : null,
       action: left.action,
+      controller: left.controller,
       tick: before.elapsedTicks,
     },
     right: {
@@ -549,10 +594,20 @@ export function runEpisode(checkpoint, weightsBySide) {
   };
 }
 
-export function compareBranches(checkpoint, parentWeights, forkWeights) {
+export function compareBranches(checkpoint, parentWeights, forkWeights, testedSide) {
+  const side = testedSide || (checkpoint.right.ref.kind === "network" && checkpoint.left.ref.kind !== "network" ? "right" : "left");
+  const tested = side === "right" ? checkpoint.right : checkpoint.left;
+  if (!tested || tested.ref.kind !== "network") return { error: "tested-side" };
+  function pack(weights) {
+    return {
+      left: side === "left" ? weights : null,
+      right: side === "right" ? weights : null,
+    };
+  }
   return {
-    parent: runEpisode(checkpoint, { left: parentWeights, right: null }),
-    fork: runEpisode(checkpoint, { left: forkWeights, right: null }),
+    testedSide: side,
+    parent: runEpisode(checkpoint, pack(parentWeights)),
+    fork: runEpisode(checkpoint, pack(forkWeights)),
   };
 }
 

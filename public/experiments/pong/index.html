@@ -42,28 +42,10 @@
           <button type="button" id="step">Step</button>
           <button type="button" id="options-toggle" aria-expanded="false" aria-controls="options">Show options</button>
         </div>
-        <div class="score-board" id="score-board">
-          <p id="decision-caption">No decision yet. Scores are not probabilities.</p>
-          <div class="score-grid">
-            <div class="score-cell" id="cell-stay"><span class="score-name">Stay</span><span class="mono" id="raw-stay">—</span><span class="mono" id="q-stay">—</span></div>
-            <div class="score-cell" id="cell-up"><span class="score-name">Up</span><span class="mono" id="raw-up">—</span><span class="mono" id="q-up">—</span></div>
-            <div class="score-cell" id="cell-down"><span class="score-name">Down</span><span class="mono" id="raw-down">—</span><span class="mono" id="q-down">—</span></div>
-          </div>
+        <div class="decision-summary" id="decision-summary">
           <p id="chosen-action">Chosen action: none yet.</p>
-          <p id="right-action" class="mono"></p>
-          <details class="exact-scores">
-            <summary>Exact raw and q</summary>
-            <p id="score-line" class="mono">No decision yet.</p>
-          </details>
-          <button type="button" class="info" id="info-game" aria-expanded="false" aria-controls="help-game" aria-label="About the game"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
-        </div>
-          <div id="help-game" class="help" role="dialog" aria-label="About the game" hidden>
-          <button type="button" class="help-dismiss">Close</button>
-          <p>New serve starts the serve chosen under Game settings, from tick 0. G0 to G3 are fixed starts. Local draws a new serve and records its seed in this tab. It has no official score.</p>
-          <p>Pause stops the clock, or starts it again. Step plays one tick and stays paused. A finished serve does not take another step.</p>
-          <p>Stay, Up, and Down are the three action scores for the world before the tick. The numbers in each cell are the exact raw score and the exact q. q is floor of raw score times 1,000,000 plus 0.5. The highest q wins. A tie uses the lowest index. Scores are not probabilities. The chosen action is separate from those three cells. The court shows the world after the tick.</p>
-          <p>The right paddle is a frozen baseline, not a contestant. Stay always holds. Random chooses from its own stream and keeps drawing until the draw is accepted. Reactive follows the ball's current height. Analytic looks ahead along the walls for at most 31 ticks, or aims at 8 while the ball is going away.</p>
-          <p>Replay reads a stored action log and does not infer. No stored action log is loaded, so Replay stays unavailable.</p>
+          <p id="right-action"></p>
+          <p id="decision-caption">No decision yet. Scores are not probabilities.</p>
         </div>
       </section>
 
@@ -81,7 +63,6 @@
             <li><span class="swatch bias"></span>bias</li>
           </ul>
           <button type="button" class="info" id="info-shape" aria-expanded="false" aria-controls="help-shape" aria-label="About the shape"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
-          <p id="value-line" class="mono"></p>
           <p id="bundle-note"></p>
           <p>435 parameters. Position encodes signed value.</p>
         </div>
@@ -90,6 +71,28 @@
           <p>Each circle is one connection weight. Each outlined diamond is one bias. There are 400 circles and 35 diamonds. Direction comes only from the index. Distance is R times (0.60 plus 0.40 times the value divided by 16 plus the absolute value). Negative 16 sits at 0.40R, zero at 0.60R, and positive 16 at 0.80R.</p>
           <p>Large magnitudes sit closer together. That crowding is not equality and not a score. The same directions and scale are used for every preset. Reordering hidden units can change this shape without changing behaviour.</p>
           <p>Reset view restores the fixed camera. Rotate turns the cloud. If reduced motion is on, each press turns it one step. Pause rotation stops the turn. Simple view draws the same points flat and still. None of these changes the game or the weights.</p>
+        </div>
+      </section>
+
+      <section class="score-board" id="score-board" aria-label="Action scores">
+        <h2 class="pane-title">Rounded display</h2>
+        <div class="score-grid">
+          <div class="score-cell" id="cell-stay"><span class="score-name">Stay</span><span class="mono" id="show-stay">—</span></div>
+          <div class="score-cell" id="cell-up"><span class="score-name">Up</span><span class="mono" id="show-up">—</span></div>
+          <div class="score-cell" id="cell-down"><span class="score-name">Down</span><span class="mono" id="show-down">—</span></div>
+        </div>
+        <details class="exact-scores">
+          <summary>Exact raw and q</summary>
+          <p id="score-line" class="mono">No decision yet.</p>
+        </details>
+        <button type="button" class="info" id="info-game" aria-expanded="false" aria-controls="help-game" aria-label="About the game"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
+        <div id="help-game" class="help" role="dialog" aria-label="About the game" hidden>
+          <button type="button" class="help-dismiss">Close</button>
+          <p>New serve starts the serve chosen under Game settings, from tick 0. G0 to G3 are fixed starts. Local draws a new serve and records its seed in this tab. It has no official score.</p>
+          <p>Pause stops the clock, or starts it again. Step plays one tick and stays paused. A finished serve does not take another step.</p>
+          <p>Stay, Up, and Down show a rounded display of the score for the world before the tick. The exact raw score and the exact q stay in the disclosure, each number kept whole. q is floor of raw score times 1,000,000 plus 0.5. The highest q wins. A tie uses the lowest index. Scores are not probabilities. The chosen action is separate. The court shows the world after the tick.</p>
+          <p>The right paddle is a frozen baseline, not a contestant. Stay always holds. Random chooses from its own stream and keeps drawing until the draw is accepted. Reactive follows the ball's current height. Analytic looks ahead along the walls for at most 31 ticks, or aims at 8 while the ball is going away.</p>
+          <p>Replay reads a stored action log and does not infer. No stored action log is loaded, so Replay stays unavailable.</p>
         </div>
       </section>
 
@@ -204,6 +207,7 @@
           <summary>Values and the drawing rule</summary>
           <div class="more-body">
             <p>The cloud does not paint this-tick activations. Action scores are computed in this tab.</p>
+            <p id="value-line" class="mono"></p>
             <p id="bias-line" class="mono"></p>
             <p id="incoming-line" class="mono"></p>
             <p id="change-line"></p>

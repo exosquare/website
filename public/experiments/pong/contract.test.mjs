@@ -14,7 +14,6 @@ import {
   makeController,
   cloneCheckpoint,
   advanceCheckpoint,
-  advanceWithActions,
   compareBranches,
   replayActions,
   muteOutgoing,
@@ -132,6 +131,11 @@ rejects(envelope(zeroTokens()).replace("[", "[01,"), "leading-zero");
 rejects(envelope(zeroTokens()).replace("[", "[1.,"), "fraction");
 rejects(envelope(zeroTokens()).replace("[", "[16.1,"), "magnitude");
 rejects(envelope(zeroTokens()).replace("[", "[NaN,"), "token");
+rejects(envelope(zeroTokens()).replace(/}$/, ',"__proto__":1}'), "keys");
+rejects(envelope(zeroTokens()).replace(/}$/, ',"\\u005f\\u005fproto\\u005f\\u005f":1}'), "keys");
+assert.equal(validateContestant(null).report.rawResponseSha256, null);
+assert.equal(forward.tokens[0], "0");
+assert.notEqual(forward.report.rawResponseSha256, forward.fingerprint);
 
 const demo = demonstrationWeights();
 for (let index = 0; index < 435; index += 1) {
@@ -179,7 +183,16 @@ assert.equal(replay.inferred, false);
 assert.equal(replay.checkpoint.control.mode, "replay");
 assert.equal(replay.checkpoint.control.nextActionOffset, 2);
 
-const offline = evaluateSlot({
+const synthetic = {
+  ok: true,
+  role: "synthetic",
+  weights: zeros,
+  fingerprint: parameterFingerprint(zeros),
+  rawResponseSha256: sha256Utf8("synthetic-zeros"),
+  rulesSha256: sha256Utf8("rules"),
+  implementationSha256: sha256Utf8("kernel"),
+};
+const slotStay = {
   id: "synthetic-stay-g0",
   pairId: "synthetic-stay-g0",
   serveId: "G0",
@@ -187,20 +200,13 @@ const offline = evaluateSlot({
   baselineId: "stay",
   initialWorld: { ...SERVES.G0, elapsedTicks: 0, phase: "live", terminal: null },
   randomInitialSeed: null,
-}, zeros, parameterFingerprint(zeros));
-const again = evaluateSlot({
-  id: "synthetic-stay-g0",
-  pairId: "synthetic-stay-g0",
-  serveId: "G0",
-  candidateSide: "left",
-  baselineId: "stay",
-  initialWorld: { ...SERVES.G0, elapsedTicks: 0, phase: "live", terminal: null },
-  randomInitialSeed: null,
-}, zeros, parameterFingerprint(zeros));
+};
+const offline = evaluateSlot(slotStay, synthetic);
+const again = evaluateSlot(slotStay, synthetic);
 assert.equal(offline.status, "played");
 assert.equal(offline.trajectorySha256, again.trajectorySha256);
 assert.equal(offline.playedTicks > 0, true);
-const missing = evaluateSlot({ id: "missing", candidateSide: "left", baselineId: "stay", initialWorld: SERVES.G0 }, null, null);
+const missing = evaluateSlot({ id: "missing", candidateSide: "left", baselineId: "stay", initialWorld: SERVES.G0 }, null);
 assert.equal(missing.status, "forfeit-not-played");
 assert.deepEqual(missing.playedPoints, [null, null]);
 

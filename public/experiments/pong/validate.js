@@ -153,12 +153,14 @@ function decodeUtf8(bytes) {
 }
 
 function emptyReport(bytes, errors) {
+  const hasBytes = bytes instanceof Uint8Array;
   return {
     accepted: false,
-    byteLength: bytes.length,
+    byteLength: hasBytes ? bytes.length : null,
     scalarCount: null,
-    rawResponseSha256: sha256Bytes(bytes),
+    rawResponseSha256: hasBytes ? sha256Bytes(bytes) : null,
     parameterFingerprintSha256: null,
+    tokens: null,
     errors,
   };
 }
@@ -179,7 +181,7 @@ function finishReport(bytes, weights, errors) {
 
 function parseDocument(text) {
   let at = 0;
-  const errors = [];
+  const tokens = [];
   function peek() { return text[at]; }
   function fail(code, index, tokenOffset) {
     return { error: code, index: index ?? null, tokenOffset: tokenOffset ?? byteOffset(text, at) };
@@ -200,7 +202,7 @@ function parseDocument(text) {
   }
   function parseObject() {
     const seen = new Set();
-    const object = {};
+    const object = Object.create(null);
     at += 1;
     skip();
     if (peek() === "}") { at += 1; return object; }
@@ -210,6 +212,9 @@ function parseDocument(text) {
       const keyStart = at;
       const key = parseString();
       if (key && key.error) return key;
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        return fail("keys", null, byteOffset(text, keyStart));
+      }
       if (seen.has(key)) return fail("duplicate", null, byteOffset(text, keyStart));
       seen.add(key);
       skip();
@@ -217,7 +222,7 @@ function parseDocument(text) {
       at += 1;
       const value = parseValue();
       if (value && value.error) return value;
-      object[key] = value;
+      Object.defineProperty(object, key, { value, enumerable: true, writable: true, configurable: true });
       skip();
       if (peek() === ",") { at += 1; continue; }
       if (peek() === "}") { at += 1; return object; }
@@ -239,7 +244,12 @@ function parseDocument(text) {
       if (char === "{" || char === "[") return fail("nesting", list.length);
       const value = parseValue();
       if (value && value.error) return { ...value, index: value.index ?? list.length };
-      list.push(value);
+      if (value && Object.prototype.hasOwnProperty.call(value, "token")) {
+        list.push(value.value);
+        tokens.push(value.token);
+      } else {
+        list.push(value);
+      }
       skip();
       if (peek() === ",") { at += 1; continue; }
       if (peek() === "]") { at += 1; return list; }
@@ -293,9 +303,9 @@ function parseDocument(text) {
     const offset = byteOffset(text, start);
     if (token.length > 10) return fail("precision", null, offset);
     if (!/^-?(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(token)) return fail("precision", null, offset);
-    const value = Number(token);
-    if (!Number.isFinite(value) || Math.abs(value) > 16) return fail("magnitude", null, offset);
-    return normalizeNumber(value);
+    const numeric = Number(token);
+    if (!Number.isFinite(numeric) || Math.abs(numeric) > 16) return fail("magnitude", null, offset);
+    return { value: normalizeNumber(numeric), token };
   }
   skip();
   if (peek() === "`") return { error: fail("fence") };
@@ -304,7 +314,7 @@ function parseDocument(text) {
   if (value && value.error) return { error: value };
   skip();
   if (at !== text.length) return { error: fail("trailing") };
-  return { value };
+  return { value, tokens };
 }
 
 function asBytes(input) {
@@ -315,7 +325,26 @@ function asBytes(input) {
 
 export function validateContestant(input) {
   const bytes = asBytes(input);
-  if (!bytes) return { ok: false, role: "candidate", report: emptyReport(new Uint8Array(), [{ code: "type", index: null, tokenOffset: null }]) };
+  if (!bytes) return { ok: false, role: "candidate", report: emptyReport(null, [{ code: "type", index: null, tokenOffset: null }]) };
+  if (bytes.length === 0) {
+    return {
+      ok: false,
+      role: "candidate",
+      weights: null,
+      tokens: null,
+      fingerprint: null,
+      rawResponseSha256: EMPTY_RESPONSE_SHA256,
+      report: {
+        accepted: false,
+        byteLength: 0,
+        scalarCount: 0,
+        rawResponseSha256: EMPTY_RESPONSE_SHA256,
+        parameterFingerprintSha256: null,
+        tokens: null,
+        errors: [{ code: "syntax", index: null, tokenOffset: 0 }],
+      },
+    };
+  }
   if (bytes.length > 16384) {
     return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "size", index: null, tokenOffset: 0 }]) };
   }
@@ -346,7 +375,77 @@ export function validateContestant(input) {
     return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "shape", index: object.weights.length, tokenOffset: 0 }]) };
   }
   const report = finishReport(bytes, object.weights, []);
-  return { ok: true, role: "candidate", weights: report.weights, fingerprint: report.parameterFingerprintSha256, report };
+  report.tokens = parsed.tokens;
+  return {
+    ok: true,
+    role: "candidate",
+    weights: report.weights,
+    tokens: parsed.tokens,
+    fingerprint: report.parameterFingerprintSha256,
+    rawResponseSha256: report.rawResponseSha256,
+    report,
+  };
+}
+
+export const EMPTY_RESPONSE_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+export const PAPER_WEIGHTS_SCHEMA_SHA256 = "958e3a37e242f2f6b3f20828e74515afb4c99399473946ec59eabe2a1f7c610b";
+
+export function missingResponseOutcome() {
+  return {
+    status: "missing-response",
+    responsePresent: false,
+    accepted: false,
+    byteLength: null,
+    scalarCount: null,
+    rawResponseSha256: null,
+    acceptedResponseSha256: null,
+    parameterFingerprintSha256: null,
+    errors: [{ code: "no-response", index: null, tokenOffset: null }],
+    weights: null,
+    tokens: null,
+  };
+}
+
+export function finalizeReceipt(receipt) {
+  const frozen = { ...receipt, validationReportSha256: null };
+  if (Object.hasOwn(frozen, "failureReportSha256")) frozen.failureReportSha256 = null;
+  const bytes = canonicalJson(frozen);
+  return { receipt: frozen, bytes, rawReceiptSha256: sha256Utf8(bytes) };
+}
+
+export function storeValidationReport(outcome, binding) {
+  const present = outcome.responsePresent === true;
+  const accepted = outcome.accepted === true;
+  const report = {
+    schema: "pong-single-validation-v1.1",
+    status: outcome.status,
+    responsePresent: present,
+    rawReceiptSha256: binding.rawReceiptSha256,
+    rawReceiptStatus: binding.rawReceiptStatus,
+    accepted,
+    byteLength: outcome.byteLength,
+    scalarCount: outcome.scalarCount,
+    rawResponseSha256: outcome.rawResponseSha256,
+    validatorSha256: present ? binding.validatorSha256 : null,
+    weightsSchemaSha256: present ? binding.weightsSchemaSha256 : null,
+    acceptedResponseSha256: accepted ? outcome.rawResponseSha256 : null,
+    parameterFingerprintSha256: accepted ? outcome.parameterFingerprintSha256 : null,
+    errors: outcome.errors,
+  };
+  const reportBytes = canonicalJson(report);
+  return { report, reportBytes, reportSha256: sha256Utf8(reportBytes) };
+}
+
+export function bindReceiptIndex(receiptSha256, reportSha256, shippedWeightsSchemaSha256) {
+  const index = {
+    rawReceiptSha256: receiptSha256,
+    validationReportSha256: reportSha256,
+    weightsSchemaSha256: shippedWeightsSchemaSha256,
+    paperWeightsSchemaSha256: PAPER_WEIGHTS_SCHEMA_SHA256,
+    validationSchema: "pong-single-validation-v1.1",
+  };
+  const bytes = canonicalJson(index);
+  return { index, bytes, indexSha256: sha256Utf8(bytes) };
 }
 
 export function validateContestantText(text) {
