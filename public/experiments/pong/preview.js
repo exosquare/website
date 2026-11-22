@@ -15,16 +15,24 @@ import {
   makeController,
   compareBranches,
 } from "./kernel.js";
-import { acceptDemonstration } from "./validate.js";
+import { acceptDemonstration, sha256Utf8 } from "./validate.js";
+import demonstrationText from "./data/demonstration.json";
+import {
+  projectPoint,
+  frameScale,
+  markerBody,
+  markerOuter,
+  insideDrawable,
+  RING_OUTSET,
+  RING_WIDTH,
+  BIAS_STRETCH,
+  STROKE,
+  YAW,
+  PITCH,
+} from "./cloud-frame.js";
 
   const FORK_LAYER = "h1";
   const FORK_UNIT = 2;
-  const YAW = 1.02;
-  const PITCH = -0.58;
-  const DISTANCE = 3.05;
-  const FOCAL = 2.15;
-  const FRAME = 0.78;
-  const GLYPH = 0.048;
 
   const LAYERS = [
     { id: "input", label: "Input", width: 6, columns: 2 },
@@ -40,8 +48,8 @@ import { acceptDemonstration } from "./validate.js";
     unit: Number(params.get("unit") ?? FORK_UNIT),
   };
 
-  const demoFile = await fetch(new URL("./data/demonstration.json", import.meta.url));
-  const acceptedDemo = acceptDemonstration(await demoFile.text());
+  const acceptedDemo = acceptDemonstration(demonstrationText);
+  const demonstrationSha256 = sha256Utf8(demonstrationText);
   if (!acceptedDemo.ok) {
     const fault = document.getElementById("fault");
     fault.hidden = false;
@@ -124,7 +132,13 @@ import { acceptDemonstration } from "./validate.js";
     const observer = new ResizeObserver(drawAll);
     observer.observe(court);
     observer.observe(network);
+    observer.observe(document.querySelector("main"));
   }
+  document.querySelectorAll("details").forEach(function (details) {
+    details.addEventListener("toggle", function () {
+      requestAnimationFrame(function () { postFrameHeight(true); });
+    });
+  });
   document.documentElement.dataset.previewReady = check.ok ? "true" : "false";
 
   function connect(fromLayer, toLayer, offset, outputWidth) {
@@ -146,38 +160,7 @@ import { acceptDemonstration } from "./validate.js";
   function makeCamera() {
     return {
       project: function (point) {
-        const yaw = view.yaw;
-        const pitch = view.pitch;
-        const cp = Math.cos(pitch);
-        const sp = Math.sin(pitch);
-        const cy = Math.cos(yaw);
-        const sy = Math.sin(yaw);
-        const eye = { x: DISTANCE * cp * sy, y: DISTANCE * sp, z: DISTANCE * cp * cy };
-        const dx = point.x - eye.x;
-        const dy = point.y - eye.y;
-        const dz = point.z - eye.z;
-        if (view.simple) return { x: point.x * 0.85, y: point.y * 0.85, z: DISTANCE };
-        let fx = -eye.x;
-        let fy = -eye.y;
-        let fz = -eye.z;
-        const fl = Math.hypot(fx, fy, fz);
-        fx /= fl;
-        fy /= fl;
-        fz /= fl;
-        let rx = -fz;
-        let ry = 0;
-        let rz = fx;
-        const rl = Math.hypot(rx, ry, rz);
-        rx /= rl;
-        ry /= rl;
-        rz /= rl;
-        const ux = ry * fz - rz * fy;
-        const uy = rz * fx - rx * fz;
-        const uz = rx * fy - ry * fx;
-        const x = dx * rx + dy * ry + dz * rz;
-        const y = dx * ux + dy * uy + dz * uz;
-        const z = dx * fx + dy * fy + dz * fz;
-        return { x: (FOCAL * x) / z, y: (FOCAL * y) / z, z: z };
+        return projectPoint(point, view);
       },
     };
   }
@@ -300,16 +283,17 @@ import { acceptDemonstration } from "./validate.js";
   }
 
   let postedHeight = 0;
-  function postFrameHeight() {
+  function postFrameHeight(force) {
     if (window.parent === window) return;
     if (!document.documentElement.classList.contains("is-embedded")) {
       document.documentElement.classList.add("is-embedded");
-      requestAnimationFrame(postFrameHeight);
+      requestAnimationFrame(function () { postFrameHeight(true); });
       return;
     }
     const main = document.querySelector("main");
     const height = Math.ceil(main.getBoundingClientRect().height);
-    if (!Number.isFinite(height) || Math.abs(height - postedHeight) < 2) return;
+    if (!Number.isFinite(height) || height < 1) return;
+    if (!force && Math.abs(height - postedHeight) < 2) return;
     postedHeight = height;
     let target = "*";
     try {
@@ -319,6 +303,12 @@ import { acceptDemonstration } from "./validate.js";
     }
     window.parent.postMessage({ type: "pong-embed-height", height: height }, target);
   }
+  let heightBursts = 0;
+  const heightBurst = window.setInterval(function () {
+    postFrameHeight(true);
+    heightBursts += 1;
+    if (heightBursts >= 8) window.clearInterval(heightBurst);
+  }, 200);
 
   function drawCourt() {
     const width = court.clientWidth;
@@ -388,20 +378,7 @@ import { acceptDemonstration } from "./validate.js";
     ctx.shadowBlur = 0;
 
     const origin = camera.project({ x: 0, y: 0, z: 0 });
-    let reach = 0.001;
-    for (let step = 0; step < 36; step += 1) {
-      const turn = (step / 36) * Math.PI * 2;
-      const samples = [
-        { x: Math.cos(turn) * R, y: Math.sin(turn) * R, z: 0 },
-        { x: Math.cos(turn) * R, y: 0, z: Math.sin(turn) * R },
-        { x: 0, y: Math.cos(turn) * R, z: Math.sin(turn) * R },
-      ];
-      samples.forEach(function (sample) {
-        const placed = camera.project(sample);
-        reach = Math.max(reach, Math.hypot(placed.x - origin.x, placed.y - origin.y));
-      });
-    }
-    const scale = (Math.min(width, height) * FRAME) / reach;
+    const scale = frameScale(width, height, view);
     const selected = new Set(outgoingEdges(selectedNode()).map(function (edge) { return edge.flat; }));
     const points = [];
     for (let index = 0; index < COUNT; index += 1) {
@@ -421,7 +398,7 @@ import { acceptDemonstration } from "./validate.js";
         z: projected.z,
         sx: width / 2 + (projected.x - origin.x) * scale,
         sy: height / 2 - (projected.y - origin.y) * scale,
-        screen: Math.max(selected.has(index) ? 3.4 : 2.2, (selected.has(index) ? 1.05 : 0.78) * GLYPH * (FOCAL / projected.z) * scale),
+        screen: markerBody(scale, projected.z, selected.has(index)),
       });
     }
     points.sort(function (a, b) { return b.z - a.z; });
@@ -429,7 +406,13 @@ import { acceptDemonstration } from "./validate.js";
     drawZeroShell(ctx, width, height, scale, origin);
     points.forEach(function (point) { if (point.selected) drawGlyph(ctx, point); });
     painted = points;
-    document.getElementById("stage").dataset.yaw = String(view.yaw);
+    const stage = document.getElementById("stage");
+    const fit = points.every(function (point) {
+      return insideDrawable(point.sx, point.sy, markerOuter(scale, point.z, point.selected, point.kind), width, height);
+    });
+    stage.dataset.cloudFit = fit ? "true" : "false";
+    stage.dataset.cloudScale = String(scale);
+    stage.dataset.yaw = String(view.yaw);
   }
 
   function drawZeroShell(ctx, width, height, scale, origin) {
@@ -460,15 +443,15 @@ import { acceptDemonstration } from "./validate.js";
     const alpha = point.selected ? 1 : 0.55;
     ctx.save();
     ctx.translate(point.sx, point.sy);
-    ctx.lineWidth = point.selected ? 2.2 : 1.5;
+    ctx.lineWidth = point.selected ? STROKE : STROKE * 0.75;
     ctx.strokeStyle = cssColor(color, alpha);
     ctx.fillStyle = cssColor(color, alpha);
     const size = point.screen;
     ctx.beginPath();
     if (point.kind === "bias") {
-      ctx.moveTo(0, -size * 1.35);
+      ctx.moveTo(0, -size * BIAS_STRETCH);
       ctx.lineTo(size, 0);
-      ctx.lineTo(0, size * 1.35);
+      ctx.lineTo(0, size * BIAS_STRETCH);
       ctx.lineTo(-size, 0);
       ctx.closePath();
       ctx.stroke();
@@ -479,8 +462,8 @@ import { acceptDemonstration } from "./validate.js";
     if (point.selected) {
       ctx.beginPath();
       ctx.strokeStyle = "#d1e6ed";
-      ctx.lineWidth = 1.25;
-      ctx.arc(0, 0, size + 2, 0, Math.PI * 2);
+      ctx.lineWidth = RING_WIDTH;
+      ctx.arc(0, 0, size + RING_OUTSET, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
@@ -737,15 +720,18 @@ import { acceptDemonstration } from "./validate.js";
     const chosen = document.getElementById("chosen-action");
     const rightLine = document.getElementById("right-action");
     const caption = document.getElementById("decision-caption");
+    const when = document.getElementById("decision-when");
     if (!left) {
       if (caption) caption.textContent = "No decision yet. Scores are not probabilities.";
+      if (when) when.textContent = "Scores describe the world before a tick. The court shows the world after that tick.";
       if (chosen) chosen.textContent = "Chosen action: none yet.";
       if (rightLine) rightLine.textContent = "";
       score.textContent = "No decision yet.";
       return;
     }
-    if (caption) {
-      caption.textContent = "Decision on the world before tick " + world.elapsedTicks + ". The court is the world after that tick.";
+    if (caption) caption.textContent = "Scores are not probabilities.";
+    if (when) {
+      when.textContent = "Decision on the world before tick " + world.elapsedTicks + ". The court is the world after that tick.";
     }
     if (chosen) chosen.textContent = "Chosen action: " + actionName(left.action) + ".";
     if (rightLine) rightLine.textContent = "Right " + right.controller + ": " + actionName(right.action) + ".";
@@ -858,11 +844,14 @@ import { acceptDemonstration } from "./validate.js";
       relation.textContent = "Changed " + result.actualChangedCount + " of " + result.changes.length
         + " outgoing weights. Incoming weights and biases are unchanged. Not evaluated as a contest result.";
     }
-    if (before && before.rawScores && after && after.rawScores) {
-      relation.textContent += " Before q " + before.comparisonScores.join(", ")
-        + " " + actionName(before.action)
-        + ". After q " + after.comparisonScores.join(", ")
-        + " " + actionName(after.action) + ".";
+    const exact = document.getElementById("fork-exact");
+    if (exact) {
+      exact.textContent = before && before.rawScores && after && after.rawScores
+        ? "Before q " + before.comparisonScores.join(", ")
+          + " " + actionName(before.action)
+          + ". After q " + after.comparisonScores.join(", ")
+          + " " + actionName(after.action) + "."
+        : "";
     }
     drawAll();
     publishTick();
@@ -918,7 +907,7 @@ import { acceptDemonstration } from "./validate.js";
       publishTick();
       const captured = makeCheckpoint({
         world: game.world,
-        left: makeController("network", { id: "demonstration", artifactSha256: acceptedDemo.fingerprint }),
+        left: makeController("network", { id: "demonstration", artifactSha256: demonstrationSha256 }),
         right: makeController(game.opponent, { id: game.opponent, seed: game.seed || game.rng, state: game.rng }),
         parentParameterFingerprint: acceptedDemo.fingerprint,
         episode: { id: "local", serveId: game.serveId, cohort: null, round: null, seedPairId: null },
@@ -934,11 +923,14 @@ import { acceptDemonstration } from "./validate.js";
       report.textContent = "Parent " + pair.parent.termination + " " + (pair.parent.winner || "draw")
         + " in " + pair.parent.playedTicks + " ticks. Fork " + pair.fork.termination + " "
         + (pair.fork.winner || "draw") + " in " + pair.fork.playedTicks
-        + " ticks. First decision raw parent " + parentFirst.left.rawScores.map(exactNumber).join(", ")
-        + " q " + parentFirst.left.comparisonScores.join(", ")
-        + ". Fork raw " + forkFirst.left.rawScores.map(exactNumber).join(", ")
-        + " q " + forkFirst.left.comparisonScores.join(", ")
-        + ". Opponent frozen at capture: " + captured.right.ref.kind + ".";
+        + " ticks. Opponent frozen at capture: " + captured.right.ref.kind + ".";
+      const comparisonExact = document.getElementById("comparison-exact");
+      if (comparisonExact && parentFirst && forkFirst) {
+        comparisonExact.textContent = "First decision raw parent " + parentFirst.left.rawScores.map(exactNumber).join(", ")
+          + " q " + parentFirst.left.comparisonScores.join(", ")
+          + ". Fork raw " + forkFirst.left.rawScores.map(exactNumber).join(", ")
+          + " q " + forkFirst.left.comparisonScores.join(", ") + ".";
+      }
     });
     document.getElementById("reset-view").addEventListener("click", function () {
       view.yaw = YAW;
@@ -993,33 +985,13 @@ import { acceptDemonstration } from "./validate.js";
         if (node.tagName === "DETAILS") node.open = true;
         node = node.parentElement;
       }
-      const margin = 8;
-      const width = Math.min(420, window.innerWidth - margin * 2);
-      dialog.style.width = width + "px";
-      dialog.style.maxHeight = (window.innerHeight - margin * 2) + "px";
+      dialog.style.left = "";
+      dialog.style.top = "";
+      dialog.style.width = "";
+      dialog.style.maxHeight = "";
       dialog.hidden = false;
-      button.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
-      const rect = button.getBoundingClientRect();
-      const height = dialog.offsetHeight;
-      let left = rect.left;
-      if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
-      if (left < margin) left = margin;
-      let top = rect.bottom + margin;
-      if (top + height > window.innerHeight - margin) top = rect.top - height - margin;
-      if (top < margin) top = margin;
-      if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - height);
-      const board = document.getElementById("score-board");
-      if (board) {
-        const boardRect = board.getBoundingClientRect();
-        const covers = top < boardRect.bottom && top + height > boardRect.top && left < boardRect.right && left + width > boardRect.left;
-        if (covers) {
-          const below = boardRect.bottom + margin;
-          if (below + height <= window.innerHeight - margin) top = below;
-          else top = Math.max(margin, boardRect.top - height - margin);
-        }
-      }
-      dialog.style.left = left + "px";
-      dialog.style.top = top + "px";
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      dialog.scrollIntoView({ block: "nearest", behavior: reduced ? "instant" : "auto" });
     }
 
     function openHelp(button) {
@@ -1047,9 +1019,9 @@ import { acceptDemonstration } from "./validate.js";
         toggle.setAttribute("aria-expanded", "true");
         toggle.textContent = "Hide options";
         stage.classList.add("options-open");
-        const heading = document.getElementById("edit-heading");
-        if (window.innerWidth < 801) heading.scrollIntoView({ block: "start", behavior: "instant" });
-        heading.focus({ preventScroll: true });
+        const first = panel.querySelector("#layer");
+        if (window.innerWidth < 801 && first) first.scrollIntoView({ block: "nearest", behavior: "instant" });
+        if (first) first.focus({ preventScroll: true });
       }
       drawAll();
     });

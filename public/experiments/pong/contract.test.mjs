@@ -203,12 +203,14 @@ const slotStay = {
 };
 const offline = evaluateSlot(slotStay, synthetic);
 const again = evaluateSlot(slotStay, synthetic);
-assert.equal(offline.status, "played");
-assert.equal(offline.trajectorySha256, again.trajectorySha256);
-assert.equal(offline.playedTicks > 0, true);
+assert.equal(offline.record.status, "played");
+assert.equal(offline.record.trajectorySha256, again.record.trajectorySha256);
+assert.equal(offline.record.playedTicks > 0, true);
+assert.equal(offline.evidence.worlds.length, offline.record.playedTicks + 1);
 const missing = evaluateSlot({ id: "missing", candidateSide: "left", baselineId: "stay", initialWorld: SERVES.G0 }, null);
-assert.equal(missing.status, "forfeit-not-played");
-assert.deepEqual(missing.playedPoints, [null, null]);
+assert.equal(missing.record.status, "forfeit-not-played");
+assert.deepEqual(missing.record.playedPoints, [null, null]);
+assert.deepEqual(missing.record.final, missing.record.initial.world);
 
 assert.equal(baselineSeed("abc"), 0xba7816bf);
 assert.equal(stepWorld(freshWorld({ x: 1, y: 8, vx: -1, vy: 1, pLeft: 8, pRight: 8 }), 1, 0).pLeft > 1, true);

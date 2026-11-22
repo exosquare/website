@@ -6,11 +6,454 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="color-scheme" content="dark" />
     <title>Pong</title>
-    <link rel="icon" type="image/png" href="../../logo.png" />
-    <link rel="stylesheet" href="./preview.css" />
+    <style id="pong-preview-css">
+:root {
+  color-scheme: dark;
+  --stage: #101315;
+  --fg: #eef5f7;
+  --muted: #9ba9af;
+  --rule: #2b3439;
+  --control: #64686c;
+  --accent: #d1e6ed;
+  --pos: #5ec8c8;
+  --neg: #e8b060;
+  --ink: #101315;
+  --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, monospace;
+  --body: 1.0625rem;
+}
+html { font-size: 16px; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--stage);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: var(--body);
+  line-height: 1.35;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+button, select { font: inherit; color: inherit; }
+button { cursor: default; }
+::selection { background: var(--accent); color: var(--ink); }
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+[hidden] { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 2;
+  background: var(--accent);
+  color: var(--ink);
+  padding: 10px 12px;
+  min-height: 44px;
+  text-decoration: none;
+}
+.skip-link:focus { top: 8px; }
+
+.stage {
+  min-height: 100dvh;
+  background: var(--stage);
+  display: grid;
+  grid-template-columns: minmax(0, 54fr) minmax(0, 46fr);
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  scrollbar-color: var(--rule) var(--stage);
+}
+.stage.options-open {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  grid-template-rows: auto minmax(26rem, auto) auto auto auto;
+}
+.mast, .fault { grid-column: 1 / -1; grid-row: 1; }
+.court { grid-column: 1; grid-row: 2; }
+.cloud { grid-column: 2; grid-row: 2; border-left: 1px solid var(--rule); }
+.play { grid-column: 1 / -1; grid-row: 3; }
+.score-board { grid-column: 1 / -1; grid-row: 4; }
+.edit { grid-column: 1 / -1; grid-row: 5; }
+
+.mast { padding: 10px 16px 4px; }
+.stage-brand {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+h1, h2, h3, p { margin: 0; }
+h1 {
+  margin-top: 2px;
+  font-size: 1.35rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.pane-title, #edit-heading {
+  width: max-content;
+  max-width: 100%;
+}
+.pane-title {
+  margin: 0;
+  padding: 8px 16px 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hook {
+  margin-top: 6px;
+  max-width: 42rem;
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+.banner { margin-top: 2px; font-size: 1.0625rem; line-height: 1.35; }
+.name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.name-row button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+.name-row button.is-current {
+  color: var(--fg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.name-row label,
+.edit-row label,
+.edit-row label,
+.cohort-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  min-width: 0;
+}
+select {
+  appearance: none;
+  background: var(--stage);
+  color: var(--fg);
+  border: 1px solid var(--control);
+  border-radius: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  max-width: 100%;
+}
+select:disabled {
+  color: var(--muted);
+  background: var(--stage);
+  border-color: #3e464b;
+  cursor: not-allowed;
+  opacity: 1;
+}
+#fixture { font-weight: 700; }
+.run-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 8px;
+}
+.preview-word { color: var(--muted); }
+.identity {
+  margin-top: 2px;
+  max-width: 44rem;
+  color: var(--muted);
+}
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.emph { color: var(--fg); }
+
+.court, .cloud {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.pane-label { padding: 8px 16px 0; }
+.canvas-frame { flex: 1 1 auto; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 2px 16px 8px; font-size: 1rem; }
+.honesty {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding: 8px 18px 4px;
+  border-top: 1px solid var(--rule);
+  font-size: 1rem;
+}
+.edit { grid-column: 1 / -1; grid-row: 5; }
+.more { grid-column: 1 / -1; }
+.honesty p + p { margin-top: 2px; }
+.legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.legend li { display: flex; align-items: center; gap: 8px; min-height: 28px; white-space: nowrap; flex: 0 0 auto; }
+.legend p { margin-top: 2px; }
+.swatch { width: 14px; height: 14px; flex: 0 0 auto; }
+.swatch.pos { background: var(--pos); }
+.swatch.neg { background: var(--neg); }
+.swatch.zero {
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--muted);
+  background: transparent;
+}
+.swatch.bias {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--fg);
+  background: transparent;
+  transform: rotate(45deg);
+}
+
+.edit { padding: 8px 16px 10px; border-top: 1px solid var(--rule); }
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.availability, #fork-relation { margin-top: 6px; max-width: 46rem; }
+
+.more { border-top: 1px solid var(--rule); }
+.more summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  cursor: pointer;
+}
+.more-body { padding: 4px 16px 18px; max-width: 68rem; }
+.more-body p + p, .more-body h3 { margin-top: 10px; }
+.more-body h3 { font-size: 1.0625rem; font-weight: 300; }
+.cohort-row { margin-top: 12px; }
+.pose-block { margin-top: 10px; }
+#bias-line, #incoming-line { overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--control);
+  border-radius: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: left;
+}
+button:disabled,
+button:disabled:hover {
+  color: var(--muted);
+  background: var(--stage);
+  border-color: #3e464b;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+caption {
+  text-align: left;
+  font-family: var(--sans);
+  font-weight: 300;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+th {
+  text-align: left;
+  font-family: var(--sans);
+  font-weight: 300;
+  color: var(--muted);
+  padding: 0 10px 4px 0;
+}
+td { padding: 1px 10px 1px 0; white-space: nowrap; }
+td.pos { color: var(--pos); }
+td.neg { color: var(--neg); }
+td.zero { color: var(--muted); }
+tr.is-selected td:first-child { color: var(--accent); }
+.fault {
+  margin: 0;
+  padding: 8px 16px 12px;
+  color: var(--neg);
+  font-family: var(--mono);
+}
+
+.play { padding: 8px 0 12px; border-top: 1px solid var(--rule); }
+.play-row, .decision-summary, .score-board { padding-left: 16px; padding-right: 16px; }
+.play-row, .score-row, .opt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.score-row { margin-top: 8px; }
+.score-row p { flex: 1 1 16rem; }
+.opt { margin-top: 14px; }
+.opt select, .cohort-row select { width: 100%; }
+.pair-actions button { width: auto; flex: 0 0 auto; border: 1px solid var(--accent); padding: 0 12px; background: transparent; }
+.tick-line { padding: 0 16px 4px; overflow-wrap: anywhere; }
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--accent);
+}
+.info-glyph { display: block; }
+.help {
+  position: static;
+  z-index: 1;
+  box-sizing: border-box;
+  display: block;
+  width: min(36rem, 100%);
+  max-height: none;
+  overflow: visible;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--stage);
+  color: var(--fg);
+  border: 1px solid var(--control);
+  font-size: 1rem;
+}
+.help p + p { margin-top: 8px; }
+.help-dismiss {
+  position: static;
+  width: auto;
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--accent);
+  background: transparent;
+}
+
+@media (max-width: 800px) {
+  .stage, .stage.options-open {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+  }
+  .play { display: contents; }
+  .court { order: 1; }
+  .play-row { order: 2; }
+  .decision-summary { order: 3; }
+  .cloud { order: 4; }
+  .score-board { order: 5; }
+  .edit { order: 6; }
+  .mast { order: 0; }
+  #network { height: 280px; }
+  .cloud { border-left: 0; border-top: 1px solid var(--rule); }
+  .court .canvas-frame, .cloud .canvas-frame { flex: none; }
+  #court { height: 200px; }
+  #network { height: 280px; }
+  h1 { font-size: 1.25rem; }
+  .name-row { flex-wrap: wrap; }
+  .name-row label { flex: 1 1 9rem; }
+  .edit-row select, .cohort-row select { width: auto; min-width: 5.5rem; }
+  .pair { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 801px) {
+  .canvas-frame { min-height: 22rem; }
+  .stage.options-open {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    grid-template-rows: auto minmax(26rem, auto) auto auto auto;
+  }
+  .stage.options-open .edit { overflow: visible; min-height: 0; }
+  .stage.options-open #court,
+  .stage.options-open #network { height: 26rem; min-height: 20rem; }
+}
+html.is-embedded .stage,
+html.is-embedded .stage.options-open {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+html.is-embedded .canvas-frame { min-height: 18rem; }
+.field-note { font-size: 0.875rem; }
+@media (max-width: 420px) {
+  .score-cell { display: flex; flex-wrap: nowrap; gap: 8px; align-items: baseline; }
+}
+@media (max-width: 360px) {
+  .mast, .legend, .edit, .more summary, .more-body,
+  .play-row, .decision-summary, .score-board, .pane-title, .tick-line { padding-left: 16px; padding-right: 16px; }
+  #court { height: 200px; }
+  #network { height: 260px; }
+  .name-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .name-row button { width: 100%; white-space: normal; text-align: left; min-height: 44px; }
+  .legend { display: block; }
+  .legend ul { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+}
+
+.score-board { margin-top: 0; }
+.score-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 420px) {
+  .score-grid { grid-template-columns: 1fr; }
+}
+.score-cell {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--control);
+}
+.score-cell.is-chosen { border-color: var(--accent); }
+.score-name { display: block; font-size: 0.875rem; }
+.score-cell .mono, #score-line { white-space: nowrap; }
+#score-line { white-space: normal; }
+#score-line span, .exact-token { white-space: nowrap; display: inline-block; }
+.group { border-top: 1px solid var(--rule); padding: 4px 0; }
+.group summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.split, .pair-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.split label { flex: 1 1 8rem; }
+.pair-actions button, .split select, .opt select, .opt > button { min-height: 44px; }
+.field-note { color: var(--muted); margin-top: 4px; }
+.status { margin-top: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+</style>
   </head>
   <body>
-    <a class="skip-link" href="#weight-details">Skip to the value table</a>
+    <a class="skip-link" href="#court-heading">Skip to the court</a>
     <main class="stage" id="stage">
       <header class="mast">
         <p class="stage-brand">Experiment demo</p>
@@ -28,7 +471,7 @@
       </header>
 
       <section class="court" aria-labelledby="court-heading">
-        <h2 class="pane-title" id="court-heading">Court</h2>
+        <h2 class="pane-title" id="court-heading" tabindex="-1">Court</h2>
         <p class="mono tick-line" id="tick-readout">Tick 0 of 192. Paused.</p>
         <div class="canvas-frame">
           <canvas id="court" width="640" height="320" aria-hidden="true"></canvas>
@@ -84,6 +527,8 @@
         <details class="exact-scores">
           <summary>Exact raw and q</summary>
           <p id="score-line" class="mono">No decision yet.</p>
+          <p id="decision-when">Scores describe the world before a tick. The court shows the world after that tick.</p>
+          <p id="comparison-exact" class="mono"></p>
         </details>
         <button type="button" class="info" id="info-game" aria-expanded="false" aria-controls="help-game" aria-label="About the game"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
         <div id="help-game" class="help" role="dialog" aria-label="About the game" hidden>
@@ -211,6 +656,7 @@
             <p id="bias-line" class="mono"></p>
             <p id="incoming-line" class="mono"></p>
             <p id="change-line"></p>
+            <p id="fork-exact" class="mono"></p>
             <div id="outgoing"></div>
             <p>Index 0 through 434 follows the stored order. Direction uses that index only. Distance is R times (0.60 plus 0.40 times value divided by 16 plus the absolute value). A finite value stays inside 0.20R and R. Circles are the 400 connection weights. Outlined diamonds are the 35 biases.</p>
             <div id="all-values"></div>
@@ -219,6 +665,2076 @@
       </section>
       <p id="fault" class="fault" hidden></p>
     </main>
-    <script type="module" src="./preview.js"></script>
+    <script id="pong-preview-script">
+"use strict";
+(() => {
+  // public/experiments/pong/kernel.js
+  var COUNT = 435;
+  var R = 1;
+  var COMPRESS = 16;
+  var SERVES = {
+    G0: { x: 16, y: 8, vx: 1, vy: 1, pLeft: 8, pRight: 8 },
+    G1: { x: 16, y: 3, vx: -2, vy: 1, pLeft: 8, pRight: 8 },
+    G2: { x: 8, y: 2, vx: 2, vy: -2, pLeft: 4, pRight: 11 },
+    G3: { x: 23, y: 13, vx: -2, vy: 2, pLeft: 11, pRight: 4 }
+  };
+  function freshWorld(source) {
+    return {
+      x: source.x,
+      y: source.y,
+      vx: source.vx,
+      vy: source.vy,
+      pLeft: source.pLeft,
+      pRight: source.pRight,
+      elapsedTicks: 0,
+      phase: "live",
+      terminal: null
+    };
+  }
+  function observe(world, side) {
+    if (side === "left") {
+      return [world.x / 31, world.y / 15, world.vx / 2, world.vy / 2, world.pLeft / 15, world.pRight / 15];
+    }
+    return [(31 - world.x) / 31, world.y / 15, -world.vx / 2, world.vy / 2, world.pRight / 15, world.pLeft / 15];
+  }
+  function displacement(action) {
+    if (action === 1) return 1;
+    if (action === 2) return -1;
+    return 0;
+  }
+  function clampCenter(center) {
+    if (center < 1) return 1;
+    if (center > 14) return 14;
+    return center;
+  }
+  function resolveVertical(y, vy) {
+    const ty = y + vy;
+    if (ty < 0) return { resolvedY: -ty, wallVy: -vy };
+    if (ty > 15) return { resolvedY: 30 - ty, wallVy: -vy };
+    return { resolvedY: ty, wallVy: vy };
+  }
+  function signedUnit(value) {
+    return value < 0 ? -1 : 1;
+  }
+  function finite(value) {
+    return Object.is(value, -0) ? 0 : value;
+  }
+  function withTimeout(world, elapsedTicks) {
+    if (world.phase === "terminal") return world;
+    if (elapsedTicks >= 192) {
+      return {
+        ...world,
+        elapsedTicks: 192,
+        phase: "terminal",
+        terminal: { reason: "timeout", winner: null }
+      };
+    }
+    return { ...world, elapsedTicks, phase: "live", terminal: null };
+  }
+  function stepWorld(world, leftAction, rightAction) {
+    const detailed = stepDetailed(world, leftAction, rightAction);
+    if (detailed.error) return detailed;
+    return detailed.world;
+  }
+  function stepDetailed(world, leftAction, rightAction) {
+    if (world.phase === "terminal") {
+      return { error: "terminal" };
+    }
+    const pLeft = clampCenter(world.pLeft + displacement(leftAction));
+    const pRight = clampCenter(world.pRight + displacement(rightAction));
+    const vertical = resolveVertical(world.y, world.vy);
+    const tx = world.x + world.vx;
+    const nextElapsed = world.elapsedTicks + 1;
+    const base = {
+      pLeft,
+      pRight,
+      elapsedTicks: nextElapsed
+    };
+    if (tx <= 0) {
+      const offset = vertical.resolvedY - pLeft;
+      if (Math.abs(offset) <= 1) {
+        const outgoingVy = offset === -1 ? -2 : offset === 1 ? 2 : signedUnit(vertical.wallVy);
+        const next = withTimeout({
+          ...base,
+          x: finite(-tx),
+          y: finite(vertical.resolvedY),
+          vx: finite(-world.vx),
+          vy: finite(outgoingVy),
+          phase: "live",
+          terminal: null
+        }, nextElapsed);
+        return { world: next, event: contactEvent("left", nextElapsed, offset, tx, vertical, pLeft, world, next) };
+      }
+      const missed = {
+        ...base,
+        x: finite(tx),
+        y: finite(vertical.resolvedY),
+        vx: finite(world.vx),
+        vy: finite(vertical.wallVy),
+        phase: "terminal",
+        terminal: { reason: "right-point", winner: "right" }
+      };
+      return { world: missed, event: missEvent("left", nextElapsed, offset, tx, vertical, pLeft) };
+    }
+    if (tx >= 31) {
+      const offset = vertical.resolvedY - pRight;
+      if (Math.abs(offset) <= 1) {
+        const outgoingVy = offset === -1 ? -2 : offset === 1 ? 2 : signedUnit(vertical.wallVy);
+        const next = withTimeout({
+          ...base,
+          x: finite(62 - tx),
+          y: finite(vertical.resolvedY),
+          vx: finite(-world.vx),
+          vy: finite(outgoingVy),
+          phase: "live",
+          terminal: null
+        }, nextElapsed);
+        return { world: next, event: contactEvent("right", nextElapsed, offset, tx, vertical, pRight, world, next) };
+      }
+      const missed = {
+        ...base,
+        x: finite(tx),
+        y: finite(vertical.resolvedY),
+        vx: finite(world.vx),
+        vy: finite(vertical.wallVy),
+        phase: "terminal",
+        terminal: { reason: "left-point", winner: "left" }
+      };
+      return { world: missed, event: missEvent("right", nextElapsed, offset, tx, vertical, pRight) };
+    }
+    const moved = withTimeout({
+      ...base,
+      x: finite(tx),
+      y: finite(vertical.resolvedY),
+      vx: finite(world.vx),
+      vy: finite(vertical.wallVy),
+      phase: "live",
+      terminal: null
+    }, nextElapsed);
+    return { world: moved, event: { type: "move", tick: nextElapsed } };
+  }
+  function contactEvent(side, tick2, offset, tx, vertical, center, before, after) {
+    return {
+      tick: tick2,
+      side,
+      xBefore: before.x,
+      yBefore: before.y,
+      xEndpoint: tx,
+      yEndpoint: vertical.resolvedY,
+      centerAfterMove: center,
+      offset,
+      vxBefore: before.vx,
+      vyAfterWall: vertical.wallVy,
+      vxAfter: after.vx,
+      vyAfter: after.vy
+    };
+  }
+  function missEvent(side, tick2, offset, tx, vertical, center) {
+    return {
+      tick: tick2,
+      side,
+      xEndpoint: tx,
+      yEndpoint: vertical.resolvedY,
+      centerAfterMove: center,
+      offset,
+      missDistance: Math.max(0, Math.abs(offset) - 1)
+    };
+  }
+  function quantize(raw) {
+    return Math.floor(raw * 1e6 + 0.5);
+  }
+  function relu(value) {
+    if (!Number.isFinite(value)) return { error: true };
+    if (value < 0 || Object.is(value, -0)) return 0;
+    return value;
+  }
+  function affine(inputs, weights, weightOffset, biasOffset, inputCount, outputCount) {
+    const out = new Array(outputCount);
+    for (let output = 0; output < outputCount; output += 1) {
+      let sum = weights[biasOffset + output];
+      if (Object.is(sum, -0)) sum = 0;
+      for (let input = 0; input < inputCount; input += 1) {
+        sum = sum + inputs[input] * weights[weightOffset + input * outputCount + output];
+      }
+      if (!Number.isFinite(sum)) return { error: true };
+      out[output] = sum;
+    }
+    return out;
+  }
+  function infer(weights, inputs) {
+    const hidden1 = affine(inputs, weights, 0, 96, 6, 16);
+    if (hidden1.error) return hidden1;
+    const relu1 = [];
+    for (let index = 0; index < 16; index += 1) {
+      const value = relu(hidden1[index]);
+      if (value && value.error) return value;
+      relu1.push(value);
+    }
+    const hidden2 = affine(relu1, weights, 112, 368, 16, 16);
+    if (hidden2.error) return hidden2;
+    const relu2 = [];
+    for (let index = 0; index < 16; index += 1) {
+      const value = relu(hidden2[index]);
+      if (value && value.error) return value;
+      relu2.push(value);
+    }
+    const rawScores = affine(relu2, weights, 384, 432, 16, 3);
+    if (rawScores.error) return rawScores;
+    const comparisonScores = rawScores.map(quantize);
+    let action = 0;
+    for (let index = 1; index < 3; index += 1) {
+      if (comparisonScores[index] > comparisonScores[action]) action = index;
+    }
+    return { inputs, rawScores, comparisonScores, action };
+  }
+  function xorshift32(state2) {
+    let x = state2 >>> 0;
+    x ^= x << 13 >>> 0;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5 >>> 0;
+    return x >>> 0;
+  }
+  function uniformInt(state2, bound) {
+    const limit = Math.floor(4294967296 / bound) * bound;
+    let next = state2 >>> 0;
+    let rejections = 0;
+    for (; ; ) {
+      next = xorshift32(next);
+      if (next < limit) return { state: next, value: next % bound, rejections };
+      rejections += 1;
+    }
+  }
+  var SPEEDS = [-2, -1, 1, 2];
+  function randomServe(seed) {
+    let state2 = seed >>> 0;
+    if (state2 === 0) state2 = 1;
+    const draw = (bound) => {
+      const next = uniformInt(state2, bound);
+      state2 = next.state;
+      return next.value;
+    };
+    return freshWorld({
+      x: 1 + draw(30),
+      y: draw(16),
+      vx: SPEEDS[draw(4)],
+      vy: SPEEDS[draw(4)],
+      pLeft: 1 + draw(14),
+      pRight: 1 + draw(14)
+    });
+  }
+  function chase(target, center) {
+    if (target - center > 1) return 1;
+    if (target - center < -1) return 2;
+    return 0;
+  }
+  function analyticTarget(world, side) {
+    const incoming = side === "left" ? world.vx < 0 : world.vx > 0;
+    if (!incoming) return 8;
+    let x = world.x;
+    let y = world.y;
+    let vx = world.vx;
+    let vy = world.vy;
+    for (let tick2 = 1; tick2 <= 31; tick2 += 1) {
+      const vertical = resolveVertical(y, vy);
+      const tx = x + vx;
+      const crossed = side === "left" ? tx <= 0 : tx >= 31;
+      if (crossed) return vertical.resolvedY;
+      x = tx;
+      y = vertical.resolvedY;
+      vy = vertical.wallVy;
+    }
+    return y;
+  }
+  function baselineAction(kind, world, side, rngState) {
+    const center = side === "left" ? world.pLeft : world.pRight;
+    if (kind === "stay") return { action: 0, rngState };
+    if (kind === "reactive") return { action: chase(world.y, center), rngState };
+    if (kind === "analytic") return { action: chase(analyticTarget(world, side), center), rngState };
+    const draw = uniformInt(rngState, 3);
+    return { action: draw.value, rngState: draw.state, rejections: draw.rejections };
+  }
+  function decide(kind, weights, world, side, rngState) {
+    if (world.phase === "terminal") return { error: "terminal" };
+    if (kind === "network") {
+      const inputs = observe(world, side);
+      const decision = infer(weights, inputs);
+      if (decision.error) return decision;
+      return { ...decision, rngState, rejections: 0, controller: "network" };
+    }
+    const baseline = baselineAction(kind, world, side, rngState);
+    return {
+      action: baseline.action,
+      rawScores: null,
+      comparisonScores: null,
+      inputs: observe(world, side),
+      rngState: baseline.rngState,
+      rejections: baseline.rejections || 0,
+      controller: kind
+    };
+  }
+  function outgoingSpan(layer, unit) {
+    if (layer === "h1") {
+      const start = 112 + 16 * unit;
+      return { start, end: start + 16 };
+    }
+    if (layer === "h2") {
+      const start = 384 + 3 * unit;
+      return { start, end: start + 3 };
+    }
+    return null;
+  }
+  function muteOutgoing(weights, layer, unit) {
+    const span = outgoingSpan(layer, unit);
+    if (!span) return { error: "layer" };
+    const next = Float64Array.from(weights);
+    const changes = [];
+    let actualChangedCount = 0;
+    for (let index = span.start; index < span.end; index += 1) {
+      const from = weights[index];
+      changes.push({ flatIndex: index, from, to: 0 });
+      if (from !== 0) actualChangedCount += 1;
+      next[index] = 0;
+    }
+    return { weights: next, changes, actualChangedCount, start: span.start, end: span.end };
+  }
+  function isBiasIndex(index) {
+    return index >= 96 && index < 112 || index >= 368 && index < 384 || index >= 432;
+  }
+  function radiusOf(value) {
+    return R * (0.6 + 0.4 * (value / (COMPRESS + Math.abs(value))));
+  }
+  function direction(index) {
+    const y = 1 - 2 * (index + 0.5) / COUNT;
+    const ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = Math.PI * (3 - Math.sqrt(5)) * index;
+    return { x: ring * Math.cos(theta), y, z: ring * Math.sin(theta) };
+  }
+  function cloneWorld(world) {
+    return {
+      x: world.x,
+      y: world.y,
+      vx: world.vx,
+      vy: world.vy,
+      pLeft: world.pLeft,
+      pRight: world.pRight,
+      elapsedTicks: world.elapsedTicks,
+      phase: world.phase,
+      terminal: world.terminal ? { reason: world.terminal.reason, winner: world.terminal.winner } : null
+    };
+  }
+  function copyRng(rng) {
+    if (!rng) return null;
+    return {
+      algorithm: "xorshift32-v1",
+      initialSeed: rng.initialSeed >>> 0,
+      state: rng.state >>> 0,
+      drawCount: rng.drawCount,
+      rejectionCount: rng.rejectionCount
+    };
+  }
+  function copySide(side) {
+    return {
+      ref: {
+        kind: side.ref.kind,
+        id: side.ref.id,
+        version: side.ref.version,
+        implementationSha256: side.ref.implementationSha256,
+        artifactSha256: side.ref.artifactSha256
+      },
+      state: { rng: copyRng(side.state.rng), memory: null }
+    };
+  }
+  function makeController(kind, options = {}) {
+    const random = kind === "random";
+    const seed = (options.seed || 1) >>> 0;
+    const state2 = (options.state ?? seed) >>> 0;
+    return {
+      ref: {
+        kind,
+        id: options.id || kind,
+        version: options.version || "pong-feedback-v1",
+        implementationSha256: options.implementationSha256 ?? null,
+        artifactSha256: kind === "network" ? options.artifactSha256 || null : null
+      },
+      state: {
+        rng: random ? {
+          algorithm: "xorshift32-v1",
+          initialSeed: seed === 0 ? 1 : seed,
+          state: state2 === 0 ? 1 : state2,
+          drawCount: options.drawCount || 0,
+          rejectionCount: options.rejectionCount || 0
+        } : null,
+        memory: null
+      }
+    };
+  }
+  function makeCheckpoint(spec) {
+    return {
+      schema: "pong-checkpoint-v1",
+      taskVersion: "pong-feedback-v1",
+      rulesSha256: spec.rulesSha256 ?? null,
+      numericVersion: "binary64-ordered-q1e6-v1",
+      world: cloneWorld(spec.world),
+      left: copySide(spec.left),
+      right: copySide(spec.right),
+      parentParameterFingerprint: spec.parentParameterFingerprint,
+      episode: {
+        id: spec.episode?.id || "local",
+        serveId: spec.episode?.serveId || "G0",
+        cohort: spec.episode?.cohort ?? null,
+        round: spec.episode?.round ?? null,
+        seedPairId: spec.episode?.seedPairId ?? null
+      },
+      control: {
+        mode: spec.control?.mode || "live-inference",
+        nextActionOffset: spec.control?.nextActionOffset || 0
+      },
+      checkpointSha256: spec.checkpointSha256 || null
+    };
+  }
+  function cloneCheckpoint(checkpoint) {
+    return {
+      schema: checkpoint.schema,
+      taskVersion: checkpoint.taskVersion,
+      rulesSha256: checkpoint.rulesSha256,
+      numericVersion: checkpoint.numericVersion,
+      world: cloneWorld(checkpoint.world),
+      left: copySide(checkpoint.left),
+      right: copySide(checkpoint.right),
+      parentParameterFingerprint: checkpoint.parentParameterFingerprint,
+      episode: { ...checkpoint.episode },
+      control: { ...checkpoint.control },
+      checkpointSha256: checkpoint.checkpointSha256 || null
+    };
+  }
+  function noteRng(side, decision) {
+    if (!side.state.rng || side.ref.kind !== "random") return;
+    side.state.rng.state = decision.rngState >>> 0;
+    side.state.rng.drawCount += 1;
+    side.state.rng.rejectionCount += decision.rejections || 0;
+  }
+  function decideSide(side, weights, world, which) {
+    const rngState = side.state.rng ? side.state.rng.state : 1;
+    return decide(side.ref.kind, weights, world, which, rngState);
+  }
+  function advanceCheckpoint(checkpoint, weightsBySide) {
+    if (checkpoint.world.phase === "terminal") return { error: "terminal" };
+    const before = cloneWorld(checkpoint.world);
+    const leftWeights = weightsBySide.left || null;
+    const rightWeights = weightsBySide.right || null;
+    if (checkpoint.left.ref.kind === "network" && !leftWeights) return { error: "weights" };
+    if (checkpoint.right.ref.kind === "network" && !rightWeights) return { error: "weights" };
+    const left = decideSide(checkpoint.left, leftWeights, before, "left");
+    if (left.error) return left;
+    const right = decideSide(checkpoint.right, rightWeights, before, "right");
+    if (right.error) return right;
+    const detailed = stepDetailed(before, left.action, right.action);
+    if (detailed.error) return detailed;
+    const world = detailed.world;
+    const next = cloneCheckpoint(checkpoint);
+    next.world = world;
+    next.control.mode = "live-inference";
+    noteRng(next.left, left);
+    noteRng(next.right, right);
+    return {
+      checkpoint: next,
+      event: detailed.event,
+      left: {
+        inputs: left.inputs.slice(),
+        rawScores: left.rawScores ? left.rawScores.slice() : null,
+        comparisonScores: left.comparisonScores ? left.comparisonScores.slice() : null,
+        action: left.action,
+        controller: left.controller,
+        tick: before.elapsedTicks
+      },
+      right: {
+        inputs: right.inputs.slice(),
+        rawScores: right.rawScores ? right.rawScores.slice() : null,
+        comparisonScores: right.comparisonScores ? right.comparisonScores.slice() : null,
+        action: right.action,
+        controller: right.controller,
+        tick: before.elapsedTicks
+      },
+      before,
+      after: world
+    };
+  }
+  function runEpisode(checkpoint, weightsBySide) {
+    let current = cloneCheckpoint(checkpoint);
+    const decisions = [];
+    const worlds = [cloneWorld(current.world)];
+    while (current.world.phase !== "terminal") {
+      const step = advanceCheckpoint(current, weightsBySide);
+      if (step.error) return step;
+      decisions.push(step);
+      current = step.checkpoint;
+      worlds.push(cloneWorld(current.world));
+    }
+    const terminal = current.world.terminal;
+    const playedPoints = terminal.reason === "timeout" ? [0.5, 0.5] : terminal.winner === "left" ? [1, 0] : [0, 1];
+    return {
+      checkpoint: current,
+      decisions,
+      worlds,
+      playedTicks: current.world.elapsedTicks,
+      termination: terminal.reason === "timeout" ? "timeout" : "point",
+      winner: terminal.winner,
+      playedPoints
+    };
+  }
+  function compareBranches(checkpoint, parentWeights, forkWeights, testedSide) {
+    const side = testedSide || (checkpoint.right.ref.kind === "network" && checkpoint.left.ref.kind !== "network" ? "right" : "left");
+    const tested = side === "right" ? checkpoint.right : checkpoint.left;
+    if (!tested || tested.ref.kind !== "network") return { error: "tested-side" };
+    function pack(weights) {
+      return {
+        left: side === "left" ? weights : null,
+        right: side === "right" ? weights : null
+      };
+    }
+    return {
+      testedSide: side,
+      parent: runEpisode(checkpoint, pack(parentWeights)),
+      fork: runEpisode(checkpoint, pack(forkWeights))
+    };
+  }
+
+  // public/experiments/pong/validate.js
+  var K = [
+    1116352408,
+    1899447441,
+    3049323471,
+    3921009573,
+    961987163,
+    1508970993,
+    2453635748,
+    2870763221,
+    3624381080,
+    310598401,
+    607225278,
+    1426881987,
+    1925078388,
+    2162078206,
+    2614888103,
+    3248222580,
+    3835390401,
+    4022224774,
+    264347078,
+    604807628,
+    770255983,
+    1249150122,
+    1555081692,
+    1996064986,
+    2554220882,
+    2821834349,
+    2952996808,
+    3210313671,
+    3336571891,
+    3584528711,
+    113926993,
+    338241895,
+    666307205,
+    773529912,
+    1294757372,
+    1396182291,
+    1695183700,
+    1986661051,
+    2177026350,
+    2456956037,
+    2730485921,
+    2820302411,
+    3259730800,
+    3345764771,
+    3516065817,
+    3600352804,
+    4094571909,
+    275423344,
+    430227734,
+    506948616,
+    659060556,
+    883997877,
+    958139571,
+    1322822218,
+    1537002063,
+    1747873779,
+    1955562222,
+    2024104815,
+    2227730452,
+    2361852424,
+    2428436474,
+    2756734187,
+    3204031479,
+    3329325298
+  ];
+  function rotr(count, value) {
+    return value >>> count | value << 32 - count;
+  }
+  function sha256Bytes(bytes) {
+    const length = bytes.length;
+    let paddedLength = length + 1 + 8;
+    if (paddedLength % 64 !== 0) paddedLength += 64 - paddedLength % 64;
+    const padded = new Uint8Array(paddedLength);
+    padded.set(bytes);
+    padded[length] = 128;
+    const view2 = new DataView(padded.buffer);
+    const bits = length * 8;
+    view2.setUint32(paddedLength - 8, Math.floor(bits / 4294967296));
+    view2.setUint32(paddedLength - 4, bits >>> 0);
+    let h0 = 1779033703;
+    let h1 = 3144134277;
+    let h2 = 1013904242;
+    let h3 = 2773480762;
+    let h4 = 1359893119;
+    let h5 = 2600822924;
+    let h6 = 528734635;
+    let h7 = 1541459225;
+    const words = new Uint32Array(64);
+    for (let offset = 0; offset < paddedLength; offset += 64) {
+      for (let index = 0; index < 16; index += 1) words[index] = view2.getUint32(offset + index * 4);
+      for (let index = 16; index < 64; index += 1) {
+        const s0 = rotr(7, words[index - 15]) ^ rotr(18, words[index - 15]) ^ words[index - 15] >>> 3;
+        const s1 = rotr(17, words[index - 2]) ^ rotr(19, words[index - 2]) ^ words[index - 2] >>> 10;
+        words[index] = words[index - 16] + s0 + words[index - 7] + s1 >>> 0;
+      }
+      let a = h0;
+      let b = h1;
+      let c = h2;
+      let d = h3;
+      let e = h4;
+      let f = h5;
+      let g = h6;
+      let h = h7;
+      for (let index = 0; index < 64; index += 1) {
+        const s1 = rotr(6, e) ^ rotr(11, e) ^ rotr(25, e);
+        const ch = e & f ^ ~e & g;
+        const temp1 = h + s1 + ch + K[index] + words[index] >>> 0;
+        const s0 = rotr(2, a) ^ rotr(13, a) ^ rotr(22, a);
+        const maj = a & b ^ a & c ^ b & c;
+        const temp2 = s0 + maj >>> 0;
+        h = g;
+        g = f;
+        f = e;
+        e = d + temp1 >>> 0;
+        d = c;
+        c = b;
+        b = a;
+        a = temp1 + temp2 >>> 0;
+      }
+      h0 = h0 + a >>> 0;
+      h1 = h1 + b >>> 0;
+      h2 = h2 + c >>> 0;
+      h3 = h3 + d >>> 0;
+      h4 = h4 + e >>> 0;
+      h5 = h5 + f >>> 0;
+      h6 = h6 + g >>> 0;
+      h7 = h7 + h >>> 0;
+    }
+    return [h0, h1, h2, h3, h4, h5, h6, h7].map(function(part) {
+      return part.toString(16).padStart(8, "0");
+    }).join("");
+  }
+  function sha256Utf8(text) {
+    return sha256Bytes(new TextEncoder().encode(text));
+  }
+  function normalizeNumber(value) {
+    return Object.is(value, -0) ? 0 : value;
+  }
+  function parameterFingerprint(weights) {
+    if (!weights || weights.length !== 435) return null;
+    const bytes = new Uint8Array(435 * 8);
+    const view2 = new DataView(bytes.buffer);
+    for (let index = 0; index < 435; index += 1) {
+      const value = weights[index];
+      if (typeof value !== "number" || !Number.isFinite(value)) return null;
+      view2.setFloat64(index * 8, normalizeNumber(value), true);
+    }
+    return sha256Bytes(bytes);
+  }
+  var DEMONSTRATION_FINGERPRINT = "9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f";
+  var DEMONSTRATION_ROLE = "demonstration";
+  var DEMONSTRATION_LABEL = "Demonstration";
+  function byteOffset(text, index) {
+    return new TextEncoder().encode(text.slice(0, index)).length;
+  }
+  function decodeUtf8(bytes) {
+    let text = "";
+    for (let index = 0; index < bytes.length; ) {
+      const first = bytes[index];
+      if (first < 128) {
+        text += String.fromCharCode(first);
+        index += 1;
+        continue;
+      }
+      let width = 0;
+      let point = 0;
+      if (first >= 194 && first <= 223) {
+        width = 2;
+        point = first & 31;
+      } else if (first >= 224 && first <= 239) {
+        width = 3;
+        point = first & 15;
+      } else if (first >= 240 && first <= 244) {
+        width = 4;
+        point = first & 7;
+      } else return { error: "utf8", offset: index };
+      if (index + width > bytes.length) return { error: "utf8", offset: index };
+      for (let extra = 1; extra < width; extra += 1) {
+        const next = bytes[index + extra];
+        if ((next & 192) !== 128) return { error: "utf8", offset: index };
+        point = point << 6 | next & 63;
+      }
+      const min = width === 2 ? 128 : width === 3 ? 2048 : 65536;
+      if (point < min || point > 1114111 || point >= 55296 && point <= 57343) return { error: "utf8", offset: index };
+      if (width === 3 && first === 224 && bytes[index + 1] < 160) return { error: "utf8", offset: index };
+      if (width === 3 && first === 237 && bytes[index + 1] >= 160) return { error: "utf8", offset: index };
+      if (width === 4 && first === 240 && bytes[index + 1] < 144) return { error: "utf8", offset: index };
+      if (width === 4 && first === 244 && bytes[index + 1] >= 144) return { error: "utf8", offset: index };
+      text += String.fromCodePoint(point);
+      index += width;
+    }
+    return { text };
+  }
+  function emptyReport(bytes, errors) {
+    const hasBytes = bytes instanceof Uint8Array;
+    return {
+      accepted: false,
+      byteLength: hasBytes ? bytes.length : null,
+      scalarCount: null,
+      rawResponseSha256: hasBytes ? sha256Bytes(bytes) : null,
+      parameterFingerprintSha256: null,
+      tokens: null,
+      errors
+    };
+  }
+  function finishReport(bytes, weights, errors) {
+    if (errors.length) return emptyReport(bytes, errors);
+    const tensor = Float64Array.from(weights, normalizeNumber);
+    return {
+      accepted: true,
+      byteLength: bytes.length,
+      scalarCount: 435,
+      rawResponseSha256: sha256Bytes(bytes),
+      parameterFingerprintSha256: parameterFingerprint(tensor),
+      errors: [],
+      weights: tensor
+    };
+  }
+  function parseDocument(text) {
+    let at = 0;
+    const tokens = [];
+    function peek() {
+      return text[at];
+    }
+    function fail(code, index, tokenOffset) {
+      return { error: code, index: index ?? null, tokenOffset: tokenOffset ?? byteOffset(text, at) };
+    }
+    function skip() {
+      while (text[at] === " " || text[at] === "\n" || text[at] === "\r" || text[at] === "	") at += 1;
+    }
+    function parseValue() {
+      skip();
+      const char = peek();
+      if (char === "{") return parseObject();
+      if (char === "[") return parseArray();
+      if (char === '"') return parseString();
+      if (char === "-" || char >= "0" && char <= "9") return parseNumber();
+      if (char === "+") return fail("plus");
+      if (char === "`") return fail("fence");
+      return fail("token");
+    }
+    function parseObject() {
+      const seen = /* @__PURE__ */ new Set();
+      const object = /* @__PURE__ */ Object.create(null);
+      at += 1;
+      skip();
+      if (peek() === "}") {
+        at += 1;
+        return object;
+      }
+      while (at < text.length) {
+        skip();
+        if (peek() !== '"') return fail("key");
+        const keyStart = at;
+        const key = parseString();
+        if (key && key.error) return key;
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+          return fail("keys", null, byteOffset(text, keyStart));
+        }
+        if (seen.has(key)) return fail("duplicate", null, byteOffset(text, keyStart));
+        seen.add(key);
+        skip();
+        if (peek() !== ":") return fail("colon");
+        at += 1;
+        const value2 = parseValue();
+        if (value2 && value2.error) return value2;
+        Object.defineProperty(object, key, { value: value2, enumerable: true, writable: true, configurable: true });
+        skip();
+        if (peek() === ",") {
+          at += 1;
+          continue;
+        }
+        if (peek() === "}") {
+          at += 1;
+          return object;
+        }
+        return fail("object");
+      }
+      return fail("object");
+    }
+    function parseArray() {
+      at += 1;
+      const list = [];
+      skip();
+      if (peek() === "]") {
+        at += 1;
+        return list;
+      }
+      while (at < text.length) {
+        skip();
+        const char = peek();
+        if (char === '"') return fail("type", list.length);
+        if (char === "t" || char === "f") return fail("type", list.length);
+        if (char === "n") return fail("type", list.length);
+        if (char === "{" || char === "[") return fail("nesting", list.length);
+        const value2 = parseValue();
+        if (value2 && value2.error) return { ...value2, index: value2.index ?? list.length };
+        if (value2 && Object.prototype.hasOwnProperty.call(value2, "token")) {
+          list.push(value2.value);
+          tokens.push(value2.token);
+        } else {
+          list.push(value2);
+        }
+        skip();
+        if (peek() === ",") {
+          at += 1;
+          continue;
+        }
+        if (peek() === "]") {
+          at += 1;
+          return list;
+        }
+        return fail("array", list.length);
+      }
+      return fail("array");
+    }
+    function parseString() {
+      const start = at;
+      at += 1;
+      let out = "";
+      while (at < text.length) {
+        const char = text[at];
+        if (char === '"') {
+          at += 1;
+          return out;
+        }
+        if (char === "\\") {
+          const next = text[at + 1];
+          const simple = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "	" };
+          if (simple[next]) {
+            out += simple[next];
+            at += 2;
+            continue;
+          }
+          if (next === "u") {
+            const hex = text.slice(at + 2, at + 6);
+            if (!/^[0-9a-fA-F]{4}$/.test(hex)) return fail("escape", null, byteOffset(text, start));
+            out += String.fromCharCode(parseInt(hex, 16));
+            at += 6;
+            continue;
+          }
+          return fail("escape", null, byteOffset(text, start));
+        }
+        if (char < " ") return fail("control", null, byteOffset(text, start));
+        out += char;
+        at += 1;
+      }
+      return fail("string", null, byteOffset(text, start));
+    }
+    function parseNumber() {
+      const start = at;
+      if (peek() === "-") at += 1;
+      if (peek() === "0") {
+        at += 1;
+        if (peek() >= "0" && peek() <= "9") return fail("leading-zero", null, byteOffset(text, start));
+      } else if (peek() >= "1" && peek() <= "9") {
+        while (peek() >= "0" && peek() <= "9") at += 1;
+      } else return fail("number", null, byteOffset(text, start));
+      if (peek() === ".") {
+        at += 1;
+        const mark = at;
+        while (peek() >= "0" && peek() <= "9") at += 1;
+        if (at === mark) return fail("fraction", null, byteOffset(text, start));
+      }
+      if (peek() === "e" || peek() === "E") return fail("exponent", null, byteOffset(text, start));
+      const token = text.slice(start, at);
+      const offset = byteOffset(text, start);
+      if (token.length > 10) return fail("precision", null, offset);
+      if (!/^-?(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(token)) return fail("precision", null, offset);
+      const numeric = Number(token);
+      if (!Number.isFinite(numeric) || Math.abs(numeric) > 16) return fail("magnitude", null, offset);
+      return { value: normalizeNumber(numeric), token };
+    }
+    skip();
+    if (peek() === "`") return { error: fail("fence") };
+    if (peek() !== "{") return { error: fail("prose") };
+    const value = parseValue();
+    if (value && value.error) return { error: value };
+    skip();
+    if (at !== text.length) return { error: fail("trailing") };
+    return { value, tokens };
+  }
+  function asBytes(input) {
+    if (input instanceof Uint8Array) return input;
+    if (typeof input === "string") return new TextEncoder().encode(input);
+    return null;
+  }
+  function acceptDemonstration(input) {
+    const bytes = asBytes(input);
+    if (!bytes) return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(new Uint8Array(), [{ code: "type", index: null, tokenOffset: null }]) };
+    const decoded = decodeUtf8(bytes);
+    if (decoded.error) return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(bytes, [{ code: "utf8", index: null, tokenOffset: decoded.offset }]) };
+    const parsed = parseDocument(decoded.text);
+    if (parsed.error) {
+      const error = parsed.error;
+      return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(bytes, [{ code: error.error || error.code, index: error.index ?? null, tokenOffset: error.tokenOffset ?? null }]) };
+    }
+    const object = parsed.value;
+    const keys = Object.keys(object).sort().join(",");
+    if (keys !== "label,role,version,weights") {
+      return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(bytes, [{ code: "keys", index: null, tokenOffset: 0 }]) };
+    }
+    if (object.role !== DEMONSTRATION_ROLE || object.label !== DEMONSTRATION_LABEL) {
+      return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(bytes, [{ code: "label", index: null, tokenOffset: 0 }]) };
+    }
+    if (object.version !== "pong-feedback-v1" || !Array.isArray(object.weights) || object.weights.length !== 435) {
+      return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(bytes, [{ code: "shape", index: null, tokenOffset: 0 }]) };
+    }
+    const report = finishReport(bytes, object.weights, []);
+    if (report.parameterFingerprintSha256 !== DEMONSTRATION_FINGERPRINT) {
+      return { ok: false, role: DEMONSTRATION_ROLE, report: { ...report, accepted: false, errors: [{ code: "fingerprint", index: null, tokenOffset: null }] } };
+    }
+    return { ok: true, role: DEMONSTRATION_ROLE, label: DEMONSTRATION_LABEL, weights: report.weights, fingerprint: report.parameterFingerprintSha256, report };
+  }
+
+  // public/experiments/pong/data/demonstration.json
+  var demonstration_default = '{"role":"demonstration","label":"Demonstration","version":"pong-feedback-v1","weights":[1.5,3,16,-0.5,0,-2,4,0.25,0.75,1.5,-3,-6,-0.5,1,2,4,0.25,-0.75,-1.5,-3,6,0.5,1,2,-4,-0.25,-0.75,0,3,6,0.5,-1,-2,-4,0.25,0.75,1.5,3,-6,-16,-1,2,4,0.25,0.75,-1.5,-3,-6,0.5,1,0,4,-0.25,-0.75,-1.5,3,6,0.5,1,-2,-4,-0.25,0.75,1.5,3,6,-0.5,-1,-2,4,0.25,0.75,1.5,0,-6,-0.5,16,2,4,0.25,-0.75,-1.5,-3,6,0.5,1,2,-4,-0.25,-0.75,1.5,3,6,0.5,-1,-2,0,0.25,0.75,1.5,3,-6,-0.5,-1,2,4,0.25,0.75,-1.5,-3,-6,0.5,1,16,4,-0.25,-0.75,-1.5,3,0,0.5,1,-2,-4,-0.25,0.75,1.5,3,6,-0.5,-1,-2,4,0.25,0.75,1.5,-3,-6,-0.5,1,2,4,0,-0.75,-1.5,-3,6,0.5,1,2,-16,-0.25,-0.75,1.5,3,6,0.5,-1,-2,-4,0.25,0.75,1.5,3,-6,0,-1,2,4,0.25,0.75,-1.5,-3,-6,0.5,1,2,4,-0.25,-0.75,-1.5,3,6,0.5,1,-2,-4,-16,0,1.5,3,6,-0.5,-1,-2,4,0.25,0.75,1.5,-3,-6,-0.5,1,2,4,0.25,-0.75,-1.5,-3,6,0.5,0,2,-4,-0.25,-0.75,1.5,3,6,0.5,-1,-2,-4,0.25,16,1.5,3,-6,-0.5,-1,2,4,0.25,0.75,0,-3,-6,0.5,1,2,4,-0.25,-0.75,-1.5,3,6,0.5,1,-2,-4,-0.25,0.75,1.5,3,6,-0.5,-1,0,4,0.25,0.75,16,-3,-6,-0.5,1,2,4,0.25,-0.75,-1.5,-3,6,0.5,1,2,-4,-0.25,-0.75,1.5,0,6,0.5,-1,-2,-4,0.25,0.75,1.5,3,-6,-0.5,-1,2,4,0.25,0.75,-1.5,-16,-6,0.5,1,2,0,-0.25,-0.75,-1.5,3,6,0.5,1,-2,-4,-0.25,0.75,1.5,3,6,-0.5,-1,-2,4,0.25,0.75,1.5,-3,0,-0.5,1,2,4,0.25,-0.75,-1.5,-3,16,0.5,1,2,-4,-0.25,-0.75,1.5,3,6,0.5,-1,-2,-4,0,0.75,1.5,3,-6,-0.5,-1,2,4,0.25,0.75,-1.5,-3,-6,0.5,1,2,4,-0.25,-0.75,-1.5,3,6,0,1,-2,-4,-0.25,0.75,1.5,3,6,-0.5,-1,-2,4,0.25,0.75,1.5,-3,-6,-0.5,1,2,4,0.25,0,-1.5,-3,6,0.5,1,2,-4,-0.25,-0.75,1.5,3,6,0.5,-16,-2,-4,0.25,0.75,1.5,3,-6,-0.5,0,2,4,0.25,0.75,-1.5,-3,-6,0.5,1,2,4,-0.25,-0.75,-1.5,3,6]}';
+
+  // public/experiments/pong/cloud-frame.js
+  var CLOUD_PAD = 8;
+  var GLYPH = 0.04;
+  var AMBIENT_MIN = 1.45;
+  var SELECTED_MIN = 2.35;
+  var AMBIENT_GAIN = 0.5;
+  var SELECTED_GAIN = 0.78;
+  var RING_OUTSET = 1.1;
+  var RING_WIDTH = 0.7;
+  var BIAS_STRETCH = 1.35;
+  var STROKE = 1.1;
+  var YAW = 1.02;
+  var PITCH = -0.58;
+  var DISTANCE = 3.05;
+  var FOCAL = 2.15;
+  function projectPoint(point, view2) {
+    if (view2.simple) return { x: point.x * 0.85, y: point.y * 0.85, z: DISTANCE };
+    const yaw = view2.yaw;
+    const pitch = view2.pitch;
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const eye = { x: DISTANCE * cp * sy, y: DISTANCE * sp, z: DISTANCE * cp * cy };
+    const dx = point.x - eye.x;
+    const dy = point.y - eye.y;
+    const dz = point.z - eye.z;
+    let fx = -eye.x;
+    let fy = -eye.y;
+    let fz = -eye.z;
+    const fl = Math.hypot(fx, fy, fz);
+    fx /= fl;
+    fy /= fl;
+    fz /= fl;
+    let rx = -fz;
+    let ry = 0;
+    let rz = fx;
+    const rl = Math.hypot(rx, ry, rz);
+    rx /= rl;
+    ry /= rl;
+    rz /= rl;
+    const ux = ry * fz - rz * fy;
+    const uy = rz * fx - rx * fz;
+    const uz = rx * fy - ry * fx;
+    const x = dx * rx + dy * ry + dz * rz;
+    const y = dx * ux + dy * uy + dz * uz;
+    const z = dx * fx + dy * fy + dz * fz;
+    return { x: FOCAL * x / z, y: FOCAL * y / z, z };
+  }
+  function markerBody(scale, depth, selected) {
+    const gain = selected ? SELECTED_GAIN : AMBIENT_GAIN;
+    const floor = selected ? SELECTED_MIN : AMBIENT_MIN;
+    return Math.max(floor, gain * GLYPH * (FOCAL / depth) * scale);
+  }
+  function markerOuter(scale, depth, selected, kind) {
+    const body = markerBody(scale, depth, selected);
+    if (kind === "bias") return body * BIAS_STRETCH + STROKE / 2;
+    return body + (selected ? RING_OUTSET + RING_WIDTH / 2 : 0);
+  }
+  function boundSamples() {
+    const samples = [
+      { x: R, y: 0, z: 0 },
+      { x: -R, y: 0, z: 0 },
+      { x: 0, y: R, z: 0 },
+      { x: 0, y: -R, z: 0 },
+      { x: 0, y: 0, z: R },
+      { x: 0, y: 0, z: -R }
+    ];
+    for (let index = 0; index < 96; index += 1) {
+      const y = 1 - 2 * (index + 0.5) / 96;
+      const ring = Math.sqrt(Math.max(0, 1 - y * y)) * R;
+      const theta = Math.PI * (3 - Math.sqrt(5)) * index;
+      samples.push({ x: ring * Math.cos(theta), y: y * R, z: ring * Math.sin(theta) });
+    }
+    return samples;
+  }
+  function worstOuter(scale, depth) {
+    return Math.max(
+      markerOuter(scale, depth, true, "weight"),
+      markerOuter(scale, depth, true, "bias")
+    );
+  }
+  function sphereFits(scale, width, height, view2) {
+    const origin = projectPoint({ x: 0, y: 0, z: 0 }, view2);
+    const samples = boundSamples();
+    for (let index = 0; index < samples.length; index += 1) {
+      const placed = projectPoint(samples[index], view2);
+      const sx = width / 2 + (placed.x - origin.x) * scale;
+      const sy = height / 2 - (placed.y - origin.y) * scale;
+      const outer = worstOuter(scale, placed.z);
+      if (sx - outer < CLOUD_PAD || sx + outer > width - CLOUD_PAD) return false;
+      if (sy - outer < CLOUD_PAD || sy + outer > height - CLOUD_PAD) return false;
+    }
+    return true;
+  }
+  function searchedScale(width, height, view2) {
+    let low = 0;
+    let high = Math.max(width, height);
+    for (let step = 0; step < 28; step += 1) {
+      const mid = (low + high) / 2;
+      if (sphereFits(mid, width, height, view2)) low = mid;
+      else high = mid;
+    }
+    return low;
+  }
+  function frameScale(width, height, view2) {
+    if (view2.simple) return searchedScale(width, height, view2);
+    const half = Math.min(width, height) / 2 - CLOUD_PAD;
+    const reach = FOCAL * R / Math.sqrt(DISTANCE * DISTANCE - R * R);
+    const nearZ = DISTANCE - R;
+    const linear = SELECTED_GAIN * GLYPH * FOCAL / nearZ;
+    const biasPad = SELECTED_MIN * BIAS_STRETCH + STROKE / 2;
+    const ringPad = SELECTED_MIN + RING_OUTSET + RING_WIDTH / 2;
+    return Math.min(
+      (half - STROKE / 2) / (reach + linear * BIAS_STRETCH),
+      (half - RING_OUTSET - RING_WIDTH / 2) / (reach + linear),
+      (half - biasPad) / reach,
+      (half - ringPad) / reach
+    );
+  }
+  function insideDrawable(x, y, outer, width, height) {
+    return x - outer >= CLOUD_PAD && x + outer <= width - CLOUD_PAD && y - outer >= CLOUD_PAD && y + outer <= height - CLOUD_PAD;
+  }
+
+  // public/experiments/pong/preview.js
+  var FORK_LAYER = "h1";
+  var FORK_UNIT = 2;
+  var LAYERS = [
+    { id: "input", label: "Input", width: 6, columns: 2 },
+    { id: "h1", label: "H1", width: 16, columns: 4 },
+    { id: "h2", label: "H2", width: 16, columns: 4 },
+    { id: "output", label: "Output", width: 3, columns: 1 }
+  ];
+  var params = new URLSearchParams(location.search);
+  var state = {
+    fixture: params.get("fixture") === "fork" ? "fork" : "parent",
+    layer: params.get("layer") || "h1",
+    unit: Number(params.get("unit") ?? FORK_UNIT)
+  };
+  var acceptedDemo = acceptDemonstration(demonstration_default);
+  var demonstrationSha256 = sha256Utf8(demonstration_default);
+  if (!acceptedDemo.ok) {
+    const fault = document.getElementById("fault");
+    fault.hidden = false;
+    fault.textContent = "The demonstration file was not accepted (" + acceptedDemo.report.errors[0].code + "). It is not a contestant artifact.";
+    throw new Error("demonstration");
+  }
+  var parent = acceptedDemo.weights;
+  document.getElementById("stage").dataset.role = acceptedDemo.role;
+  document.getElementById("stage").dataset.fingerprint = acceptedDemo.fingerprint;
+  var active = Float64Array.from(parent);
+  var game = {
+    world: freshWorld(SERVES.G0),
+    serveId: "G0",
+    opponent: "reactive",
+    running: false,
+    timer: 0,
+    rng: 1464288818,
+    seed: 1464288818,
+    lastLeft: null,
+    lastRight: null,
+    comparison: null
+  };
+  var view = { yaw: YAW, pitch: PITCH, simple: false, rotating: false, spin: 0 };
+  var nodes = [];
+  LAYERS.forEach(function(layer, layerIndex) {
+    const rowCount = Math.ceil(layer.width / layer.columns);
+    for (let j = 0; j < layer.width; j += 1) {
+      const row = Math.floor(j / layer.columns);
+      const column = j % layer.columns;
+      nodes.push({
+        id: layer.id + "-" + j,
+        layer: layer.id,
+        index: j,
+        x: 4 * (layerIndex - 1.5),
+        y: (row - (rowCount - 1) / 2) * 1.25,
+        z: (column - (layer.columns - 1) / 2) * 1.25
+      });
+    }
+  });
+  var edges = [];
+  connect("input", "h1", 0, 16);
+  connect("h1", "h2", 112, 16);
+  connect("h2", "output", 384, 3);
+  var biasOf = {};
+  LAYERS.forEach(function(layer) {
+    if (layer.id === "input") return;
+    const offset = layer.id === "h1" ? 96 : layer.id === "h2" ? 368 : 432;
+    for (let j = 0; j < layer.width; j += 1) biasOf[layer.id + "-" + j] = offset + j;
+  });
+  var camera = makeCamera();
+  var court = document.getElementById("court");
+  var network = document.getElementById("network");
+  var fixtureSelect = document.getElementById("fixture");
+  var layerSelect = document.getElementById("layer");
+  var unitSelect = document.getElementById("unit");
+  var painted = [];
+  var check = verifyGraph();
+  if (!check.ok) {
+    const fault = document.getElementById("fault");
+    fault.hidden = false;
+    fault.textContent = check.message;
+  }
+  fixtureSelect.value = state.fixture;
+  layerSelect.value = state.layer;
+  fillUnits();
+  bind();
+  wireGame();
+  if (state.fixture === "fork") applyMute(state.layer === "h2" ? "h2" : FORK_LAYER, state.unit);
+  drawAll();
+  publishTick();
+  document.fonts.ready.then(drawAll);
+  window.addEventListener("resize", drawAll);
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(drawAll);
+    observer.observe(court);
+    observer.observe(network);
+    observer.observe(document.querySelector("main"));
+  }
+  document.querySelectorAll("details").forEach(function(details) {
+    details.addEventListener("toggle", function() {
+      requestAnimationFrame(function() {
+        postFrameHeight(true);
+      });
+    });
+  });
+  document.documentElement.dataset.previewReady = check.ok ? "true" : "false";
+  function connect(fromLayer, toLayer, offset, outputWidth) {
+    const sources = nodes.filter(function(node) {
+      return node.layer === fromLayer;
+    });
+    const targets = nodes.filter(function(node) {
+      return node.layer === toLayer;
+    });
+    sources.forEach(function(source) {
+      targets.forEach(function(target) {
+        edges.push({
+          flat: offset + source.index * outputWidth + target.index,
+          from: source.id,
+          to: target.id,
+          source,
+          target
+        });
+      });
+    });
+  }
+  function makeCamera() {
+    return {
+      project: function(point) {
+        return projectPoint(point, view);
+      }
+    };
+  }
+  function currentValue(flat) {
+    return active[flat];
+  }
+  function mutedRange() {
+    const start = 112 + 16 * FORK_UNIT;
+    return { start, end: start + 16 };
+  }
+  function selectedNode() {
+    return nodes.find(function(node) {
+      return node.layer === state.layer && node.index === state.unit;
+    });
+  }
+  function outgoingEdges(node) {
+    return edges.filter(function(edge) {
+      return edge.from === node.id;
+    });
+  }
+  function incomingEdges(node) {
+    return edges.filter(function(edge) {
+      return edge.to === node.id;
+    });
+  }
+  function ownerOf(index) {
+    if (index < 96) return { layer: "input", unit: Math.floor(index / 16) };
+    if (index < 112) return { layer: "h1", unit: index - 96 };
+    if (index < 368) return { layer: "h1", unit: Math.floor((index - 112) / 16) };
+    if (index < 384) return { layer: "h2", unit: index - 368 };
+    if (index < 432) return { layer: "h2", unit: Math.floor((index - 384) / 3) };
+    return { layer: "output", unit: index - 432 };
+  }
+  function verifyGraph() {
+    if (nodes.length !== 41) return { ok: false, message: "Preview check failed: node count " + nodes.length };
+    if (edges.length !== 400) return { ok: false, message: "Preview check failed: edge count " + edges.length };
+    if (Object.keys(biasOf).length !== 35) return { ok: false, message: "Preview check failed: bias count" };
+    const north = direction(0);
+    if (Math.abs(north.z) > 1e-9 || north.y < 0.99) return { ok: false, message: "Preview check failed: index origin" };
+    const range = mutedRange();
+    let changed = 0;
+    for (let flat = range.start; flat < range.end; flat += 1) if (parent[flat] !== 0) changed += 1;
+    if (changed !== 16) return { ok: false, message: "Preview check failed: fork changed " + changed };
+    if (Math.abs(radiusOf(-16) - 0.4 * R) > 1e-12) return { ok: false, message: "Preview check failed: radius at -16" };
+    if (Math.abs(radiusOf(0) - 0.6 * R) > 1e-12) return { ok: false, message: "Preview check failed: radius at 0" };
+    if (Math.abs(radiusOf(16) - 0.8 * R) > 1e-12) return { ok: false, message: "Preview check failed: radius at 16" };
+    if (!(radiusOf(1e6) < R && radiusOf(-1e6) > 0.2 * R)) return { ok: false, message: "Preview check failed: radius bounds" };
+    return { ok: true };
+  }
+  function fillUnits() {
+    const layer = LAYERS.find(function(item) {
+      return item.id === state.layer;
+    });
+    const previous = state.unit;
+    unitSelect.replaceChildren();
+    for (let index = 0; index < layer.width; index += 1) {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = String(index);
+      unitSelect.appendChild(option);
+    }
+    if (previous >= layer.width) state.unit = 0;
+    unitSelect.value = String(state.unit);
+    document.getElementById("unit-name").textContent = state.layer === "h1" || state.layer === "h2" ? "Hidden unit" : "Unit";
+  }
+  function bind() {
+    fixtureSelect.addEventListener("change", function() {
+      if (fixtureSelect.value === "fork") {
+        if (state.layer !== "h1" && state.layer !== "h2") {
+          state.layer = FORK_LAYER;
+          state.unit = FORK_UNIT;
+          layerSelect.value = state.layer;
+          fillUnits();
+        }
+        applyMute(state.layer, state.unit);
+      } else {
+        resetWeights();
+      }
+    });
+    layerSelect.addEventListener("change", function() {
+      state.layer = layerSelect.value;
+      fillUnits();
+      drawAll();
+    });
+    unitSelect.addEventListener("change", function() {
+      state.unit = Number(unitSelect.value);
+      drawAll();
+    });
+    network.addEventListener("click", function(event) {
+      const rect = network.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      let best = null;
+      let bestDistance = 22;
+      painted.forEach(function(point) {
+        const distance = Math.hypot(point.sx - x, point.sy - y);
+        if (distance < bestDistance) {
+          best = point;
+          bestDistance = distance;
+        }
+      });
+      if (!best) return;
+      const owner = ownerOf(best.index);
+      state.layer = owner.layer;
+      state.unit = owner.unit;
+      layerSelect.value = state.layer;
+      fillUnits();
+      drawAll();
+    });
+  }
+  function drawAll() {
+    drawCourt();
+    drawCloud();
+    renderInspector();
+    postFrameHeight();
+  }
+  var postedHeight = 0;
+  function postFrameHeight(force) {
+    if (window.parent === window) return;
+    if (!document.documentElement.classList.contains("is-embedded")) {
+      document.documentElement.classList.add("is-embedded");
+      requestAnimationFrame(function() {
+        postFrameHeight(true);
+      });
+      return;
+    }
+    const main = document.querySelector("main");
+    const height = Math.ceil(main.getBoundingClientRect().height);
+    if (!Number.isFinite(height) || height < 1) return;
+    if (!force && Math.abs(height - postedHeight) < 2) return;
+    postedHeight = height;
+    let target = "*";
+    try {
+      if (document.referrer) target = new URL(document.referrer).origin;
+    } catch (error) {
+      target = "*";
+    }
+    window.parent.postMessage({ type: "pong-embed-height", height }, target);
+  }
+  var heightBursts = 0;
+  var heightBurst = window.setInterval(function() {
+    postFrameHeight(true);
+    heightBursts += 1;
+    if (heightBursts >= 8) window.clearInterval(heightBurst);
+  }, 200);
+  function drawCourt() {
+    const width = court.clientWidth;
+    const height = court.clientHeight;
+    if (width < 2 || height < 2) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    court.width = Math.round(width * dpr);
+    court.height = Math.round(height * dpr);
+    const ctx = court.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#101315";
+    ctx.fillRect(0, 0, width, height);
+    const inset = 12;
+    let fieldWidth = width - inset * 2;
+    let fieldHeight = fieldWidth / 2;
+    if (fieldHeight > height - inset * 2) {
+      fieldHeight = height - inset * 2;
+      fieldWidth = fieldHeight * 2;
+    }
+    const x0 = Math.round((width - fieldWidth) / 2);
+    const y0 = Math.round((height - fieldHeight) / 2);
+    ctx.strokeStyle = "rgba(209, 230, 237, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= 31; i += 1) {
+      const x = x0 + i / 31 * fieldWidth;
+      ctx.moveTo(Math.round(x) + 0.5, y0);
+      ctx.lineTo(Math.round(x) + 0.5, y0 + fieldHeight);
+    }
+    for (let j = 0; j <= 15; j += 1) {
+      const y = y0 + j / 15 * fieldHeight;
+      ctx.moveTo(x0, Math.round(y) + 0.5);
+      ctx.lineTo(x0 + fieldWidth, Math.round(y) + 0.5);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = "#2b3439";
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, fieldWidth - 1, fieldHeight - 1);
+    function worldX(x) {
+      return x0 + x / 31 * fieldWidth;
+    }
+    function worldY(y) {
+      return y0 + (15 - y) / 15 * fieldHeight;
+    }
+    ctx.fillStyle = "#eef5f7";
+    const paddleWidth = Math.max(4, Math.round(fieldWidth / 56));
+    const ball = Math.max(7, Math.round(fieldHeight / 18));
+    drawPaddle(game.world.pLeft, 0);
+    drawPaddle(game.world.pRight, 31);
+    ctx.fillRect(Math.round(worldX(game.world.x) - ball / 2), Math.round(worldY(game.world.y) - ball / 2), ball, ball);
+    function drawPaddle(center, x) {
+      const top = worldY(center + 1.5);
+      const bottom = worldY(center - 1.5);
+      ctx.fillRect(Math.round(worldX(x) - paddleWidth / 2), Math.round(top), paddleWidth, Math.round(bottom - top));
+    }
+  }
+  function drawCloud() {
+    const width = network.clientWidth;
+    const height = network.clientHeight;
+    if (width < 2 || height < 2) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    network.width = Math.round(width * dpr);
+    network.height = Math.round(height * dpr);
+    const ctx = network.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#101315";
+    ctx.fillRect(0, 0, width, height);
+    ctx.shadowBlur = 0;
+    const origin = camera.project({ x: 0, y: 0, z: 0 });
+    const scale = frameScale(width, height, view);
+    const selected = new Set(outgoingEdges(selectedNode()).map(function(edge) {
+      return edge.flat;
+    }));
+    const points = [];
+    for (let index = 0; index < COUNT; index += 1) {
+      const value = currentValue(index);
+      const ray = direction(index);
+      const radius = radiusOf(value);
+      const projected = camera.project({
+        x: ray.x * radius,
+        y: ray.y * radius,
+        z: ray.z * radius
+      });
+      points.push({
+        index,
+        value,
+        kind: isBiasIndex(index) ? "bias" : "weight",
+        selected: selected.has(index),
+        z: projected.z,
+        sx: width / 2 + (projected.x - origin.x) * scale,
+        sy: height / 2 - (projected.y - origin.y) * scale,
+        screen: markerBody(scale, projected.z, selected.has(index))
+      });
+    }
+    points.sort(function(a, b) {
+      return b.z - a.z;
+    });
+    points.forEach(function(point) {
+      if (!point.selected) drawGlyph(ctx, point);
+    });
+    drawZeroShell(ctx, width, height, scale, origin);
+    points.forEach(function(point) {
+      if (point.selected) drawGlyph(ctx, point);
+    });
+    painted = points;
+    const stage = document.getElementById("stage");
+    const fit = points.every(function(point) {
+      return insideDrawable(point.sx, point.sy, markerOuter(scale, point.z, point.selected, point.kind), width, height);
+    });
+    stage.dataset.cloudFit = fit ? "true" : "false";
+    stage.dataset.cloudScale = String(scale);
+    stage.dataset.yaw = String(view.yaw);
+  }
+  function drawZeroShell(ctx, width, height, scale, origin) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(209, 230, 237, 0.28)";
+    ctx.lineWidth = 1.25;
+    ["equator", "meridian"].forEach(function(which) {
+      ctx.beginPath();
+      for (let step = 0; step <= 72; step += 1) {
+        const turn = step / 72 * Math.PI * 2;
+        const ring = 0.6 * R;
+        const sample = which === "equator" ? { x: Math.cos(turn) * ring, y: 0, z: Math.sin(turn) * ring } : { x: Math.cos(turn) * ring, y: Math.sin(turn) * ring, z: 0 };
+        const placed = camera.project(sample);
+        const sx = width / 2 + (placed.x - origin.x) * scale;
+        const sy = height / 2 - (placed.y - origin.y) * scale;
+        if (step === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+  function drawGlyph(ctx, point) {
+    const color = point.value === 0 ? "#9ba9af" : point.value > 0 ? "#5ec8c8" : "#e8b060";
+    const alpha = point.selected ? 1 : 0.55;
+    ctx.save();
+    ctx.translate(point.sx, point.sy);
+    ctx.lineWidth = point.selected ? STROKE : STROKE * 0.75;
+    ctx.strokeStyle = cssColor(color, alpha);
+    ctx.fillStyle = cssColor(color, alpha);
+    const size = point.screen;
+    ctx.beginPath();
+    if (point.kind === "bias") {
+      ctx.moveTo(0, -size * BIAS_STRETCH);
+      ctx.lineTo(size, 0);
+      ctx.lineTo(0, size * BIAS_STRETCH);
+      ctx.lineTo(-size, 0);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (point.selected) {
+      ctx.beginPath();
+      ctx.strokeStyle = "#d1e6ed";
+      ctx.lineWidth = RING_WIDTH;
+      ctx.arc(0, 0, size + RING_OUTSET, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function cssColor(hex, alpha) {
+    const red = parseInt(hex.slice(1, 3), 16);
+    const green = parseInt(hex.slice(3, 5), 16);
+    const blue = parseInt(hex.slice(5, 7), 16);
+    return "rgba(" + red + ", " + green + ", " + blue + ", " + alpha + ")";
+  }
+  function renderInspector() {
+    const node = selectedNode();
+    const outgoing = outgoingEdges(node);
+    const incoming = incomingEdges(node);
+    const biasIndex = biasOf[node.id];
+    const forkOn = state.fixture === "fork";
+    const range = mutedRange();
+    const bundleMuted = forkOn && outgoing.some(function(edge) {
+      return edge.flat >= range.start && edge.flat < range.end;
+    });
+    let relation = forkOn ? "Illustrative local fork. Outgoing weights that changed are drawn at 0. Not an official revision and not evaluated." : "Parent demonstration. No local fork applied.";
+    if (state.mute && state.mute.actualChangedCount === 0 && forkOn) {
+      relation = "No change. Those outgoing weights were already zero.";
+    }
+    if (forkOn && state.scorePair && state.scorePair.before && state.scorePair.before.rawScores && state.scorePair.after && state.scorePair.after.rawScores) {
+      relation += " Before q " + state.scorePair.before.comparisonScores.join(", ") + " " + actionName(state.scorePair.before.action) + ". After q " + state.scorePair.after.comparisonScores.join(", ") + " " + actionName(state.scorePair.after.action) + ".";
+    }
+    document.getElementById("fork-relation").textContent = relation;
+    document.getElementById("bias-line").textContent = biasIndex === void 0 ? "Inputs have no bias." : "Bias " + biasName(node) + " flat " + biasIndex + " " + signed(parent[biasIndex]) + ". Unchanged.";
+    document.getElementById("incoming-line").textContent = incoming.length ? "Incoming unchanged. " + incoming.map(function(edge) {
+      return edge.flat + " " + signed(parent[edge.flat]);
+    }).join(", ") : "No incoming weights.";
+    renderOutgoing(outgoing, forkOn);
+    renderAllValues(forkOn, outgoing);
+    const changed = outgoing.filter(function(edge) {
+      return parent[edge.flat] !== 0;
+    }).length;
+    const change = document.getElementById("change-line");
+    if (!forkOn) {
+      change.textContent = "Mute outgoing weights copies the demonstration parent, then zeros one hidden unit.";
+    } else if (!bundleMuted) {
+      change.textContent = "This unit was not muted. Parent and local fork match.";
+    } else if (changed === outgoing.length) {
+      change.textContent = "Changed " + outgoing.length + " of " + outgoing.length + " listed outgoing weights. Incoming weights and biases are unchanged.";
+    } else if (changed === 0) {
+      change.textContent = "No change. Those outgoing weights were already zero.";
+    } else {
+      change.textContent = "Changed " + changed + " of " + outgoing.length + " listed outgoing weights. Incoming weights and biases are unchanged.";
+    }
+    const values = document.getElementById("value-line");
+    values.textContent = outgoing.map(function(edge) {
+      const from = signed(parent[edge.flat]);
+      if (!forkOn) return edge.flat + " " + from;
+      return edge.flat + " " + from + " to " + signed(currentValue(edge.flat));
+    }).join(". ");
+    const note = document.getElementById("bundle-note");
+    if (!outgoing.length) {
+      note.textContent = "This unit has no outgoing weights.";
+    } else if (forkOn && bundleMuted) {
+      note.textContent = outgoing.length + " highlighted points are the outgoing weights of " + node.id + ". The fork draws them at zero. The table has the parent values.";
+    } else {
+      note.textContent = outgoing.length + " highlighted points are the outgoing weights of " + node.id + ". Directions follow their indices.";
+    }
+    document.getElementById("live").textContent = "Selected " + node.id + ". " + document.getElementById("fork-relation").textContent;
+    const stage = document.getElementById("stage");
+    stage.dataset.selected = node.id;
+    stage.dataset.fixture = state.fixture;
+    stage.dataset.nodes = String(nodes.length);
+    stage.dataset.edges = String(edges.length);
+    stage.dataset.biases = String(Object.keys(biasOf).length);
+    stage.dataset.points = String(COUNT);
+    stage.dataset.mapping = "fibonacci-index-abs-radius-v1";
+    stage.dataset.radiusRule = "R*(0.60+0.40*w/(16+abs(w)))";
+    stage.dataset.compress = String(COMPRESS);
+  }
+  function renderAllValues(forkOn, outgoing) {
+    const host = document.getElementById("all-values");
+    if (!host) return;
+    const selected = {};
+    outgoing.forEach(function(edge) {
+      selected[edge.flat] = true;
+    });
+    const table = document.createElement("table");
+    const caption = document.createElement("caption");
+    caption.textContent = "All 435 parameters, in index order";
+    table.appendChild(caption);
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Index", "Kind", "Value"].concat(forkOn ? ["Local fork"] : []).forEach(function(label) {
+      const cell = document.createElement("th");
+      cell.scope = "col";
+      cell.textContent = label;
+      headRow.appendChild(cell);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
+    const body = document.createElement("tbody");
+    for (let index = 0; index < COUNT; index += 1) {
+      const row = document.createElement("tr");
+      if (selected[index]) row.className = "is-selected";
+      addCell(row, String(index), "");
+      addCell(row, isBiasIndex(index) ? "bias" : "weight", "");
+      addCell(row, signed(parent[index]), signClass(parent[index]));
+      if (forkOn) addCell(row, signed(currentValue(index)), signClass(currentValue(index)));
+      body.appendChild(row);
+    }
+    table.appendChild(body);
+    host.replaceChildren(table);
+  }
+  function renderOutgoing(outgoing, forkOn) {
+    const host = document.getElementById("outgoing");
+    host.replaceChildren();
+    if (!outgoing.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No outgoing weights.";
+      host.appendChild(empty);
+      return;
+    }
+    const pair = document.createElement("div");
+    pair.className = "pair";
+    const size = outgoing.length > 6 ? 4 : outgoing.length;
+    for (let index = 0; index < outgoing.length; index += size) {
+      const caption = index === 0 ? "Outgoing weights" : "Outgoing weights, continued";
+      pair.appendChild(weightTable(outgoing.slice(index, index + size), forkOn, caption));
+    }
+    host.appendChild(pair);
+  }
+  function weightTable(rows, forkOn, captionText) {
+    const table = document.createElement("table");
+    const caption = document.createElement("caption");
+    caption.textContent = captionText;
+    table.appendChild(caption);
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Flat", "To", "Parent"].concat(forkOn ? ["Local fork"] : []).forEach(function(label) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      cell.scope = "col";
+      headRow.appendChild(cell);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
+    const body = document.createElement("tbody");
+    rows.forEach(function(edge) {
+      const row = document.createElement("tr");
+      addCell(row, String(edge.flat), "");
+      addCell(row, edge.to, "");
+      addCell(row, signed(parent[edge.flat]), signClass(parent[edge.flat]));
+      if (forkOn) addCell(row, signed(currentValue(edge.flat)), signClass(currentValue(edge.flat)));
+      body.appendChild(row);
+    });
+    table.appendChild(body);
+    return table;
+  }
+  function addCell(row, text, className) {
+    const cell = document.createElement("td");
+    cell.textContent = text;
+    if (className) cell.className = className;
+    row.appendChild(cell);
+  }
+  function biasName(node) {
+    if (node.layer === "h1") return "b1[" + node.index + "]";
+    if (node.layer === "h2") return "b2[" + node.index + "]";
+    return "b3[" + node.index + "]";
+  }
+  function signed(value) {
+    if (value === 0) return "0";
+    const cleaned = Math.abs(value).toFixed(2).replace(/\.?0+$/, "");
+    return (value > 0 ? "+" : "-") + cleaned;
+  }
+  function signClass(value) {
+    if (value === 0) return "zero";
+    return value > 0 ? "pos" : "neg";
+  }
+  function cloneWorld2(world) {
+    return {
+      x: world.x,
+      y: world.y,
+      vx: world.vx,
+      vy: world.vy,
+      pLeft: world.pLeft,
+      pRight: world.pRight,
+      elapsedTicks: world.elapsedTicks,
+      phase: world.phase,
+      terminal: world.terminal ? { reason: world.terminal.reason, winner: world.terminal.winner } : null
+    };
+  }
+  function actionName(action) {
+    if (action === 1) return "Up";
+    if (action === 2) return "Down";
+    return "Stay";
+  }
+  function stopGame() {
+    game.running = false;
+    if (game.timer) clearInterval(game.timer);
+    game.timer = 0;
+  }
+  function startGame() {
+    if (game.world.phase === "terminal") return;
+    stopGame();
+    game.running = true;
+    game.timer = setInterval(tick, 1e3 / 30);
+  }
+  function publishTick() {
+    const world = game.world;
+    let status = "Tick " + world.elapsedTicks + " of 192. ";
+    if (world.phase === "terminal" && world.terminal.reason === "timeout") {
+      status += "Timeout draw. 0.5 each. This serve only.";
+    } else if (world.phase === "terminal") {
+      status += (world.terminal.winner === "left" ? "Left point." : "Right point.") + " This serve only.";
+    } else if (game.running) {
+      status += "Playing.";
+    } else {
+      status += "Paused.";
+    }
+    document.getElementById("tick-readout").textContent = status + " x " + world.x + ", y " + world.y + ", vx " + world.vx + ", vy " + world.vy + ".";
+    const score = document.getElementById("score-line");
+    const left = game.lastLeft;
+    const right = game.lastRight;
+    const names = ["stay", "up", "down"];
+    names.forEach(function(name, index) {
+      const cell = document.getElementById("cell-" + name);
+      const shown = document.getElementById("show-" + name);
+      const chosen2 = left && left.rawScores && left.action === index;
+      if (cell) cell.classList.toggle("is-chosen", Boolean(chosen2));
+      if (shown) shown.textContent = left && left.rawScores ? displayScore(left.rawScores[index]) : "\u2014";
+    });
+    const chosen = document.getElementById("chosen-action");
+    const rightLine = document.getElementById("right-action");
+    const caption = document.getElementById("decision-caption");
+    const when = document.getElementById("decision-when");
+    if (!left) {
+      if (caption) caption.textContent = "No decision yet. Scores are not probabilities.";
+      if (when) when.textContent = "Scores describe the world before a tick. The court shows the world after that tick.";
+      if (chosen) chosen.textContent = "Chosen action: none yet.";
+      if (rightLine) rightLine.textContent = "";
+      score.textContent = "No decision yet.";
+      return;
+    }
+    if (caption) caption.textContent = "Scores are not probabilities.";
+    if (when) {
+      when.textContent = "Decision on the world before tick " + world.elapsedTicks + ". The court is the world after that tick.";
+    }
+    if (chosen) chosen.textContent = "Chosen action: " + actionName(left.action) + ".";
+    if (rightLine) rightLine.textContent = "Right " + right.controller + ": " + actionName(right.action) + ".";
+    score.replaceChildren();
+    if (left.rawScores) {
+      appendToken(score, "Exact raw ");
+      left.rawScores.forEach(function(value, index) {
+        appendToken(score, exactNumber(value) + (index < 2 ? ", " : ". "));
+      });
+      appendToken(score, "Exact q ");
+      left.comparisonScores.forEach(function(value, index) {
+        appendToken(score, String(value) + (index < 2 ? ", " : "."));
+      });
+    } else {
+      score.textContent = "No network scores.";
+    }
+  }
+  function appendToken(node, text) {
+    const span = document.createElement("span");
+    span.className = "exact-token";
+    span.textContent = text;
+    node.appendChild(span);
+  }
+  function displayScore(value) {
+    if (!Number.isFinite(value)) return "\u2014";
+    const rounded = Math.round(value * 10) / 10;
+    const text = Object.is(rounded, -0) ? "0.0" : rounded.toFixed(1);
+    return rounded > 0 ? "+" + text : text;
+  }
+  function exactNumber(value) {
+    if (Object.is(value, -0)) return "0";
+    return JSON.stringify(value);
+  }
+  function tick() {
+    if (game.world.phase === "terminal") {
+      stopGame();
+      publishTick();
+      drawCourt();
+      return;
+    }
+    const left = decide("network", active, game.world, "left", game.rng);
+    if (left.error) {
+      stopGame();
+      const fault = document.getElementById("fault");
+      fault.hidden = false;
+      fault.textContent = "Inference stopped. A score was not finite.";
+      return;
+    }
+    const right = decide(game.opponent, null, game.world, "right", game.rng);
+    game.rng = right.rngState || game.rng;
+    game.lastLeft = left;
+    game.lastRight = right;
+    const next = stepWorld(game.world, left.action, right.action);
+    if (next.error) {
+      stopGame();
+      return;
+    }
+    game.world = next;
+    publishTick();
+    drawCourt();
+  }
+  function beginServe(world, serveId) {
+    stopGame();
+    game.world = world;
+    game.serveId = serveId;
+    game.lastLeft = null;
+    game.lastRight = null;
+    game.comparison = { world: cloneWorld2(world), rng: game.rng };
+    document.getElementById("stage").dataset.seed = String(game.seed);
+    drawCourt();
+    publishTick();
+    startGame();
+  }
+  function resetWeights() {
+    active = Float64Array.from(parent);
+    state.fixture = "parent";
+    state.mute = null;
+    fixtureSelect.value = "parent";
+    drawAll();
+    publishTick();
+  }
+  function applyMute(layer, unit) {
+    if (layer !== "h1" && layer !== "h2") return;
+    if (game.world.phase !== "terminal") {
+      game.comparison = { world: cloneWorld2(game.world), rng: game.rng };
+    }
+    const before = decide("network", parent, game.world, "left", game.rng);
+    const result = muteOutgoing(parent, layer, unit);
+    active = result.weights;
+    state.layer = layer;
+    state.unit = unit;
+    state.fixture = "fork";
+    state.mute = result;
+    layerSelect.value = layer;
+    fillUnits();
+    fixtureSelect.value = "fork";
+    const after = game.world.phase === "terminal" ? null : decide("network", active, game.world, "left", game.rng);
+    state.scorePair = { before, after };
+    const relation = document.getElementById("fork-relation");
+    if (result.actualChangedCount === 0) {
+      relation.textContent = "No change. Those outgoing weights were already zero.";
+    } else {
+      relation.textContent = "Changed " + result.actualChangedCount + " of " + result.changes.length + " outgoing weights. Incoming weights and biases are unchanged. Not evaluated as a contest result.";
+    }
+    const exact = document.getElementById("fork-exact");
+    if (exact) {
+      exact.textContent = before && before.rawScores && after && after.rawScores ? "Before q " + before.comparisonScores.join(", ") + " " + actionName(before.action) + ". After q " + after.comparisonScores.join(", ") + " " + actionName(after.action) + "." : "";
+    }
+    drawAll();
+    publishTick();
+  }
+  function wireGame() {
+    document.getElementById("new-serve").addEventListener("click", function() {
+      const serveId = document.getElementById("serve").value;
+      game.opponent = document.getElementById("opponent").value;
+      if (serveId === "local") {
+        const buffer = new Uint32Array(1);
+        crypto.getRandomValues(buffer);
+        const seed = buffer[0] || 1;
+        game.seed = seed;
+        game.rng = seed;
+        beginServe(randomServe(seed), "local");
+      } else {
+        game.rng = 1464288818;
+        beginServe(freshWorld(SERVES[serveId]), serveId);
+      }
+    });
+    document.getElementById("pause").addEventListener("click", function() {
+      if (game.running) stopGame();
+      else startGame();
+      publishTick();
+    });
+    document.getElementById("step").addEventListener("click", function() {
+      stopGame();
+      tick();
+    });
+    document.getElementById("opponent").addEventListener("change", function() {
+      game.opponent = document.getElementById("opponent").value;
+    });
+    document.getElementById("mute").addEventListener("click", function() {
+      applyMute(state.layer, state.unit);
+    });
+    document.getElementById("reset-weights").addEventListener("click", resetWeights);
+    document.getElementById("reset-comparison").addEventListener("click", function() {
+      if (!game.captured) return;
+      stopGame();
+      game.world = cloneWorld2(game.captured.world);
+      game.opponent = game.captured.right.ref.kind;
+      document.getElementById("opponent").value = game.opponent;
+      game.rng = game.captured.right.state.rng ? game.captured.right.state.rng.state : game.rng;
+      game.lastLeft = null;
+      game.lastRight = null;
+      drawCourt();
+      publishTick();
+    });
+    document.getElementById("run-comparison").addEventListener("click", function() {
+      if (game.world.phase === "terminal") return;
+      stopGame();
+      publishTick();
+      const captured = makeCheckpoint({
+        world: game.world,
+        left: makeController("network", { id: "demonstration", artifactSha256: demonstrationSha256 }),
+        right: makeController(game.opponent, { id: game.opponent, seed: game.seed || game.rng, state: game.rng }),
+        parentParameterFingerprint: acceptedDemo.fingerprint,
+        episode: { id: "local", serveId: game.serveId, cohort: null, round: null, seedPairId: null }
+      });
+      game.captured = captured;
+      const layer = state.layer === "h2" ? "h2" : "h1";
+      const unit = state.layer === "h1" || state.layer === "h2" ? state.unit : 0;
+      const fork = state.fixture === "fork" ? active : muteOutgoing(parent, layer, unit).weights;
+      const pair = compareBranches(captured, parent, fork);
+      const report = document.getElementById("comparison-report");
+      const parentFirst = pair.parent.decisions[0];
+      const forkFirst = pair.fork.decisions[0];
+      report.textContent = "Parent " + pair.parent.termination + " " + (pair.parent.winner || "draw") + " in " + pair.parent.playedTicks + " ticks. Fork " + pair.fork.termination + " " + (pair.fork.winner || "draw") + " in " + pair.fork.playedTicks + " ticks. Opponent frozen at capture: " + captured.right.ref.kind + ".";
+      const comparisonExact = document.getElementById("comparison-exact");
+      if (comparisonExact && parentFirst && forkFirst) {
+        comparisonExact.textContent = "First decision raw parent " + parentFirst.left.rawScores.map(exactNumber).join(", ") + " q " + parentFirst.left.comparisonScores.join(", ") + ". Fork raw " + forkFirst.left.rawScores.map(exactNumber).join(", ") + " q " + forkFirst.left.comparisonScores.join(", ") + ".";
+      }
+    });
+    document.getElementById("reset-view").addEventListener("click", function() {
+      view.yaw = YAW;
+      view.pitch = PITCH;
+      view.simple = false;
+      view.rotating = false;
+      drawCloud();
+    });
+    document.getElementById("rotate").addEventListener("click", function() {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduced) {
+        view.yaw += 0.12;
+        drawCloud();
+        return;
+      }
+      view.rotating = true;
+      spinView();
+    });
+    document.getElementById("pause-rotation").addEventListener("click", function() {
+      view.rotating = false;
+    });
+    document.getElementById("simple-view").addEventListener("click", function() {
+      view.simple = !view.simple;
+      view.rotating = false;
+      drawCloud();
+    });
+    wireChrome();
+  }
+  function wireChrome() {
+    const toggle = document.getElementById("options-toggle");
+    const panel = document.getElementById("options");
+    let opener = null;
+    let suppressFocusOpen = false;
+    let fromPointer = false;
+    function closeHelp(restore) {
+      const button = opener;
+      document.querySelectorAll(".help").forEach(function(dialog) {
+        dialog.hidden = true;
+      });
+      document.querySelectorAll(".info").forEach(function(info) {
+        info.setAttribute("aria-expanded", "false");
+      });
+      opener = null;
+      if (restore && button) {
+        suppressFocusOpen = true;
+        button.focus();
+        suppressFocusOpen = false;
+      }
+    }
+    function placeHelp(button, dialog) {
+      let node = button.parentElement;
+      while (node) {
+        if (node.tagName === "DETAILS") node.open = true;
+        node = node.parentElement;
+      }
+      dialog.style.left = "";
+      dialog.style.top = "";
+      dialog.style.width = "";
+      dialog.style.maxHeight = "";
+      dialog.hidden = false;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      dialog.scrollIntoView({ block: "nearest", behavior: reduced ? "instant" : "auto" });
+    }
+    function openHelp(button) {
+      const dialog = document.getElementById(button.getAttribute("aria-controls"));
+      if (!dialog) return;
+      if (opener === button && !dialog.hidden) return;
+      closeHelp(false);
+      opener = button;
+      button.setAttribute("aria-expanded", "true");
+      placeHelp(button, dialog);
+    }
+    toggle.addEventListener("click", function() {
+      const open = toggle.getAttribute("aria-expanded") === "true";
+      closeHelp(false);
+      const stage = document.getElementById("stage");
+      if (open) {
+        if (panel.contains(document.activeElement)) toggle.focus();
+        panel.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.textContent = "Show options";
+        stage.classList.remove("options-open");
+      } else {
+        panel.hidden = false;
+        toggle.setAttribute("aria-expanded", "true");
+        toggle.textContent = "Hide options";
+        stage.classList.add("options-open");
+        const first = panel.querySelector("#layer");
+        if (window.innerWidth < 801 && first) first.scrollIntoView({ block: "nearest", behavior: "instant" });
+        if (first) first.focus({ preventScroll: true });
+      }
+      drawAll();
+    });
+    document.querySelectorAll(".info").forEach(function(button) {
+      button.addEventListener("click", function() {
+        const dialog = document.getElementById(button.getAttribute("aria-controls"));
+        if (opener === button && dialog && !dialog.hidden) closeHelp(false);
+        else openHelp(button);
+      });
+    });
+    document.querySelectorAll(".help-dismiss").forEach(function(button) {
+      button.addEventListener("click", function() {
+        closeHelp(true);
+      });
+    });
+    document.addEventListener("focusin", function(event) {
+      if (suppressFocusOpen) return;
+      if (fromPointer) {
+        fromPointer = false;
+        return;
+      }
+      const button = event.target.closest && event.target.closest(".info");
+      if (button) {
+        openHelp(button);
+        return;
+      }
+      if (opener && event.target.closest && event.target.closest(".help")) return;
+      if (opener) closeHelp(false);
+    });
+    document.addEventListener("keydown", function(event) {
+      if (event.key !== "Escape" || !opener) return;
+      event.preventDefault();
+      closeHelp(true);
+    });
+    document.addEventListener("pointerdown", function(event) {
+      fromPointer = true;
+      if (!opener) return;
+      const target = event.target;
+      if (target.closest && (target.closest(".help") || target.closest(".info"))) return;
+      closeHelp(false);
+    });
+  }
+  function spinView() {
+    if (!view.rotating) return;
+    view.yaw += 0.12 / 30;
+    drawCloud();
+    requestAnimationFrame(spinView);
+  }
+})();
+
+</script>
   </body>
 </html>

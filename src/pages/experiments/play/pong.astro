@@ -7,8 +7,7 @@ import { withBase } from '../../../lib/paths';
   <div class="play-view">
     <h1>Pong demonstration</h1>
     <p>
-      Demonstration weights. No official score.
-      <a href={withBase('/experiments/pong/')}>Open the standalone page</a>.
+      Demonstration weights. No official score. <a href={withBase('/experiments/pong/')}>Open the standalone page</a>.
     </p>
     <iframe
       src={withBase('/experiments/pong/')}
@@ -25,7 +24,7 @@ import { withBase } from '../../../lib/paths';
           if (data.type !== 'pong-embed-height') return;
           if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
           const height = Math.round(data.height);
-          if (height < 480 || height > 6400) return;
+          if (height < 480 || height > 20000) return;
           if (Math.abs(height - applied) < 2) return;
           applied = height;
           frame.style.height = `${height}px`;

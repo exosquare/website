@@ -12,14 +12,13 @@ const playUrl = withBase('/experiments/play/pong/');
     sandbox="allow-scripts"
     loading="lazy"></iframe>
   <figcaption>
-    Demonstration weights. No contestant artifact is loaded.
-    <a href={playUrl}>Open a larger view</a>.
+    Demonstration weights. No contestant artifact is loaded. <a href={playUrl}>Open a larger view</a>.
   </figcaption>
 </figure>
 
 <script>
   const MIN_HEIGHT = 480;
-  const MAX_HEIGHT = 6400;
+  const MAX_HEIGHT = 20000;
   document.querySelectorAll<HTMLIFrameElement>('.pong-artifact iframe').forEach((frame) => {
     let applied = 0;
     window.addEventListener('message', (event) => {

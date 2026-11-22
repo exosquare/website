@@ -389,6 +389,8 @@ export function validateContestant(input) {
 
 export const EMPTY_RESPONSE_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 export const PAPER_WEIGHTS_SCHEMA_SHA256 = "958e3a37e242f2f6b3f20828e74515afb4c99399473946ec59eabe2a1f7c610b";
+export const CORRECTION_MANIFEST_SHA256 = "61337082de00e19229c30cd39fdd9741bc8a73c7bd3dd6f8714b45cee3de6385";
+export const VALIDATION_RECORD_SCHEMA_SHA256 = "5ff5415b606a6098a40344f0cd5cfa4a942a30be9dc412df0c944c8927dee7cd";
 
 export function missingResponseOutcome() {
   return {
@@ -414,6 +416,9 @@ export function finalizeReceipt(receipt) {
 }
 
 export function storeValidationReport(outcome, binding) {
+  if (!outcome || typeof outcome.status !== "string" || typeof outcome.responsePresent !== "boolean") {
+    throw new Error("outcome");
+  }
   const present = outcome.responsePresent === true;
   const accepted = outcome.accepted === true;
   const report = {
@@ -443,9 +448,75 @@ export function bindReceiptIndex(receiptSha256, reportSha256, shippedWeightsSche
     weightsSchemaSha256: shippedWeightsSchemaSha256,
     paperWeightsSchemaSha256: PAPER_WEIGHTS_SCHEMA_SHA256,
     validationSchema: "pong-single-validation-v1.1",
+    correctionManifestSha256: CORRECTION_MANIFEST_SHA256,
+    validationRecordSchemaSha256: VALIDATION_RECORD_SCHEMA_SHA256,
   };
   const bytes = canonicalJson(index);
   return { index, bytes, indexSha256: sha256Utf8(bytes) };
+}
+
+const STORED_REPORT_FIELDS = [
+  "schema",
+  "status",
+  "responsePresent",
+  "rawReceiptSha256",
+  "rawReceiptStatus",
+  "accepted",
+  "byteLength",
+  "scalarCount",
+  "rawResponseSha256",
+  "validatorSha256",
+  "weightsSchemaSha256",
+  "acceptedResponseSha256",
+  "parameterFingerprintSha256",
+  "errors",
+];
+
+function storedReportError(report) {
+  const keys = Object.keys(report).sort();
+  const expected = STORED_REPORT_FIELDS.slice().sort();
+  if (keys.join(",") !== expected.join(",")) return "report-fields";
+  if (report.schema !== "pong-single-validation-v1.1") return "report-schema";
+  if (report.status === "missing-response") {
+    if (report.responsePresent !== false || report.accepted !== false) return "report-status";
+    if (report.byteLength !== null || report.scalarCount !== null || report.rawResponseSha256 !== null) return "report-status";
+    if (report.validatorSha256 !== null || report.weightsSchemaSha256 !== null) return "report-status";
+  } else if (report.status === "rejected") {
+    if (report.responsePresent !== true || report.accepted !== false) return "report-status";
+    if (typeof report.rawResponseSha256 !== "string" || !report.errors.length) return "report-status";
+  } else if (report.status === "accepted") {
+    if (report.responsePresent !== true || report.accepted !== true || report.scalarCount !== 435) return "report-status";
+  } else return "report-status";
+  return null;
+}
+
+export function commitValidationTrio(outcome, receiptBytes, binding) {
+  if (!outcome || typeof outcome.status !== "string" || typeof outcome.responsePresent !== "boolean") {
+    return { error: "outcome" };
+  }
+  if (typeof receiptBytes !== "string" || !binding) return { error: "receipt" };
+  const rawReceiptSha256 = sha256Utf8(receiptBytes);
+  if (rawReceiptSha256 !== binding.rawReceiptSha256) return { error: "receipt-hash" };
+  let receipt;
+  try {
+    receipt = JSON.parse(receiptBytes);
+  } catch (error) {
+    return { error: "receipt" };
+  }
+  if (!receipt || receipt.status !== binding.rawReceiptStatus) return { error: "receipt-status" };
+  if (receipt.validationReportSha256 !== null) return { error: "backpatch" };
+  const stored = storeValidationReport(outcome, binding);
+  const fieldError = storedReportError(stored.report);
+  if (fieldError) return { error: fieldError };
+  const index = bindReceiptIndex(rawReceiptSha256, stored.reportSha256, binding.weightsSchemaSha256);
+  return {
+    labelled: receipt.role || null,
+    receipt,
+    report: stored.report,
+    reportSha256: stored.reportSha256,
+    index: index.index,
+    indexSha256: index.indexSha256,
+  };
 }
 
 export function validateContestantText(text) {

@@ -1,5 +1,6 @@
 import {
   freshWorld,
+  cloneWorld,
   makeCheckpoint,
   makeController,
   cloneCheckpoint,
@@ -44,31 +45,118 @@ function letters(decisions, side) {
   }).join("");
 }
 
-function blankRecord(slot, status, termination) {
+function failureEntry(stage, code, message) {
   return {
-    id: slot.id || null,
-    status,
+    stage,
+    code,
+    message,
+    artifactId: null,
+    tick: null,
+    requestId: null,
+    retriable: false,
+  };
+}
+
+function slotCheckpoint(slot, accepted, playable) {
+  const seedText = slot.randomSeedDerivationText || null;
+  const packedSeed = slot.randomInitialSeed || null;
+  const seed = slot.baselineId === "random" ? (packedSeed || (seedText ? baselineSeed(seedText) : 1)) : 1;
+  const baseline = makeController(slot.baselineId, {
+    id: slot.baselineId,
+    seed,
+    state: seed,
+  });
+  const candidate = makeController("network", {
+    id: playable ? (accepted.role || "synthetic") : "unvalidated",
+    artifactSha256: playable ? (accepted.rawResponseSha256 || null) : null,
+  });
+  const left = slot.candidateSide === "left" ? candidate : baseline;
+  const right = slot.candidateSide === "right" ? candidate : baseline;
+  const identity = playable ? accepted : {
+    rulesSha256: null,
+    implementationSha256: null,
+    rawResponseSha256: null,
+    fingerprint: null,
+  };
+  return {
+    left,
+    right,
+    checkpoint: sealCheckpoint(makeCheckpoint({
+      world: freshWorld(slot.initialWorld),
+      left,
+      right,
+      parentParameterFingerprint: playable ? (accepted.fingerprint || null) : null,
+      rulesSha256: identity.rulesSha256 || null,
+      episode: {
+        id: slot.id,
+        serveId: slot.serveId,
+        cohort: null,
+        round: 0,
+        seedPairId: slot.pairId || null,
+      },
+    }), identity),
+  };
+}
+
+function recordShell(slot, accepted, checkpoint) {
+  const sideAssignment = slot.sideAssignment ?? (slot.candidateSide === "right" ? 1 : 0);
+  return {
+    schema: "pong-episode-v1",
+    id: slot.id,
+    runId: accepted && accepted.role ? accepted.role : "unvalidated",
+    taskVersion: "pong-feedback-v1",
+    rulesSha256: accepted && accepted.rulesSha256 ? accepted.rulesSha256 : null,
+    scheduleId: slot.pairId || slot.id,
     panel: slot.panel || "baseline",
-    transform: slot.transform || "identity",
+    cohort: null,
+    round: 0,
     serveId: slot.serveId || null,
-    pairId: slot.pairId || null,
-    candidateSide: slot.candidateSide || null,
-    baselineId: slot.baselineId || null,
-    initial: null,
-    decisions: [],
-    worlds: null,
+    orbitId: null,
+    transform: slot.transform || "identity",
+    sideAssignment,
+    initial: checkpoint,
+    leftArtifactId: null,
+    rightArtifactId: null,
     leftActions: "",
     rightActions: "",
     contacts: [],
-    misses: [],
-    failures: status === "played" ? [] : [{ code: termination || status }],
-    termination,
-    winner: null,
-    playedPoints: [null, null],
+    miss: null,
+    final: cloneWorld(checkpoint.world),
     playedTicks: 0,
+    status: "forfeit-not-played",
+    winner: null,
+    termination: "invalid-artifact",
+    playedPoints: [null, null],
+    administrativePoints: [null, null],
+    contactCounts: [0, 0],
+    durationTicks: 0,
+    missDistance: null,
     trajectorySha256: null,
-    rawResponseSha256: null,
-    parameterFingerprint: null,
+    duplicateOf: null,
+    failures: [failureEntry("validation", "invalid-artifact", "The candidate was not accepted. No game was played.")],
+  };
+}
+
+function evidenceShell(slot, checkpoint, accepted) {
+  return {
+    schema: "pong-episode-evidence-v1",
+    id: slot.id,
+    pairId: slot.pairId || null,
+    candidateSide: slot.candidateSide || null,
+    baselineId: slot.baselineId || null,
+    decisions: [],
+    worlds: [cloneWorld(checkpoint.world)],
+    misses: [],
+    rawResponseSha256: accepted && accepted.rawResponseSha256 ? accepted.rawResponseSha256 : null,
+    parameterFingerprint: accepted && accepted.fingerprint ? accepted.fingerprint : null,
+  };
+}
+
+function bundle(record, evidence) {
+  return {
+    schema: "pong-episode-bundle-v1",
+    record: withRecordHash(record),
+    evidence,
   };
 }
 
@@ -79,47 +167,20 @@ function withRecordHash(record) {
 }
 
 export function evaluateSlot(slot, accepted) {
-  if (!accepted || accepted.ok !== true || !accepted.weights || accepted.weights.length !== 435) {
-    return withRecordHash(blankRecord(slot, "forfeit-not-played", "invalid-artifact"));
-  }
-  const seedText = slot.randomSeedDerivationText || null;
-  const packedSeed = slot.randomInitialSeed || null;
-  const seed = slot.baselineId === "random" ? (packedSeed || (seedText ? baselineSeed(seedText) : 1)) : 1;
-  const baseline = makeController(slot.baselineId, {
-    id: slot.baselineId,
-    seed,
-    state: seed,
-  });
-  const candidate = makeController("network", {
-    id: accepted.role || "synthetic",
-    artifactSha256: accepted.rawResponseSha256 || null,
-  });
-  const left = slot.candidateSide === "left" ? candidate : baseline;
-  const right = slot.candidateSide === "right" ? candidate : baseline;
-  const checkpoint = sealCheckpoint(makeCheckpoint({
-    world: freshWorld(slot.initialWorld),
-    left,
-    right,
-    parentParameterFingerprint: accepted.fingerprint || null,
-    rulesSha256: accepted.rulesSha256 || null,
-    episode: {
-      id: slot.id,
-      serveId: slot.serveId,
-      cohort: null,
-      round: 0,
-      seedPairId: slot.pairId || null,
-    },
-  }), accepted);
-  const episode = runEpisode(checkpoint, {
-    left: left.ref.kind === "network" ? accepted.weights : null,
-    right: right.ref.kind === "network" ? accepted.weights : null,
+  const playable = Boolean(accepted && accepted.ok === true && accepted.weights && accepted.weights.length === 435);
+  const scheduled = slotCheckpoint(slot, accepted, playable);
+  if (!playable) return bundle(recordShell(slot, accepted, scheduled.checkpoint), evidenceShell(slot, scheduled.checkpoint, accepted));
+  const episode = runEpisode(scheduled.checkpoint, {
+    left: scheduled.left.ref.kind === "network" ? accepted.weights : null,
+    right: scheduled.right.ref.kind === "network" ? accepted.weights : null,
   });
   if (episode.error) {
-    const failed = blankRecord(slot, "failed", "runtime-fault");
-    failed.failures = [{ code: episode.error }];
-    failed.rawResponseSha256 = accepted.rawResponseSha256 || null;
-    failed.parameterFingerprint = accepted.fingerprint || null;
-    return withRecordHash(failed);
+    const failed = recordShell(slot, accepted, scheduled.checkpoint);
+    failed.status = "failed";
+    failed.termination = "runtime-fault";
+    failed.failures = [failureEntry("inference", "runtime-fault", "Inference stopped before a tick completed.")];
+    const evidence = evidenceShell(slot, scheduled.checkpoint, accepted);
+    return bundle(failed, evidence);
   }
   const contacts = [];
   const misses = [];
@@ -127,66 +188,47 @@ export function evaluateSlot(slot, accepted) {
     if (step.event && Object.hasOwn(step.event, "vxAfter")) contacts.push(step.event);
     if (step.event && Object.hasOwn(step.event, "missDistance")) misses.push(step.event);
   });
-  return withRecordHash({
-    schema: "pong-episode-v1",
-    id: slot.id,
-    runId: accepted.role || "synthetic",
-    taskVersion: "pong-feedback-v1",
-    rulesSha256: accepted.rulesSha256 || null,
-    scheduleId: slot.pairId || slot.id,
-    status: "played",
-    panel: slot.panel || "baseline",
-    cohort: null,
-    round: 0,
-    orbitId: null,
-    transform: slot.transform || "identity",
-    sideAssignment: slot.sideAssignment ?? (slot.candidateSide === "right" ? 1 : 0),
-    serveId: slot.serveId || null,
-    pairId: slot.pairId || null,
-    candidateSide: slot.candidateSide,
-    baselineId: slot.baselineId,
-    leftArtifactId: left.ref.kind === "network" ? (accepted.rawResponseSha256 || null) : null,
-    rightArtifactId: right.ref.kind === "network" ? (accepted.rawResponseSha256 || null) : null,
-    initial: checkpoint,
-    decisions: episode.decisions,
-    worlds: episode.worlds,
-    leftActions: letters(episode.decisions, "left"),
-    rightActions: letters(episode.decisions, "right"),
-    contacts,
-    misses,
-    miss: misses[0] || null,
-    administrativePoints: [null, null],
-    contactCounts: [
-      contacts.filter(function (event) { return event.side === "left"; }).length,
-      contacts.filter(function (event) { return event.side === "right"; }).length,
-    ],
-    durationTicks: episode.playedTicks,
-    missDistance: misses[0] ? misses[0].missDistance : null,
-    duplicateOf: null,
-    failures: [],
-    termination: episode.termination,
-    winner: episode.winner,
-    playedPoints: episode.playedPoints,
-    playedTicks: episode.playedTicks,
-    trajectorySha256: trajectoryHash(episode.worlds),
-    rawResponseSha256: accepted.rawResponseSha256 || null,
-    parameterFingerprint: accepted.fingerprint || null,
-    final: episode.checkpoint.world,
-  });
+  const played = recordShell(slot, accepted, scheduled.checkpoint);
+  played.status = "played";
+  played.termination = episode.termination;
+  played.winner = episode.winner;
+  played.failures = [];
+  played.leftArtifactId = scheduled.left.ref.kind === "network" ? (accepted.rawResponseSha256 || null) : null;
+  played.rightArtifactId = scheduled.right.ref.kind === "network" ? (accepted.rawResponseSha256 || null) : null;
+  played.leftActions = letters(episode.decisions, "left");
+  played.rightActions = letters(episode.decisions, "right");
+  played.contacts = contacts;
+  played.miss = misses[0] || null;
+  played.final = episode.checkpoint.world;
+  played.playedTicks = episode.playedTicks;
+  played.playedPoints = episode.playedPoints;
+  played.contactCounts = [
+    contacts.filter(function (event) { return event.side === "left"; }).length,
+    contacts.filter(function (event) { return event.side === "right"; }).length,
+  ];
+  played.durationTicks = episode.playedTicks;
+  played.missDistance = misses[0] ? misses[0].missDistance : null;
+  played.trajectorySha256 = trajectoryHash(episode.worlds);
+  const evidence = evidenceShell(slot, scheduled.checkpoint, accepted);
+  evidence.decisions = episode.decisions;
+  evidence.worlds = episode.worlds;
+  evidence.misses = misses;
+  return bundle(played, evidence);
 }
 
 export function collectBaselineSchedule(schedule, accepted) {
   if (!schedule || !Array.isArray(schedule.entries) || schedule.entries.length !== 32) {
     return { error: "schedule" };
   }
-  if (!accepted || accepted.ok !== true) return { error: "unvalidated" };
   const records = schedule.entries.map(function (entry) {
     return evaluateSlot(entry, accepted);
   });
   return {
-    labelled: accepted.role || "synthetic",
+    labelled: accepted && accepted.role ? accepted.role : "unvalidated",
     scheduled: 32,
-    played: records.filter(function (record) { return record.status === "played"; }).length,
+    played: records.filter(function (item) { return item.record.status === "played"; }).length,
+    notPlayed: records.filter(function (item) { return item.record.status === "forfeit-not-played"; }).length,
+    failed: records.filter(function (item) { return item.record.status === "failed"; }).length,
     records,
   };
 }
