@@ -29,8 +29,6 @@ function assertRecordShape(record) {
   assert.deepEqual(Object.keys(record).sort(), RECORD_FIELDS.slice().sort());
   FORBIDDEN.forEach((key) => assert.equal(Object.hasOwn(record, key), false));
   assert.equal(record.schema, "pong-episode-v1");
-  assert.equal(record.administrativePoints[0], null);
-  assert.equal(record.administrativePoints[1], null);
 }
 
 function slots() {
@@ -68,6 +66,9 @@ assert.equal(inventory.scheduled, 32);
 assert.equal(inventory.played, 0);
 assert.equal(inventory.notPlayed, 32);
 assert.equal(inventory.failed, 0);
+assert.deepEqual(inventory.playedPointSum, [0, 0]);
+assert.deepEqual(inventory.administrativePointSum, [16, 16]);
+assert.notDeepEqual(inventory.playedPointSum, inventory.administrativePointSum);
 inventory.records.forEach((item) => {
   assert.equal(item.schema, "pong-episode-bundle-v1");
   assert.equal(item.evidence.schema, "pong-episode-evidence-v1");
@@ -76,6 +77,7 @@ inventory.records.forEach((item) => {
   assert.equal(item.record.termination, "invalid-artifact");
   assert.deepEqual(item.record.final, item.record.initial.world);
   assert.deepEqual(item.record.playedPoints, [null, null]);
+  assert.deepEqual(item.record.administrativePoints, item.record.sideAssignment === 0 ? [0, 1] : [1, 0]);
   assert.equal(item.record.leftActions, "");
   assert.equal(item.record.rightActions, "");
   assert.equal(item.record.playedTicks, 0);
@@ -98,6 +100,7 @@ const synthetic = {
 const played = evaluateSlot(slots()[0], synthetic);
 assertRecordShape(played.record);
 assert.equal(played.record.status, "played");
+assert.deepEqual(played.record.administrativePoints, [null, null]);
 assert.equal(played.evidence.decisions.length, played.record.playedTicks);
 assert.equal(played.evidence.worlds.length, played.record.playedTicks + 1);
 assert.equal(played.evidence.rawResponseSha256, synthetic.rawResponseSha256);
@@ -108,11 +111,19 @@ const broken = { ...synthetic, weights: Float64Array.from({ length: 435 }, () =>
 const failed = evaluateSlot(slots()[0], broken);
 assertRecordShape(failed.record);
 assert.equal(failed.record.status, "failed");
+assert.deepEqual(failed.record.administrativePoints, [null, null]);
 assert.equal(failed.record.termination, "runtime-fault");
 assert.deepEqual(failed.record.final, failed.record.initial.world);
 assert.equal(failed.record.playedTicks, 0);
 assert.equal(failed.evidence.decisions.length, 0);
 assert.equal(failed.evidence.rawResponseSha256, synthetic.rawResponseSha256);
+const both = evaluateSlot({ ...slots()[0], id: "both-invalid", bothInvalid: true }, { ok: false, role: "synthetic" });
+assert.equal(both.record.status, "both-invalid-not-played");
+assert.equal(both.record.winner, null);
+assert.deepEqual(both.record.playedPoints, [null, null]);
+assert.deepEqual(both.record.administrativePoints, [0, 0]);
+assert.equal(both.record.playedTicks, 0);
+assert.equal(both.evidence.decisions.length, 0);
 
 const validatorSha = sha256Utf8(readFileSync(new URL("./validate.js", import.meta.url), "utf8"));
 const acceptedText = `{"version":"pong-feedback-v1","weights":[${Array.from({ length: 435 }, () => "0").join(",")}]}`;

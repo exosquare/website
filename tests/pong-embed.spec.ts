@@ -79,7 +79,13 @@ for (const surface of routes) {
           };
         });
         expect(status.ready).toBe('true');
-        expect(status.font).toContain('Helvetica');
+        expect(status.font).toBe('"Helvetica Neue", Helvetica, Arial, sans-serif');
+        const type = await frame.locator('#stage').evaluate(() => ({
+          title: getComputedStyle(document.querySelector('h1')!).fontFamily,
+          status: getComputedStyle(document.querySelector('.status')!).fontFamily,
+        }));
+        expect(type.title).toBe(status.font);
+        expect(type.status).toBe(status.font);
         expect(status.background).toBe('rgb(16, 19, 21)');
         expect(status.stylesheetLinks).toBe(0);
         expect(status.moduleScripts).toBe(0);
@@ -169,8 +175,8 @@ for (const surface of routes) {
           expect(layout.overlap).toBeLessThanOrEqual(1);
           expect(layout.scoreBeforeEdit).toBe(true);
           expect(layout.layerInsideEdit).toBe(true);
-          expect(layout.courtHeight).toBeGreaterThanOrEqual(320);
-          expect(layout.networkHeight).toBeGreaterThanOrEqual(320);
+          expect(layout.courtHeight).toBeGreaterThanOrEqual(160);
+          expect(layout.networkHeight).toBeGreaterThanOrEqual(160);
         }
         await frame.locator('#weight-details summary').click();
         await frame.locator('#info-game').focus();

@@ -45,6 +45,12 @@ function letters(decisions, side) {
   }).join("");
 }
 
+function forfeitAdministrativePoints(slot) {
+  if (slot.bothInvalid === true) return [0, 0];
+  if (slot.candidateSide === "right") return [1, 0];
+  return [0, 1];
+}
+
 function failureEntry(stage, code, message) {
   return {
     stage,
@@ -123,11 +129,11 @@ function recordShell(slot, accepted, checkpoint) {
     miss: null,
     final: cloneWorld(checkpoint.world),
     playedTicks: 0,
-    status: "forfeit-not-played",
+    status: slot.bothInvalid === true ? "both-invalid-not-played" : "forfeit-not-played",
     winner: null,
     termination: "invalid-artifact",
     playedPoints: [null, null],
-    administrativePoints: [null, null],
+    administrativePoints: forfeitAdministrativePoints(slot),
     contactCounts: [0, 0],
     durationTicks: 0,
     missDistance: null,
@@ -169,7 +175,7 @@ function withRecordHash(record) {
 export function evaluateSlot(slot, accepted) {
   const playable = Boolean(accepted && accepted.ok === true && accepted.weights && accepted.weights.length === 435);
   const scheduled = slotCheckpoint(slot, accepted, playable);
-  if (!playable) return bundle(recordShell(slot, accepted, scheduled.checkpoint), evidenceShell(slot, scheduled.checkpoint, accepted));
+  if (!playable || slot.bothInvalid === true) return bundle(recordShell(slot, accepted, scheduled.checkpoint), evidenceShell(slot, scheduled.checkpoint, accepted));
   const episode = runEpisode(scheduled.checkpoint, {
     left: scheduled.left.ref.kind === "network" ? accepted.weights : null,
     right: scheduled.right.ref.kind === "network" ? accepted.weights : null,
@@ -178,6 +184,7 @@ export function evaluateSlot(slot, accepted) {
     const failed = recordShell(slot, accepted, scheduled.checkpoint);
     failed.status = "failed";
     failed.termination = "runtime-fault";
+    failed.administrativePoints = [null, null];
     failed.failures = [failureEntry("inference", "runtime-fault", "Inference stopped before a tick completed.")];
     const evidence = evidenceShell(slot, scheduled.checkpoint, accepted);
     return bundle(failed, evidence);
@@ -190,6 +197,7 @@ export function evaluateSlot(slot, accepted) {
   });
   const played = recordShell(slot, accepted, scheduled.checkpoint);
   played.status = "played";
+  played.administrativePoints = [null, null];
   played.termination = episode.termination;
   played.winner = episode.winner;
   played.failures = [];
@@ -223,12 +231,28 @@ export function collectBaselineSchedule(schedule, accepted) {
   const records = schedule.entries.map(function (entry) {
     return evaluateSlot(entry, accepted);
   });
+  const playedPointSum = [0, 0];
+  const administrativePointSum = [0, 0];
+  records.forEach(function (item) {
+    const playedPoints = item.record.playedPoints;
+    const administrative = item.record.administrativePoints;
+    if (item.record.status === "played" && playedPoints[0] != null && playedPoints[1] != null) {
+      playedPointSum[0] += playedPoints[0];
+      playedPointSum[1] += playedPoints[1];
+    }
+    if (administrative[0] != null && administrative[1] != null) {
+      administrativePointSum[0] += administrative[0];
+      administrativePointSum[1] += administrative[1];
+    }
+  });
   return {
     labelled: accepted && accepted.role ? accepted.role : "unvalidated",
     scheduled: 32,
     played: records.filter(function (item) { return item.record.status === "played"; }).length,
-    notPlayed: records.filter(function (item) { return item.record.status === "forfeit-not-played"; }).length,
+    notPlayed: records.filter(function (item) { return item.record.status === "forfeit-not-played" || item.record.status === "both-invalid-not-played"; }).length,
     failed: records.filter(function (item) { return item.record.status === "failed"; }).length,
+    playedPointSum,
+    administrativePointSum,
     records,
   };
 }
