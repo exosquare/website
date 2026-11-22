@@ -1,0 +1,72 @@
+---
+import { withBase } from '../../lib/paths';
+
+const url = withBase('/experiments/pong/');
+const playUrl = withBase('/experiments/play/pong/');
+---
+
+<figure class="pong-artifact">
+  <iframe
+    src={url}
+    title="Pong demonstration. New serve, pause, and step play the authored weights in this frame."
+    sandbox="allow-scripts allow-same-origin"
+    loading="lazy"></iframe>
+  <figcaption>
+    Demonstration weights. No contestant artifact is loaded.
+    <a href={playUrl}>Open a larger view</a>.
+  </figcaption>
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLIFrameElement>('.pong-artifact iframe').forEach((frame) => {
+    let observer: ResizeObserver | undefined;
+    const attach = () => {
+      observer?.disconnect();
+      const doc = frame.contentDocument;
+      const main = doc?.querySelector('main');
+      if (!doc || !main) return;
+      const resize = () => {
+        const height = Math.ceil(main.getBoundingClientRect().bottom + (frame.contentWindow?.scrollY || 0) + 32);
+        if (height > 32) frame.style.height = `${height}px`;
+      };
+      observer = new ResizeObserver(resize);
+      observer.observe(main);
+      resize();
+    };
+    frame.addEventListener('load', attach);
+    attach();
+    window.addEventListener('pagehide', () => observer?.disconnect(), { once: true });
+  });
+</script>
+
+<style>
+  .pong-artifact {
+    margin: 36px 0;
+    width: calc(100% + var(--article-gutter, 0px));
+    margin-left: calc(-1 * var(--article-gutter, 0px));
+  }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 720px;
+    border: 1px solid var(--rule);
+    background: #101315;
+  }
+  figcaption {
+    margin-top: 12px;
+    margin-left: var(--article-gutter, 0px);
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  @media (min-width: 761px) {
+    .pong-artifact {
+      --article-gutter: 200px;
+    }
+  }
+  @media (min-width: 1001px) {
+    .pong-artifact {
+      --article-gutter: 284px;
+    }
+  }
+</style>

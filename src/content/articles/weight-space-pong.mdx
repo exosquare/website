@@ -1,0 +1,38 @@
+---
+title: "What we want to learn by writing a Pong network's weights"
+draft: true
+topic: 'Weight-space programming'
+kind: 'Exploration'
+author: 'Matt'
+standfirst: 'We want to know whether a language model can author a tiny network as static numbers, and whether those numbers can play in the browser without a live model call during the game. This post sets out the experiment, the questions we do not yet have answers to, and a demonstration of the page we are building.'
+---
+
+import PongArtifact from '../../components/pong/PongArtifact.astro'
+
+We are trying to find out whether a language model can write a tiny neural network as a list of static numbers, and whether that network can play a genuinely new browser game without calling the model while the game runs. That is a broad question. The first setting we have chosen is a small game of Pong. Pong is familiar, and choosing it does not show that the game is new, or that a model has no prior knowledge of it.
+
+Other researchers have asked models to write weights directly, under the name [weight-space programming](https://rikiyat.github.io/blog/weight-space-programming/). In one [number-edit experiment](https://github.com/RikiyaT/lm_understand-logs/blob/main/exp5_write_from_scratch/README.md), the authors supplied the rules, the exact game source, and the definitions of the observations, actions, network, and scoring. That work is useful motivation. It does not tell us that an exact source is required, or how much specification a model needs. We want to know how a language model arrives at a set of weights, and whether it needs an exact specification of the game. One planned contestant is provisionally called Astra. That label is not a confirmed model identity. We have not called any contestant yet.
+
+## The 435 parameters
+
+We chose a small architecture so the whole network can sit on the page. The network takes six inputs: the ball's position and velocity, and the positions of both paddles, each scaled into a small numeric range. Those values pass through two hidden layers of 16 units each, and finish as three action scores, one for stay, one for moving the paddle up, and one for moving it down. Hidden here just means those units sit between the inputs and the final scores. The paddle takes the action with the highest score.
+
+Each connection from one layer to the next has a weight, which multiplies the value coming in. Each hidden or output unit adds up those weighted inputs, then adds a bias, an additive offset that raises or lowers the total. Hidden units then apply an activation: negative results become zero, and positive results pass through. The three action scores are left as they are. The first hidden layer has (6 × 16) + 16 = 112 parameters. The second has (16 × 16) + 16 = 272. The output layer has (16 × 3) + 3 = 51. That is 400 connection weights and 35 biases, and 112 + 272 + 51 = 435. These 435 numbers are parameters, not 435 neurons. Pong does not require this shape or this count.
+
+The demonstration can start a serve, pause, and step through play, so the ball and paddles move under the current weights. As designed, on each tick both paddles are decided from the state at the start of the tick. The network reads the six inputs and produces the three scores, and the game rules then move the paddles and the ball. The numbers are meant to stay fixed during play. This is distinct from training or fine-tuning, and from a model writing a program that builds the weights. A recorded episode, played back from stored frames, would not answer the same question. The intended contract, once the page's assets are ready, is that play does not call a model. We have not established a proof that no later network request occurs.
+
+## A shared shape, and a mute
+
+The demonstration on this page shows the 435 parameters as points in a sphere, using a fixed encoding so that different authored sets can later be compared under the same picture.
+
+<PongArtifact />
+
+Each parameter has a fixed direction, and its value moves the point along that ray. The directions and scale stay the same for every set. The mapping compresses large magnitudes, so two points that sit close together are not necessarily close in value, and the shape is not a score. It is not a picture of a brain, or of meaning, or of intelligence. Reordering the hidden units can change the shape without changing how the network behaves.
+
+The demonstration includes a control to mute one hidden unit and show the three action scores immediately. That shows whether those outgoing connections change the scores at the current state. A different score does not necessarily change which action wins. A mute that does nothing is still a result: the unit may be inactive at that state. A change at one state does not, on its own, show how play would unfold.
+
+## What is in place, and what is still open
+
+The demonstration uses demonstration weights only. It is not a published result, and it is not complete. No contestant model has been called, no contestant artefacts have been loaded, and no tournament has been run.
+
+We plan a fair tournament in which models write these 435 numbers, receive the same game feedback, and may revise the weights. Improvement would be judged under shared conditions, against frozen earlier versions, including revisions that do nothing or make play worse. Official scores, when we have them, would stay fixed. Until those runs exist, we cannot say whether our contestants can write a working player, how they will produce the weights, or how much of the game they need to be shown. The page is there to make those questions inspectable. It does not yet answer them.

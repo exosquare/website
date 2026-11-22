@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Literal Pong weights structural schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "weights"],
+  "properties": {
+    "version": { "const": "pong-feedback-v1" },
+    "weights": {
+      "type": "array",
+      "minItems": 435,
+      "maxItems": 435,
+      "items": { "type": "number", "minimum": -16, "maximum": 16 }
+    }
+  }
+}

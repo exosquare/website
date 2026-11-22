@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="dark" />
+    <title>Pong</title>
+    <link rel="icon" type="image/png" href="../../logo.png" />
+    <link rel="stylesheet" href="./preview.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#weight-details">Skip to the value table</a>
+    <main class="stage" id="stage">
+      <header class="mast">
+        <p class="stage-brand">Experiment demo</p>
+        <h1>Can numbers play Pong?</h1>
+        <p class="status">Demonstration weights. No official score.</p>
+        <p class="status">Tournament not run. No accepted artifact.</p>
+        <details class="about-demo">
+          <summary>About this demo</summary>
+          <p>These numbers are an authored demonstration. They are not a contestant artifact, and they are not Grok, Gemini Carbon, Astra, or Fable.</p>
+          <p>Frozen revision. No learning during play.</p>
+          <p>Contestant labels are display names. Exact model identities are unconfirmed. No name here loads weights.</p>
+          <p>After this page has loaded, play stays in this tab. Reloading is a separate load. This is not a claim that a cold start works offline.</p>
+          <p>435 parameters. Position encodes signed value. Fixed index directions and scale. Radius uses a fixed nonlinear compression. Large magnitudes sit closer together and are not equal, and are not a score. Shape is an encoding, not an intelligence score. Reordering hidden units can change this shape without changing behaviour.</p>
+        </details>
+      </header>
+
+      <section class="court" aria-labelledby="court-heading">
+        <h2 class="pane-title" id="court-heading">Court</h2>
+        <p class="mono tick-line" id="tick-readout">Tick 0 of 192. Paused.</p>
+        <div class="canvas-frame">
+          <canvas id="court" width="640" height="320" aria-hidden="true"></canvas>
+        </div>
+      </section>
+
+      <section class="play" aria-label="Play">
+        <div class="play-row">
+          <button type="button" id="new-serve">New serve</button>
+          <button type="button" id="pause">Pause</button>
+          <button type="button" id="step">Step</button>
+          <button type="button" id="options-toggle" aria-expanded="false" aria-controls="options">Show options</button>
+        </div>
+        <div class="score-board" id="score-board">
+          <p id="decision-caption">No decision yet. Scores are not probabilities.</p>
+          <div class="score-grid">
+            <div class="score-cell" id="cell-stay"><span class="score-name">Stay</span><span class="mono" id="raw-stay">—</span><span class="mono" id="q-stay">—</span></div>
+            <div class="score-cell" id="cell-up"><span class="score-name">Up</span><span class="mono" id="raw-up">—</span><span class="mono" id="q-up">—</span></div>
+            <div class="score-cell" id="cell-down"><span class="score-name">Down</span><span class="mono" id="raw-down">—</span><span class="mono" id="q-down">—</span></div>
+          </div>
+          <p id="chosen-action">Chosen action: none yet.</p>
+          <p id="right-action" class="mono"></p>
+          <details class="exact-scores">
+            <summary>Exact raw and q</summary>
+            <p id="score-line" class="mono">No decision yet.</p>
+          </details>
+          <button type="button" class="info" id="info-game" aria-expanded="false" aria-controls="help-game" aria-label="About the game"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
+        </div>
+          <div id="help-game" class="help" role="dialog" aria-label="About the game" hidden>
+          <button type="button" class="help-dismiss">Close</button>
+          <p>New serve starts the serve chosen under Game settings, from tick 0. G0 to G3 are fixed starts. Local draws a new serve and records its seed in this tab. It has no official score.</p>
+          <p>Pause stops the clock, or starts it again. Step plays one tick and stays paused. A finished serve does not take another step.</p>
+          <p>Stay, Up, and Down are the three action scores for the world before the tick. The numbers in each cell are the exact raw score and the exact q. q is floor of raw score times 1,000,000 plus 0.5. The highest q wins. A tie uses the lowest index. Scores are not probabilities. The chosen action is separate from those three cells. The court shows the world after the tick.</p>
+          <p>The right paddle is a frozen baseline, not a contestant. Stay always holds. Random chooses from its own stream and keeps drawing until the draw is accepted. Reactive follows the ball's current height. Analytic looks ahead along the walls for at most 31 ticks, or aims at 8 while the ball is going away.</p>
+          <p>Replay reads a stored action log and does not infer. No stored action log is loaded, so Replay stays unavailable.</p>
+        </div>
+      </section>
+
+      <section class="cloud" aria-labelledby="cloud-heading">
+        <h2 class="pane-title" id="cloud-heading">Weight cloud</h2>
+        <p id="network-summary" class="sr-only">435 parameter points. Direction comes from the index. Distance comes from the value. Outlined diamonds are biases. Brighter points are the selected outgoing weights.</p>
+        <div class="canvas-frame">
+          <canvas id="network" width="640" height="480" aria-hidden="true"></canvas>
+        </div>
+        <div class="legend">
+          <ul>
+            <li><span class="swatch pos"></span>+ positive</li>
+            <li><span class="swatch neg"></span>- negative</li>
+            <li><span class="swatch zero"></span>0 zero</li>
+            <li><span class="swatch bias"></span>bias</li>
+          </ul>
+          <button type="button" class="info" id="info-shape" aria-expanded="false" aria-controls="help-shape" aria-label="About the shape"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
+          <p id="value-line" class="mono"></p>
+          <p id="bundle-note"></p>
+          <p>435 parameters. Position encodes signed value.</p>
+        </div>
+        <div id="help-shape" class="help" role="dialog" aria-label="About the shape" hidden>
+          <button type="button" class="help-dismiss">Close</button>
+          <p>Each circle is one connection weight. Each outlined diamond is one bias. There are 400 circles and 35 diamonds. Direction comes only from the index. Distance is R times (0.60 plus 0.40 times the value divided by 16 plus the absolute value). Negative 16 sits at 0.40R, zero at 0.60R, and positive 16 at 0.80R.</p>
+          <p>Large magnitudes sit closer together. That crowding is not equality and not a score. The same directions and scale are used for every preset. Reordering hidden units can change this shape without changing behaviour.</p>
+          <p>Reset view restores the fixed camera. Rotate turns the cloud. If reduced motion is on, each press turns it one step. Pause rotation stops the turn. Simple view draws the same points flat and still. None of these changes the game or the weights.</p>
+        </div>
+      </section>
+
+      <section class="edit" id="options" hidden aria-labelledby="edit-heading">
+        <h2 id="edit-heading" tabindex="-1">Options</h2>
+        <details class="group" open>
+          <summary>Preset</summary>
+          <div class="opt">
+            <p id="names-label">Contestant labels</p>
+            <div class="name-row" role="group" aria-labelledby="names-label">
+              <button type="button" disabled>Gemini Carbon</button>
+              <button type="button" disabled>Astra</button>
+              <button type="button" disabled>Fable</button>
+              <button type="button" disabled>Grok</button>
+            </div>
+            <p class="field-note">Unavailable. Display names only. Exact identities are unconfirmed. None of these loads weights.</p>
+            <label for="revision">Revision</label>
+            <select id="revision" disabled>
+              <option selected>Initial</option>
+              <option>Revision 1</option>
+              <option>Revision 2</option>
+            </select>
+            <p class="field-note">Unavailable. Only the demonstration parent is loaded.</p>
+            <div class="split">
+              <label>Layer
+                <select id="layer">
+                  <option value="input">Input</option>
+                  <option value="h1" selected>H1</option>
+                  <option value="h2">H2</option>
+                  <option value="output">Output</option>
+                </select>
+              </label>
+              <label><span id="unit-name">Hidden unit</span>
+                <select id="unit"></select>
+              </label>
+            </div>
+            <label for="cohort">Cohort</label>
+            <select id="cohort" disabled>
+              <option selected>Cohort A</option>
+              <option>Cohort B</option>
+            </select>
+            <p class="field-note">Unavailable. Cohort labels do not load an artifact.</p>
+          </div>
+        </details>
+        <details class="group" open>
+          <summary>Intervention</summary>
+          <div class="opt">
+            <div class="opt-head">
+              <span>Local fork</span>
+              <button type="button" class="info" id="info-intervention" aria-expanded="false" aria-controls="help-intervention" aria-label="About the intervention"><svg class="info-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path fill="currentColor" d="M7.2 6.85h1.6V12H7.2zM7.2 4h1.6v1.6H7.2z"></path></svg></button>
+            </div>
+            <label for="fixture">Shown weights</label>
+            <select id="fixture">
+              <option value="parent">Parent demonstration</option>
+              <option value="fork">Local fork</option>
+            </select>
+            <div class="pair-actions">
+              <button type="button" id="mute">Mute</button>
+              <button type="button" id="reset-weights">Reset weights</button>
+            </div>
+            <div class="pair-actions">
+              <button type="button" id="run-comparison">Run comparison</button>
+              <button type="button" id="reset-comparison">Reset comparison</button>
+            </div>
+            <p id="comparison-report">No comparison yet. Run comparison freezes this world, opponent, and random stream, then plays the parent and one muted fork forward.</p>
+            <p id="fork-relation"></p>
+          </div>
+          <div id="help-intervention" class="help" role="dialog" aria-label="About the intervention" hidden>
+            <button type="button" class="help-dismiss">Close</button>
+            <p>Layer and unit choose the highlight. H1 unit n uses flat indices 112 plus 16n through 127 plus 16n. H2 unit n uses 384 plus 3n through 386 plus 3n. Input and output have no outgoing mute.</p>
+            <p>Parent demonstration is the authored set of 435 numbers. Local fork is one mute of the selected hidden unit. Mute copies that parent and sets the selected outgoing weights to 0. Incoming weights and every bias stay. If they were already 0, the changed count is 0 and that is not an error.</p>
+            <p>Reset weights restores the demonstration parent and clears the fork. The ball stays where it is.</p>
+            <p>Run comparison copies the full checkpoint, including both controllers and the random counters, then runs the parent and the fork to the end with that same opponent. Changing the opponent afterwards does not alter the captured run. Reset comparison restores that checkpoint. It does not by itself restore weights.</p>
+          </div>
+        </details>
+        <details class="group">
+          <summary>Game settings</summary>
+          <div class="opt">
+            <label for="serve">Serve</label>
+            <select id="serve">
+              <option value="G0" selected>G0</option>
+              <option value="G1">G1</option>
+              <option value="G2">G2</option>
+              <option value="G3">G3</option>
+              <option value="local">Local</option>
+            </select>
+            <label for="opponent">Right</label>
+            <select id="opponent">
+              <option value="stay">Stay</option>
+              <option value="random">Random</option>
+              <option value="reactive" selected>Reactive</option>
+              <option value="analytic">Analytic</option>
+            </select>
+            <button type="button" id="replay" disabled>Replay</button>
+            <p class="field-note" id="replay-note">No stored action log is loaded.</p>
+          </div>
+        </details>
+        <details class="group">
+          <summary>Shape</summary>
+          <div class="opt">
+            <div class="pair-actions">
+              <button type="button" id="reset-view">Reset view</button>
+              <button type="button" id="rotate">Rotate</button>
+              <button type="button" id="pause-rotation">Pause rotation</button>
+              <button type="button" id="simple-view">Simple view</button>
+            </div>
+            <p>Fixed index directions and scale across presets. Radius uses a fixed nonlinear compression. Read the exact value in the table.</p>
+          </div>
+        </details>
+        <p id="live" class="sr-only" role="status"></p>
+        <details class="more" id="weight-details">
+          <summary>Values and the drawing rule</summary>
+          <div class="more-body">
+            <p>The cloud does not paint this-tick activations. Action scores are computed in this tab.</p>
+            <p id="bias-line" class="mono"></p>
+            <p id="incoming-line" class="mono"></p>
+            <p id="change-line"></p>
+            <div id="outgoing"></div>
+            <p>Index 0 through 434 follows the stored order. Direction uses that index only. Distance is R times (0.60 plus 0.40 times value divided by 16 plus the absolute value). A finite value stays inside 0.20R and R. Circles are the 400 connection weights. Outlined diamonds are the 35 biases.</p>
+            <div id="all-values"></div>
+          </div>
+        </details>
+      </section>
+      <p id="fault" class="fault" hidden></p>
+    </main>
+    <script type="module" src="./preview.js"></script>
+  </body>
+</html>
