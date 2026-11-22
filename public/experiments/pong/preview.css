@@ -73,7 +73,7 @@ button { cursor: default; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  grid-template-rows: auto auto auto auto minmax(22rem, 1fr);
+  grid-template-rows: auto minmax(calc(240px + 44px), auto) auto auto minmax(0, 1fr);
 }
 .mast, .fault { grid-column: 1 / -1; grid-row: 1; }
 .court { grid-column: 1; grid-row: 2; }
@@ -384,7 +384,7 @@ tr.is-selected td:first-child { color: var(--accent); }
   .canvas-frame { min-height: 22rem; }
   .stage.options-open .mast { padding-top: 4px; padding-bottom: 0; }
   .stage.options-open .legend p { display: none; }
-  .stage.options-open .play { padding-top: 4px; padding-bottom: 4px; }
+  .stage.options-open .play { padding-top: 4px; padding-bottom: 0; margin-top: 0; }
   .stage.options-open .score-board {
     display: flex;
     flex-wrap: wrap;
@@ -395,10 +395,70 @@ tr.is-selected td:first-child { color: var(--accent); }
   .stage.options-open .score-board .pane-title { padding: 0; }
   .stage.options-open .score-grid { flex: 1 1 18rem; }
   .stage.options-open .score-cell { min-height: 44px; padding: 4px 8px; }
-  .stage.options-open .canvas-frame { flex: none; height: auto; min-height: 0; max-height: none; }
+  .stage.options-open .court,
+  .stage.options-open .cloud {
+    display: grid;
+    overflow: visible;
+    min-height: min-content;
+  }
+  .stage.options-open .court {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 44px 240px;
+  }
+  .stage.options-open .court .pane-title { grid-column: 1; grid-row: 1; align-self: end; }
+  .stage.options-open .court .tick-line { grid-column: 2; grid-row: 1; align-self: end; padding-bottom: 2px; }
+  .stage.options-open .court .canvas-frame { grid-column: 1 / -1; grid-row: 2; height: 240px; }
+  .stage.options-open .cloud {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 44px 240px;
+  }
+  .stage.options-open .cloud .pane-title { grid-column: 1; grid-row: 1; align-self: end; }
+  .stage.options-open .cloud .legend {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    justify-content: flex-end;
+    padding-top: 0;
+    padding-bottom: 2px;
+    margin: 0;
+  }
+  .stage.options-open .cloud .canvas-frame { grid-column: 1 / -1; grid-row: 2; height: 240px; }
+  .stage.options-open .canvas-frame { flex: none; min-height: 0; max-height: none; }
   .stage.options-open #court,
-  .stage.options-open #network { width: 100%; height: 10.5rem; min-height: 10.5rem; max-height: 10.5rem; }
-  .stage.options-open .edit { overflow: auto; min-height: 0; }
+  .stage.options-open #network {
+    display: block;
+    width: 100%;
+    height: 240px;
+    min-height: 240px;
+    max-height: none;
+  }
+  .stage.options-open .field-note { line-height: 1.3; margin: 0; }
+  .stage.options-open #options > details.group:first-of-type .opt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 4px;
+    align-items: start;
+    margin-top: 4px;
+  }
+  .stage.options-open #names-label { grid-column: 1; grid-row: 1; margin: 0; }
+  .stage.options-open .name-row + .field-note { grid-column: 2; grid-row: 1; margin: 0; align-self: end; }
+  .stage.options-open .name-row {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: auto;
+  }
+  .stage.options-open label[for="revision"] { grid-column: 1; grid-row: 3; }
+  .stage.options-open #revision { grid-column: 1; grid-row: 4; width: 100%; }
+  .stage.options-open #revision + .field-note { grid-column: 1; grid-row: 5; margin: 0; }
+  .stage.options-open label[for="cohort"] { grid-column: 2; grid-row: 3; }
+  .stage.options-open #cohort { grid-column: 2; grid-row: 4; width: 100%; }
+  .stage.options-open #cohort + .field-note { grid-column: 2; grid-row: 5; margin: 0; }
+  .stage.options-open .split { grid-column: 1 / -1; grid-row: 6; margin-top: 0; }
+  .stage.options-open .edit { overflow: auto; min-height: 0; padding-top: 0; padding-bottom: 4px; }
+  .stage.options-open .group { padding-top: 0; padding-bottom: 0; }
 }
 @media (max-width: 800px) {
   .canvas-frame,

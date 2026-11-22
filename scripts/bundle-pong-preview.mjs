@@ -18,6 +18,11 @@ const built = await esbuild.build({
   write: false,
   legalComments: "none",
   loader: { ".json": "text" },
+  // Esbuild otherwise reads the nearest tsconfig.json. This site extends
+  // astro/tsconfigs/strict, and strict turns on alwaysStrict, which emits the
+  // leading "use strict" line. Pin that input so a tree without tsconfig.json
+  // builds the same script.
+  tsconfigRaw: { compilerOptions: { alwaysStrict: true } },
 });
 const script = built.outputFiles[0].text.replaceAll("</script", "<\\/script");
 const css = fs.readFileSync(cssPath, "utf8").replaceAll("</style", "<\\/style");

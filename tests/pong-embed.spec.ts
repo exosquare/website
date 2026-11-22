@@ -175,8 +175,8 @@ for (const surface of routes) {
           expect(layout.overlap).toBeLessThanOrEqual(1);
           expect(layout.scoreBeforeEdit).toBe(true);
           expect(layout.layerInsideEdit).toBe(true);
-          expect(layout.courtHeight).toBeGreaterThanOrEqual(160);
-          expect(layout.networkHeight).toBeGreaterThanOrEqual(160);
+          expect(layout.courtHeight).toBeGreaterThanOrEqual(240);
+          expect(layout.networkHeight).toBeGreaterThanOrEqual(240);
         }
         await frame.locator('#weight-details summary').click();
         await frame.locator('#info-game').focus();
@@ -218,3 +218,48 @@ for (const surface of routes) {
     }
   }
 }
+
+test('standalone options keep a 240px court on the first 1440 view', async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(new URL('experiments/pong/', baseURL).href);
+  await expect(page.locator('html')).toHaveAttribute('data-preview-ready', 'true');
+  await page.locator('#options-toggle').click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const geometry = await page.evaluate(() => {
+    const box = (sel: string) => {
+      const node = document.querySelector(sel)!;
+      const rect = node.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height, width: rect.width };
+    };
+    const court = box('#court');
+    const cloud = box('#network');
+    const play = box('.play');
+    const legend = box('.legend');
+    const unit = box('#unit');
+    const layer = box('#layer');
+    const revision = box('#revision');
+    const cohort = box('#cohort');
+    return {
+      scroll: window.scrollY,
+      inner: window.innerHeight,
+      court,
+      cloud,
+      unit,
+      layer,
+      revision,
+      cohort,
+      courtOverlapsPlay: Math.min(court.bottom, play.bottom) - Math.max(court.top, play.top),
+      cloudOverlapsLegend: Math.min(cloud.bottom, legend.bottom) - Math.max(cloud.top, legend.top),
+      buttonHeight: box('.name-row button').height,
+    };
+  });
+  expect(geometry.scroll).toBe(0);
+  expect(geometry.court.height).toBeGreaterThanOrEqual(240);
+  expect(geometry.cloud.height).toBeGreaterThanOrEqual(240);
+  expect(geometry.unit.bottom).toBeLessThanOrEqual(geometry.inner);
+  expect(geometry.layer.bottom).toBeLessThanOrEqual(geometry.inner);
+  expect(geometry.courtOverlapsPlay).toBeLessThanOrEqual(0);
+  expect(geometry.cloudOverlapsLegend).toBeLessThanOrEqual(0);
+  expect(geometry.revision.top).toBe(geometry.cohort.top);
+  expect(geometry.buttonHeight).toBeGreaterThanOrEqual(44);
+});
