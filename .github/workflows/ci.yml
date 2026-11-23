@@ -35,13 +35,43 @@ jobs:
           name: browser-failure-${{ matrix.address.name }}
           path: test-results/
           if-no-files-found: ignore
+  draft-preview:
+    name: Draft preview (${{ matrix.address.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        address:
+          - name: root
+            site: https://exosquare.com
+            base: ''
+          - name: project
+            site: https://exosquare.github.io
+            base: /website
+    env:
+      SITE_URL: ${{ matrix.address.site }}
+      BASE_PATH: ${{ matrix.address.base }}
+      ASTRO_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/validate-site
+        with:
+          gate: draft-preview
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: browser-failure-draft-${{ matrix.address.name }}
+          path: test-results/
+          if-no-files-found: ignore
   publishing-checks:
     name: Publishing checks
     if: always()
-    needs: validate
+    needs: [validate, draft-preview]
     runs-on: ubuntu-latest
     steps:
-      - name: Require both address configurations to pass
+      - name: Require production and draft-preview gates to pass
         env:
-          RESULT: ${{ needs.validate.result }}
-        run: test "$RESULT" = success
+          PRODUCTION: ${{ needs.validate.result }}
+          DRAFT: ${{ needs.draft-preview.result }}
+        run: test "$PRODUCTION" = success && test "$DRAFT" = success

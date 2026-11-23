@@ -13,7 +13,8 @@
     "format": "prettier --write \"src/**/*.{astro,css,ts,json,md,mdx}\" \"scripts/*.mjs\" \"*.{json,mjs}\"",
     "verify:output": "node scripts/verify-output.mjs",
     "dev:drafts": "PREVIEW_DRAFTS=true astro dev --host 127.0.0.1",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test --grep-invert @draft",
+    "test:browser:drafts": "playwright test --grep @draft"
   },
   "dependencies": {
     "@astrojs/mdx": "8.0.0",

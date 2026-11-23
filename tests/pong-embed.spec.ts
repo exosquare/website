@@ -44,7 +44,7 @@ async function painted(frame: FrameLocator, id: string) {
 for (const surface of routes) {
   for (const viewport of widths) {
     for (const theme of themes) {
-      test(`${surface.name} ${viewport.name} ${theme}`, async ({ page, baseURL }) => {
+      test(`${surface.name} ${viewport.name} ${theme}`, surface.name === 'article' ? { tag: '@draft' } : {}, async ({ page, baseURL }) => {
         test.setTimeout(60_000);
         const urls = childRequests(page);
         const errors: string[] = [];
@@ -237,6 +237,21 @@ for (const surface of routes) {
     }
   }
 }
+
+test('open about keeps the validator hash inside 320 and 390', async ({ page, baseURL }) => {
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(new URL('experiments/pong/', baseURL).href);
+    await expect(page.locator('html')).toHaveAttribute('data-preview-ready', 'true');
+    await page.locator('summary', { hasText: 'About this demo' }).click();
+    await expect(page.locator('#attempt-note')).toContainText('44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414');
+    const fit = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+  }
+});
 
 test('standalone options keep a 240px court on the first 1440 view', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

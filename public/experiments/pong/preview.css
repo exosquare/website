@@ -246,7 +246,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .more-body h3 { font-size: 1.0625rem; font-weight: 300; }
 .cohort-row { margin-top: 12px; }
 .pose-block { margin-top: 10px; }
-#bias-line, #incoming-line { overflow-wrap: anywhere; }
+#bias-line, #incoming-line, #attempt-note { overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 button {
   background: transparent;

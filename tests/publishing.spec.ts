@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 function pages(dir: string): string[] {
@@ -168,6 +168,15 @@ test('original Tetris artifact plays', async ({ page, baseURL }) => {
   await page.keyboard.press('Space');
   await expect(page.locator('#score')).not.toHaveText('0');
   expect(errors).toEqual([]);
+});
+
+test('the draft Pong article is excluded from the production build', async ({ page, baseURL }) => {
+  const draftFile = path.join('dist', 'writing', 'weight-space-pong', 'index.html');
+  expect(existsSync(draftFile)).toBe(false);
+  expect(existsSync(path.join('dist', 'writing', 'mirage', 'index.html'))).toBe(true);
+  expect(readFileSync(path.join('dist', 'writing', 'index.html'), 'utf8')).not.toContain('weight-space-pong');
+  const response = await page.goto(new URL('writing/weight-space-pong/', baseURL).href);
+  expect(response?.status()).toBe(404);
 });
 
 test('shared navigation, theme persistence and local fonts', async ({
