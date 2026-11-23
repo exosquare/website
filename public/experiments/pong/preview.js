@@ -16,7 +16,9 @@ import {
   compareBranches,
 } from "./kernel.js";
 import { acceptDemonstration, sha256Utf8 } from "./validate.js";
+import { authoringCopy, readAuthoringStatus } from "./authoring-status.js";
 import demonstrationText from "./data/demonstration.json";
+import authoringStatusText from "./data/authoring-status.json";
 import {
   projectPoint,
   frameScale,
@@ -57,8 +59,30 @@ import {
     throw new Error("demonstration");
   }
   const parent = acceptedDemo.weights;
-  document.getElementById("stage").dataset.role = acceptedDemo.role;
-  document.getElementById("stage").dataset.fingerprint = acceptedDemo.fingerprint;
+  const stage = document.getElementById("stage");
+  stage.dataset.role = acceptedDemo.role;
+  stage.dataset.fingerprint = acceptedDemo.fingerprint;
+  let authoring;
+  let authoringLines;
+  try {
+    authoring = readAuthoringStatus(authoringStatusText);
+    authoringLines = authoringCopy(authoring);
+  } catch (error) {
+    const fault = document.getElementById("fault");
+    fault.hidden = false;
+    fault.textContent = "The authoring status could not be shown. The demonstration weights are unchanged.";
+    throw error;
+  }
+  document.getElementById("demonstration-status").textContent = authoringLines.demonstration;
+  document.getElementById("attempt-status").textContent = authoringLines.attempt;
+  document.getElementById("attempt-note").textContent = authoringLines.attemptNote;
+  document.getElementById("schedule-note").textContent = authoringLines.scheduleNote;
+  document.getElementById("attempt-limits").textContent = authoringLines.limits;
+  document.getElementById("revision-note").textContent = authoringLines.revision;
+  stage.dataset.attemptOutcome = authoringLines.outcome;
+  stage.dataset.candidateLoaded = "false";
+  stage.dataset.scheduled = String(authoring.scheduled);
+  stage.dataset.played = String(authoring.played);
   let active = Float64Array.from(parent);
   const game = {
     world: freshWorld(SERVES.G0),

@@ -2,9 +2,9 @@
 title: 'Trying weight-space programming with Pong'
 draft: true
 topic: 'Weight-space programming'
-kind: 'Exploration'
+kind: 'Experiment note'
 author: 'Matt'
-standfirst: 'We are building an inspectable Pong player from 435 static numbers that run in the browser, and we will later test whether a language model can write them. No model-written player has been evaluated yet.'
+standfirst: 'We are building an inspectable Pong player from 435 static numbers that run in the browser. The captured reply from the first attempt to have Grok write those numbers was rejected for size before any game was played.'
 ---
 
 import PongArtifact from '../../components/pong/PongArtifact.astro'
@@ -41,10 +41,18 @@ Neither that count, nor the skill of a frontier model, tells us how an authored 
 
 The page already lets a reader mute one hidden unit and watch play from the same point. Later work could ask whether the same author would write lists that play alike, and whether a revision after feedback would change that play in a way we can measure. A small independent edit, such as rounding the numbers or muting a unit, or a comparison with a simple tracking or interception rule, could also help us see what a written player is doing. Those are questions for later work, beyond this first attempt.
 
-## What is in place, and what is still open
+## The first attempt stopped before play
 
-The demonstration uses demonstration weights only. Those numbers were not written by a language model, and they are not a contestant artefact. No model-written player has been requested or evaluated yet.
+The demonstration still uses demonstration weights only. Those numbers were not written by a language model, and they are not a contestant artefact.
 
-We plan to ask one identified Grok model for a single initial list of 435 numbers, with no revisions. The exact model identity is still pending confirmation. If that list is accepted, it would be played in 32 scheduled games against four fixed baselines, on four public serves, with the candidate on each side in turn. Those 32 games are a schedule, not a result, and they have not been run. They could describe how one initial attempt plays against those baselines. They cannot show improvement from revision, success across many attempts, or a ranking of models, and they are not a held-out generalisation test.
+On 23 November 2026 we made one attempt through the grok.com site, in the Expert mode shown there. The exact model version is unknown. The text we captured from the visible reply was 93,902 bytes, which exceeded the existing 16,384-byte limit. The checker rejected it for size, and stopped there, so it did not count the numbers or accept a list. There is no playable model-written player.
 
-Until that attempt exists, we cannot say whether Grok can write a working player, how it will produce the weights, or how much of the game it needs to be shown. The page is there to make those questions inspectable. It does not yet answer them.
+The 32 scheduled games against four fixed baselines, on four public serves, with the candidate on each side in turn, were not played. All 32 were recorded as unplayed because the candidate was invalid. There is no playing-strength score, and this is not a record of wins or losses.
+
+A size rejection is not a verdict on the shape or the reasoning of a reply, and it does not show whether Grok can or cannot write 435 usable numbers. We did not retry, repair, trim, or replace the response. The method remains one initial attempt, with no revisions. Even if a later list were accepted, those 32 games could not show improvement from revision, success across many attempts, or a ranking of models, and they are not a held-out generalisation test.
+
+We could not confirm the exact model, or that extra tools were off. The text in the composer had 68 extra newline characters compared with the prepared prompt, and we cannot see how the service actually sent the message. The captured on-screen text was not checked against the clipboard or the original network bytes. The screenshots and a printed copy do not cover the whole response.
+
+Our saved record kept its pre-validation status, which the later rejection-report format did not allow. That is a record-format mismatch, not a change to the checker's rejection.
+
+The wider questions remain open, including whether a later accepted list would play. The page makes the setup inspectable. This first attempt does not answer them.

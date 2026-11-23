@@ -92,6 +92,24 @@ for (const surface of routes) {
         expect(status.inlineStyleRules).toBeGreaterThan(10);
         expect(status.fingerprint).toBe('9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
         expect(status.cloudFit).toBe('true');
+        expect(await iframe.getAttribute('sandbox')).toBe('allow-scripts');
+        await expect(frame.locator('#demonstration-status')).toHaveText('Demonstration weights. No official score.');
+        await expect(frame.locator('#attempt-status')).toHaveText('Grok authoring attempt rejected. No accepted artifact. 32 scheduled, 0 played.');
+        await expect(frame.locator('#attempt-status')).not.toContainText('not run');
+        await expect(frame.locator('#schedule-note')).toContainText('Administrative forfeits are not observed losses');
+        expect(await frame.locator('#stage').evaluate((node) => ({
+          outcome: (node as HTMLElement).dataset.attemptOutcome,
+          candidate: (node as HTMLElement).dataset.candidateLoaded,
+          scheduled: (node as HTMLElement).dataset.scheduled,
+          played: (node as HTMLElement).dataset.played,
+          role: (node as HTMLElement).dataset.role,
+        }))).toEqual({
+          outcome: 'rejected',
+          candidate: 'false',
+          scheduled: '32',
+          played: '0',
+          role: 'demonstration',
+        });
         const skipBottom = await frame.locator('.skip-link').evaluate((node) => node.getBoundingClientRect().bottom);
         expect(skipBottom).toBeLessThanOrEqual(0);
         expect(await painted(frame, '#court')).toBeGreaterThan(20);
@@ -105,7 +123,8 @@ for (const surface of routes) {
         if (surface.name === 'article') {
           await expect(page.locator('figcaption')).toContainText('loaded. Open a larger view');
         } else {
-          await expect(page.locator('.play-view p')).toContainText('score. Open the standalone page');
+          await expect(page.locator('.play-view p')).toContainText('The Grok authoring attempt was rejected and is not loaded.');
+          await expect(page.locator('.play-view p')).toContainText('Open the standalone page');
         }
         const controlBorder = await frame.locator('#step').evaluate((node) => getComputedStyle(node).borderTopColor);
         const disabledControl = await frame.locator('button[disabled]').first().evaluate((node) => ({
