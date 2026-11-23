@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -189,12 +189,167 @@ assert.equal(oversizeBlocks.body.operator.derivedOfficialArtifactSha256, null);
 assert.equal(scanBlocks("{").error, "object");
 assert.equal(concatenationText(scanBlocks(blockText(partsFrom(sequence))).found).includes("1.250000"), true);
 
+function grid(rows, width, edits = {}) {
+  return Array.from({ length: rows }, (_, row) => Array.from({ length: width }, (_, col) => edits[`${row}:${col}`] || "0"));
+}
+function encodeList(value) {
+  if (Array.isArray(value[0])) return `[${value.map((row) => `[${row.join(",")}]`).join(",")}]`;
+  return `[${value.join(",")}]`;
+}
+function rowsFile(parts, order = ["b3", "W3", "b2", "W2", "b1", "W1"]) {
+  return `{${order.map((name) => `"${name}":${encodeList(parts[name])}`).join(",")}}`;
+}
+const rowParts = {
+  W1: grid(6, 16, { "0:0": "-16", "0:1": "1.250000" }),
+  b1: zeros(16),
+  W2: grid(16, 16, { "3:5": "-0.5" }),
+  b2: zeros(16),
+  W3: grid(16, 3, { "15:2": "16" }),
+  b3: zeros(3),
+};
+const rowSource = rowsFile(rowParts);
+const rowRun = await inspectBytes(Buffer.from(rowSource), "rows");
+assert.equal(rowRun.exitCode, 0, JSON.stringify(rowRun.body.forAuthor));
+assert.equal(rowRun.body.forAuthor.representation, "row-concatenation");
+assert.equal(rowRun.body.forAuthor.scalarCount, 435);
+assert.equal(rowRun.adaptedText.includes("1.250000"), true);
+assert.equal(rowRun.adaptedText.includes("-0.5"), true);
+assert.notEqual(rowRun.body.operator.rawInputSha256, rowRun.body.operator.derivedOfficialArtifactSha256);
+const rowChecked = validateContestant(rowRun.adaptedText);
+assert.equal(rowChecked.weights[0], -16);
+assert.equal(rowChecked.weights[1], 1.25);
+assert.equal(rowChecked.weights[96 + 16 + 3 * 16 + 5], -0.5);
+assert.equal(rowChecked.weights[384 + 15 * 3 + 2], 16);
+assert.equal(rowChecked.weights.length, 435);
+const rowCli = run(["--rows", writeTemp(rowSource)]);
+assert.equal(rowCli.status, 0, rowCli.stderr);
+assert.equal(rowCli.stdout.includes("1.250000"), false);
+console.log("case rows-valid exit 0 scalar 435");
+
+const shortW2 = { ...rowParts, W2: grid(15, 16) };
+const shortRows = await inspectBytes(Buffer.from(rowsFile(shortW2)), "rows");
+assert.equal(shortRows.exitCode, 1);
+assert.equal(shortRows.adaptedText, null);
+assert.equal(shortRows.body.forAuthor.errors[0].code, "row-count");
+assert.equal(shortRows.body.forAuthor.errors[0].block, "W2");
+assert.equal(shortRows.body.forAuthor.errors[0].expected, 16);
+assert.equal(shortRows.body.forAuthor.errors[0].actual, 15);
+console.log("case rows-count exit 1 row-count W2 15");
+
+const narrow = grid(16, 16);
+narrow[4] = zeros(15);
+const widthRun = await inspectBytes(Buffer.from(rowsFile({ ...rowParts, W2: narrow })), "rows");
+assert.equal(widthRun.body.forAuthor.errors[0].code, "row-width");
+assert.equal(widthRun.body.forAuthor.errors[0].block, "W2");
+assert.equal(widthRun.body.forAuthor.errors[0].row, 4);
+assert.equal(widthRun.body.forAuthor.errors[0].expected, 16);
+assert.equal(widthRun.body.forAuthor.errors[0].actual, 15);
+assert.equal(widthRun.adaptedText, null);
+assert.equal(Object.hasOwn(widthRun.body.forAuthor.errors[0], "value"), false);
+console.log("case rows-width exit 1 row-width W2 row 4 actual 15");
+
+const ragged = grid(16, 16);
+ragged[2] = zeros(10);
+ragged[4] = zeros(17);
+const raggedRun = await inspectBytes(Buffer.from(rowsFile({ ...rowParts, W2: ragged })), "rows");
+assert.equal(raggedRun.body.forAuthor.errors[0].code, "row-width");
+assert.equal(raggedRun.body.forAuthor.errors[0].row, 2);
+assert.equal(raggedRun.body.forAuthor.errors[0].actual, 10);
+console.log("case rows-ragged exit 1 row-width W2 row 2 actual 10");
+
+const mixedText = rowsFile(rowParts).replace(encodeList(rowParts.W1), `[${zeros(96).join(",")}]`);
+const mixedRun = await inspectBytes(Buffer.from(mixedText), "rows");
+assert.equal(mixedRun.body.forAuthor.errors[0].code, "mixed");
+assert.equal(mixedRun.body.forAuthor.errors[0].block, "W1");
+assert.equal(mixedRun.adaptedText, null);
+const mixedBias = rowsFile({ ...rowParts, b1: grid(16, 1) });
+const mixedBiasRun = await inspectBytes(Buffer.from(mixedBias), "rows");
+assert.equal(mixedBiasRun.body.forAuthor.errors[0].code, "mixed");
+assert.equal(mixedBiasRun.body.forAuthor.errors[0].block, "b1");
+console.log("case rows-mixed exit 1 mixed W1 and b1");
+
+const nestedText = rowsFile(rowParts).replace(encodeList(rowParts.W1), `[[[${zeros(16).join(",")}]]]`);
+const nestedRun = await inspectBytes(Buffer.from(nestedText), "rows");
+assert.equal(nestedRun.body.forAuthor.errors[0].code, "nesting");
+assert.equal(nestedRun.body.forAuthor.errors[0].block, "W1");
+console.log("case rows-nested exit 1 nesting W1");
+
+const extraText = rowsFile(rowParts).replace("{", '{"extra":[1],');
+const extraRun = await inspectBytes(Buffer.from(extraText), "rows");
+assert.equal(extraRun.body.forAuthor.errors[0].code, "keys");
+console.log("case rows-extra exit 1 keys");
+
+const dupRows = `{${rowsFile(rowParts).slice(1, -1)},"W2":${encodeList(grid(16, 16, { "0:0": "1" }))}}`;
+assert.equal(JSON.parse(dupRows).W2[0][0], 1);
+const dupRowsRun = await inspectBytes(Buffer.from(dupRows), "rows");
+assert.equal(dupRowsRun.body.forAuthor.errors[0].code, "duplicate");
+assert.equal(dupRowsRun.adaptedText, null);
+console.log("case rows-duplicate exit 1 duplicate");
+
+const rowMalformed = run(["--rows", writeTemp("{")]);
+assert.equal(rowMalformed.status, 1);
+assert.equal(author(rowMalformed.stdout).errors[0].code, "object");
+console.log("case rows-malformed exit 1 object");
+
+const highRows = { ...rowParts, W1: grid(6, 16, { "0:0": "16.1" }) };
+const highRowsRun = await inspectBytes(Buffer.from(rowsFile(highRows)), "rows");
+assert.equal(highRowsRun.exitCode, 1);
+assert.equal(highRowsRun.body.forAuthor.errors[0].code, "magnitude");
+assert.equal(highRowsRun.adaptedText.includes("16.1"), true);
+assert.equal(highRowsRun.adaptedText.includes("16.0"), false);
+const rejectedPath = join(writeTemp.dir, "rejected-derived.json");
+const rejectedWrite = run(["--rows", writeTemp(rowsFile(highRows)), "--write-derived", rejectedPath]);
+assert.equal(rejectedWrite.status, 1);
+assert.equal(existsSync(rejectedPath), false);
+assert.equal(rejectedWrite.stdout.includes("16.0"), false);
+console.log("case rows-bounds exit 1 magnitude no-write");
+
+const preciseRows = { ...rowParts, W3: grid(16, 3, { "1:1": "1.0000001" }) };
+const preciseRun = await inspectBytes(Buffer.from(rowsFile(preciseRows)), "rows");
+assert.equal(preciseRun.body.forAuthor.errors[0].code, "precision");
+assert.equal(preciseRun.adaptedText.includes("1.0000001"), true);
+console.log("case rows-precision exit 1 precision");
+
+const rowOversize = await inspectBytes(Buffer.from("x".repeat(16385)), "rows");
+assert.equal(rowOversize.exitCode, 1);
+assert.equal(rowOversize.body.forAuthor.concatenationError, "size");
+assert.equal(rowOversize.body.operator.derivedOfficialArtifactSha256, null);
+console.log("case rows-size exit 1 size");
+
+const derivedPath = join(writeTemp.dir, "rows-derived.json");
+const derivedSource = writeTemp(rowSource);
+const derivedWrite = run(["--rows", derivedSource, "--write-derived", derivedPath]);
+assert.equal(derivedWrite.status, 0, derivedWrite.stderr);
+const derivedDisk = readFileSync(derivedPath);
+assert.equal(derivedDisk.equals(Buffer.from(rowRun.adaptedText, "utf8")), true);
+assert.equal(derivedDisk.includes(Buffer.from("1.250000")), true);
+assert.equal(validateContestant(derivedDisk.toString("utf8")).ok, true);
+assert.equal(createHash("sha256").update(derivedDisk).digest("hex"), JSON.parse(derivedWrite.stdout).operator.derivedOfficialArtifactSha256);
+const derivedAgain = run(["--rows", derivedSource, "--write-derived", derivedPath]);
+assert.equal(derivedAgain.status, 2);
+assert.equal(readFileSync(derivedPath).equals(derivedDisk), true);
+console.log("case rows-write exit 0 wx no-overwrite");
+
+const flatDerived = join(writeTemp.dir, "flat-derived.json");
+const flatSource = writeTemp(blockText(partsFrom(zeros(435))));
+const flatWrite = run([flatSource, "--write-derived", flatDerived]);
+assert.equal(flatWrite.status, 0, flatWrite.stderr);
+const flatDisk = readFileSync(flatDerived, "utf8");
+assert.equal(validateContestant(flatDisk).ok, true);
+assert.equal(flatDisk.includes("1.250000"), false);
+const flatAgain = run([flatSource, "--write-derived", flatDerived]);
+assert.equal(flatAgain.status, 2);
+assert.equal(readFileSync(flatDerived, "utf8"), flatDisk);
+console.log("case flat-write exit 0 wx no-overwrite");
+
 const missing = run(["missing-authoring-file.json"]);
 assert.equal(missing.status, 2);
 const help = run(["--help"]);
 assert.equal(help.status, 0);
 assert.match(help.stdout, /Node >= 24/);
 assert.match(help.stdout, /W1 96, b1 16, W2 256, b2 16, W3 48, b3 3/);
+assert.match(help.stdout, /--rows/);
+assert.match(help.stdout, /--write-derived/);
 const badFlag = run(["--repair", writeTemp(validText)]);
 assert.equal(badFlag.status, 2);
 const bothFlags = run(["--canonical", "--blocks", writeTemp(validText)]);
@@ -241,8 +396,8 @@ assert.equal(JSON.parse(packed.stdout).operator.validatorSha256, VALIDATOR_SHA25
 assert.equal(statSync(packedFixture).mtimeMs, before);
 const artifactDir = "/opt/cursor/artifacts";
 mkdirSync(artifactDir, { recursive: true });
-writeFileSync(join(artifactDir, "pong-authoring-check.zip"), zip);
-writeFileSync(join(artifactDir, "pong-authoring-check.sha256"), `${createHash("sha256").update(zip).digest("hex")}  pong-authoring-check.zip\n`);
+writeFileSync(join(artifactDir, "pong-authoring-check-v2.2.zip"), zip);
+writeFileSync(join(artifactDir, "pong-authoring-check-v2.2.sha256"), `${createHash("sha256").update(zip).digest("hex")}  pong-authoring-check-v2.2.zip\n`);
 
 const directBytes = await inspectBytes(Buffer.from(validText), false);
 assert.equal(directBytes.exitCode, 0);
