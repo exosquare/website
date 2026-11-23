@@ -33,6 +33,14 @@ Each parameter has a fixed direction, and its value moves the point along that r
 
 The demonstration includes a control to mute one hidden unit and show the three action scores immediately. That shows whether those outgoing connections change the scores at the current state. A different score does not necessarily change which action wins. A mute that does nothing is still a result: the unit may be inactive at that state. The page can also run the original and the muted copy forward together from the same point in play, so a change can be watched rather than inferred from one state alone.
 
+## How similar might authored players be?
+
+Each of the 435 parameters may be any number from -16 to 16, written with at most six digits after the decimal point. That gives 32,000,001 choices for each parameter. The number of possible lists is then 32,000,001 to the power of 435, a number with 3,265 digits. That counts numerical lists, not distinct ways of playing. Different lists can produce the same actions.
+
+Neither that count, nor the skill of a frontier model, tells us how an authored player will actually play. The little network is not a compressed copy of the model that wrote it. We have no measured expectation of how similar such networks would be. The same architecture and the same goal might lead to similar tracking choices, but that is not evidence that the networks, or their weights, will look alike. If lists later exist to compare, the useful test is how they behave on the same serves and situations, not how close the raw numbers sit.
+
+The page already lets a reader mute one hidden unit and watch play from the same point. Later work could ask whether the same author would write lists that play alike, and whether a revision after feedback would change that play in a way we can measure. A small independent edit, such as rounding the numbers or muting a unit, or a comparison with a simple tracking or interception rule, could also help us see what a written player is doing. Those are questions for later work, beyond this first attempt.
+
 ## What is in place, and what is still open
 
 The demonstration uses demonstration weights only. Those numbers were not written by a language model, and they are not a contestant artefact. No model-written player has been requested or evaluated yet.
