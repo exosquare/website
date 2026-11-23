@@ -8,26 +8,40 @@ Whether the website, or a grok.com session, can execute Node is unknown. No code
 
 Requires Node >= 24. This package has no network calls and no installed dependencies. The validator file must be the bytes whose SHA-256 is `44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414`. If that hash does not match, the command stops.
 
-## Direct check
+## Primary input: six flat lists
 
 ```sh
-node check-authoring.mjs candidate.json
-node check-authoring.mjs < candidate.json
+node check-authoring.mjs lists.json
+node check-authoring.mjs < lists.json
 ```
 
-The bytes are passed through unchanged. Exit 0 means the pinned validator accepted those bytes. Exit 1 means it rejected them. Exit 2 means the command line or the validator file could not be used.
+The file is one JSON object with exactly these keys, each once. Each value is one flat array of decimal tokens, not a matrix. Key order in the file may vary. Values inside each array stay in the order written.
 
-`forAuthor` contains the representation, accepted flag, byte length, scalar count, limits, and the first error. The limits are 16384 bytes, 435 scalars, magnitude 16, and at most 6 digits after the decimal point. The checker does not relax those limits and does not list later errors after the first failure.
+- `W1`: 96 numbers
+- `b1`: 16 numbers
+- `W2`: 256 numbers
+- `b2`: 16 numbers
+- `W3`: 48 numbers
+- `b3`: 3 numbers The checker copies those lists, in that order, into one flat list of 435 numbers. It does not transpose, pad, shorten, round, repeat, or invent a value. A duplicate key, a nested value, or a wrong length produces no concatenated file.
 
-## Six lists, recorded separately
+Two size checks use the same bound, `length > 16384`:
+
+- The raw file is rejected before concatenation when its byte length is greater than 16384. Those bytes are not trimmed to fit.
+- The concatenated document is encoded as UTF-8 and rejected when that byte length is greater than 16384.
+
+A length of 16384 is within the bound. 16385 is not. The number grammar is unchanged: finite decimal tokens, no exponent, at most 6 digits after the decimal point, and magnitude at most 16. The first failure stops the report.
+
+`operator.rawInputSha256` is the raw file. `operator.derivedOfficialArtifactSha256` is the concatenated canonical document. Exit 0 means that derived document passed the pinned validator. It does not mean the raw file was already canonical, and the raw file is not replaced.
+
+## Flat document
 
 ```sh
-node check-authoring.mjs --blocks blocks.json
+node check-authoring.mjs --canonical candidate.json
 ```
 
-This optional track expects the keys `W1`, `b1`, `W2`, `b2`, `W3`, and `b3`, with lengths 96, 16, 256, 16, 48, and 3. Each list is copied in the order given and concatenated in that key order. It is not transposed, padded, shortened, rounded, or rewritten. A duplicate key, a wrong length, or any other malformed structure is rejected and no concatenated file is produced.
+Use this only for a finished `{"version":"pong-feedback-v1","weights":[...]}` document. Those bytes are hashed and checked unchanged. No row-broken flat format is accepted in its place.
 
-When the lengths match, the concatenated text is checked with the same validator. `operator.unchangedBytesSha256` is the raw file. `operator.adaptedCanonicalSha256` is the concatenated text. Those are different tracks. Exit 0 means the concatenation passed. It does not mean the raw file was already a canonical document, and it does not replace the raw file.
+Exit 1 means the selected check rejected the bytes. Exit 2 means the command line or the validator file could not be used. `forAuthor` carries the format, count, and bounds result. The checker does not list later errors after the first failure.
 
 ## Proposed exchange bound
 

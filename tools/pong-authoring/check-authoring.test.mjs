@@ -10,6 +10,7 @@ import { validateContestant, sha256Utf8 } from "../../public/experiments/pong/va
 import {
   VALIDATOR_SHA256,
   LIMITS,
+  CHECKS,
   inspectBytes,
   scanBlocks,
   concatenationText,
@@ -25,6 +26,9 @@ const validatorBytes = readFileSync(validatorFile);
 assert.equal(createHash("sha256").update(validatorBytes).digest("hex"), VALIDATOR_SHA256);
 assert.equal(validatorPath().endsWith("public/experiments/pong/validate.js"), true);
 assert.deepEqual(LIMITS, { bytes: 16384, scalars: 435, magnitude: 16, fractionDigits: 6 });
+assert.equal(CHECKS.rawInput, "reject when byte length > 16384, before any concatenation");
+assert.equal(CHECKS.derivedArtifact, "reject when the concatenated UTF-8 byte length > 16384");
+assert.deepEqual(CHECKS.counts, { W1: 96, b1: 16, W2: 256, b2: 16, W3: 48, b3: 3 });
 assert.equal(readFileSync(cli, "utf8").includes("JSON.parse"), false);
 assert.equal(readFileSync(cli, "utf8").includes("evaluator.js"), false);
 assert.equal(readFileSync(cli, "utf8").includes("kernel.js"), false);
@@ -46,7 +50,7 @@ function author(stdout) {
 }
 
 const validText = canonical(zeros(435));
-const valid = run([writeTemp(validText)]);
+const valid = run(["--canonical", writeTemp(validText)]);
 assert.equal(valid.status, 0, valid.stderr);
 const validBody = JSON.parse(valid.stdout);
 const official = validateContestant(validText);
@@ -56,41 +60,42 @@ assert.equal(validBody.forAuthor.scalarCount, 435);
 assert.equal(validBody.forAuthor.byteLength, Buffer.byteLength(validText));
 assert.deepEqual(validBody.forAuthor.limits, LIMITS);
 assert.deepEqual(validBody.forAuthor.errors, []);
-assert.equal(validBody.operator.unchangedBytesSha256, official.report.rawResponseSha256);
+assert.equal(validBody.operator.rawInputSha256, official.report.rawResponseSha256);
+assert.equal(validBody.operator.derivedOfficialArtifactSha256, null);
 assert.equal(validBody.operator.parameterFingerprintSha256, official.fingerprint);
 assert.equal(validBody.operator.validatorSha256, VALIDATOR_SHA256);
 assert.equal(valid.stdout.includes('"weights"'), false);
 assert.equal(statSync(lastTemp).mtimeMs, tempMtime);
 
-const stdin = run([], validText);
+const stdin = run(["--canonical"], validText);
 assert.equal(stdin.status, 0, stdin.stderr);
-assert.equal(JSON.parse(stdin.stdout).operator.unchangedBytesSha256, sha256Utf8(validText));
+assert.equal(JSON.parse(stdin.stdout).operator.rawInputSha256, sha256Utf8(validText));
 
-const wrong = run([writeTemp(canonical(zeros(434)))]);
+const wrong = run(["--canonical", writeTemp(canonical(zeros(434)))]);
 assert.equal(wrong.status, 1);
 assert.equal(author(wrong.stdout).errors[0].code, "shape");
 assert.equal(author(wrong.stdout).errors[0].index, 434);
 assert.equal(author(wrong.stdout).scalarCount, null);
 
-const oversize = run([writeTemp("x".repeat(16385))]);
+const oversize = run(["--canonical", writeTemp("x".repeat(16385))]);
 assert.equal(oversize.status, 1);
 assert.equal(author(oversize.stdout).errors[0].code, "size");
 assert.equal(author(oversize.stdout).byteLength, 16385);
-const boundary = run([writeTemp("x".repeat(16384))]);
+const boundary = run(["--canonical", writeTemp("x".repeat(16384))]);
 assert.notEqual(author(boundary.stdout).errors[0].code, "size");
 
-const malformed = run([writeTemp("{")]);
+const malformed = run(["--canonical", writeTemp("{")]);
 assert.equal(malformed.status, 1);
 assert.equal(author(malformed.stdout).errors[0].code, "object");
 
-const bounds = run([writeTemp(canonical(["16.1", ...zeros(434)]))]);
+const bounds = run(["--canonical", writeTemp(canonical(["16.1", ...zeros(434)]))]);
 assert.equal(bounds.status, 1);
 assert.equal(author(bounds.stdout).errors[0].code, "magnitude");
 
 const duplicate = `{"version":"pong-feedback-v1","version":"pong-feedback-v1","weights":[${zeros(435).join(",")}]}`;
 const parsed = JSON.parse(duplicate);
 assert.equal(parsed.version, "pong-feedback-v1");
-const duplicateRun = run([writeTemp(duplicate)]);
+const duplicateRun = run(["--canonical", writeTemp(duplicate)]);
 assert.equal(duplicateRun.status, 1);
 assert.equal(author(duplicateRun.stdout).errors[0].code, "duplicate");
 assert.equal(author(duplicateRun.stdout).accepted, false);
@@ -121,7 +126,7 @@ assert.equal(adapted.body.forAuthor.unchangedBytesAccepted, false);
 assert.equal(adapted.body.forAuthor.unchangedBytesError, "keys");
 assert.equal(adapted.body.forAuthor.concatenationAccepted, true);
 assert.equal(adapted.body.forAuthor.scalarCount, 435);
-assert.equal(adapted.body.operator.adaptedCanonicalSha256 === adapted.body.operator.unchangedBytesSha256, false);
+assert.equal(adapted.body.operator.derivedOfficialArtifactSha256 === adapted.body.operator.rawInputSha256, false);
 assert.equal(adapted.adaptedText.includes("1.250000"), true);
 assert.equal(adapted.adaptedText.includes("-16"), true);
 const adaptedCheck = validateContestant(adapted.adaptedText);
@@ -130,7 +135,23 @@ assert.equal(adaptedCheck.weights.length, 435);
 sequence.forEach(function (token, index) {
   assert.equal(adaptedCheck.weights[index], Number(token), `${index} ${token}`);
 });
-assert.equal(adapted.body.operator.adaptedCanonicalSha256, sha256Utf8(adapted.adaptedText));
+assert.equal(adapted.body.operator.derivedOfficialArtifactSha256, sha256Utf8(adapted.adaptedText));
+const primary = run([writeTemp(blockText(partsFrom(sequence), ["b3", "W2", "W1", "b1", "W3", "b2"]))]);
+assert.equal(primary.status, 0, primary.stderr);
+const primaryBody = JSON.parse(primary.stdout);
+assert.equal(primaryBody.forAuthor.representation, "mechanical-concatenation");
+assert.equal(primaryBody.forAuthor.concatenationAccepted, true);
+assert.equal(primaryBody.forAuthor.unchangedBytesAccepted, false);
+assert.equal(primaryBody.forAuthor.scalarCount, 435);
+assert.deepEqual(primaryBody.checks.counts, CHECKS.counts);
+assert.notEqual(primaryBody.operator.rawInputSha256, primaryBody.operator.derivedOfficialArtifactSha256);
+assert.equal(statSync(lastTemp).mtimeMs, tempMtime);
+const primaryStdin = run([], blockText(partsFrom(sequence)));
+assert.equal(primaryStdin.status, 0, primaryStdin.stderr);
+const flatOnPrimary = run([writeTemp(validText)]);
+assert.equal(flatOnPrimary.status, 1);
+assert.equal(author(flatOnPrimary.stdout).concatenationError, "keys");
+assert.equal(JSON.parse(flatOnPrimary.stdout).operator.derivedOfficialArtifactSha256, null);
 assert.deepEqual(adapted.body.forAuthor.blocks.map(function (block) { return [block.name, block.count, block.expected]; }), [
   ["W1", 96, 96], ["b1", 16, 16], ["W2", 256, 256], ["b2", 16, 16], ["W3", 48, 48], ["b3", 3, 3],
 ]);
@@ -140,7 +161,7 @@ short.W1 = short.W1.slice(0, 95);
 const shortRun = await inspectBytes(Buffer.from(blockText(short)), true);
 assert.equal(shortRun.exitCode, 1);
 assert.equal(shortRun.body.forAuthor.concatenationError, "block-count");
-assert.equal(shortRun.body.operator.adaptedCanonicalSha256, null);
+assert.equal(shortRun.body.operator.derivedOfficialArtifactSha256, null);
 assert.equal(shortRun.adaptedText, null);
 assert.equal(shortRun.body.forAuthor.blocks[0].count, 95);
 
@@ -149,7 +170,7 @@ assert.equal(JSON.parse(doubled).W1[0], 1);
 const doubledRun = await inspectBytes(Buffer.from(doubled), true);
 assert.equal(doubledRun.exitCode, 1);
 assert.equal(doubledRun.body.forAuthor.concatenationError, "duplicate");
-assert.equal(doubledRun.body.operator.adaptedCanonicalSha256, null);
+assert.equal(doubledRun.body.operator.derivedOfficialArtifactSha256, null);
 
 const high = partsFrom(sequence);
 high.W1 = ["17", ...high.W1.slice(1)];
@@ -163,7 +184,7 @@ assert.equal(validateContestant(highRun.adaptedText).ok, false);
 const oversizeBlocks = await inspectBytes(Buffer.from("x".repeat(16385)), true);
 assert.equal(oversizeBlocks.exitCode, 1);
 assert.equal(oversizeBlocks.body.forAuthor.concatenationError, "size");
-assert.equal(oversizeBlocks.body.operator.adaptedCanonicalSha256, null);
+assert.equal(oversizeBlocks.body.operator.derivedOfficialArtifactSha256, null);
 
 assert.equal(scanBlocks("{").error, "object");
 assert.equal(concatenationText(scanBlocks(blockText(partsFrom(sequence))).found).includes("1.250000"), true);
@@ -173,8 +194,11 @@ assert.equal(missing.status, 2);
 const help = run(["--help"]);
 assert.equal(help.status, 0);
 assert.match(help.stdout, /Node >= 24/);
+assert.match(help.stdout, /W1 96, b1 16, W2 256, b2 16, W3 48, b3 3/);
 const badFlag = run(["--repair", writeTemp(validText)]);
 assert.equal(badFlag.status, 2);
+const bothFlags = run(["--canonical", "--blocks", writeTemp(validText)]);
+assert.equal(bothFlags.status, 2);
 
 const packet = mkdtempSync(join(tmpdir(), "pong-authoring-"));
 const readme = readFileSync(join(root, "README.md"));
@@ -207,10 +231,11 @@ assert.equal(readFileSync(join(extracted, "validate.js")).equals(validatorBytes)
 const names = new Set(spawnSync("python3", ["-c", "import sys, zipfile; print('\\n'.join(sorted(zipfile.ZipFile(sys.argv[1]).namelist())))", zipPath], { encoding: "utf8" }).stdout.trim().split("\n"));
 assert.deepEqual([...names].sort(), ["README.md", "SHA256SUMS", "check-authoring.mjs", "validate.js"]);
 const packedFixture = join(extracted, "synthetic.json");
-writeFileSync(packedFixture, validText);
+writeFileSync(packedFixture, blockText(partsFrom(zeros(435))));
 const before = statSync(packedFixture).mtimeMs;
 const packed = spawnSync(process.execPath, [join(extracted, "check-authoring.mjs"), packedFixture], { encoding: "utf8" });
 assert.equal(packed.status, 0, packed.stderr);
+assert.equal(JSON.parse(packed.stdout).forAuthor.concatenationAccepted, true);
 assert.equal(JSON.parse(packed.stdout).forAuthor.scalarCount, 435);
 assert.equal(JSON.parse(packed.stdout).operator.validatorSha256, VALIDATOR_SHA256);
 assert.equal(statSync(packedFixture).mtimeMs, before);

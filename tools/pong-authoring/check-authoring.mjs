@@ -4,6 +4,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const VALIDATOR_SHA256 = "44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414";
 export const LIMITS = { bytes: 16384, scalars: 435, magnitude: 16, fractionDigits: 6 };
+export const CHECKS = {
+  rawInput: "reject when byte length > 16384, before any concatenation",
+  derivedArtifact: "reject when the concatenated UTF-8 byte length > 16384",
+  counts: { W1: 96, b1: 16, W2: 256, b2: 16, W3: 48, b3: 3 },
+  scalars: 435,
+};
 const BLOCKS = [
   ["W1", 96],
   ["b1", 16],
@@ -126,6 +132,7 @@ export function scanBlocks(text) {
     if (key.error) return key;
     if (FORBIDDEN_KEYS.has(key.key)) return fail("keys");
     if (found.has(key.key)) return fail("duplicate");
+    if (!BLOCKS.some(function (block) { return block[0] === key.key; })) return fail("keys");
     at = skip(text, key.at);
     if (text[at] !== ":") return fail("colon");
     at = skip(text, at + 1);
@@ -175,7 +182,8 @@ function directView(bytes, result) {
     operator: {
       validatorSha256: VALIDATOR_SHA256,
       node: process.version,
-      unchangedBytesSha256: result.report.rawResponseSha256,
+      rawInputSha256: result.report.rawResponseSha256,
+      derivedOfficialArtifactSha256: null,
       parameterFingerprintSha256: result.ok === true ? result.report.parameterFingerprintSha256 : null,
     },
   };
@@ -213,12 +221,13 @@ export function blocksReport(bytes, text, validator) {
       exitCode: 1,
       body: {
         tool: "pong-authoring-check",
+        checks: CHECKS,
         forAuthor: { ...base, concatenationAccepted: false, concatenationError: direct.report.errors[0].code, scalarCount: null, blocks: null, errors: [publicError(direct.report.errors[0])] },
         operator: {
           validatorSha256: VALIDATOR_SHA256,
           node: process.version,
-          unchangedBytesSha256,
-          adaptedCanonicalSha256: null,
+          rawInputSha256: unchangedBytesSha256,
+          derivedOfficialArtifactSha256: null,
           parameterFingerprintSha256: null,
           directError: direct.report.errors[0].code,
         },
@@ -231,12 +240,13 @@ export function blocksReport(bytes, text, validator) {
       exitCode: 1,
       body: {
         tool: "pong-authoring-check",
+        checks: CHECKS,
         forAuthor: { ...base, concatenationAccepted: false, concatenationError: scanned.error, scalarCount: null, blocks: null, errors: [{ code: scanned.error, index: null, tokenOffset: null }] },
         operator: {
           validatorSha256: VALIDATOR_SHA256,
           node: process.version,
-          unchangedBytesSha256,
-          adaptedCanonicalSha256: null,
+          rawInputSha256: unchangedBytesSha256,
+          derivedOfficialArtifactSha256: null,
           parameterFingerprintSha256: null,
           directError: direct.ok === true ? null : direct.report.errors[0].code,
         },
@@ -249,12 +259,13 @@ export function blocksReport(bytes, text, validator) {
       exitCode: 1,
       body: {
         tool: "pong-authoring-check",
+        checks: CHECKS,
         forAuthor: { ...base, concatenationAccepted: false, concatenationError: "block-count", scalarCount: null, blocks: scanned.blocks, errors: [{ code: "block-count", index: null, tokenOffset: null }] },
         operator: {
           validatorSha256: VALIDATOR_SHA256,
           node: process.version,
-          unchangedBytesSha256,
-          adaptedCanonicalSha256: null,
+          rawInputSha256: unchangedBytesSha256,
+          derivedOfficialArtifactSha256: null,
           parameterFingerprintSha256: null,
           directError: direct.ok === true ? null : direct.report.errors[0].code,
         },
@@ -271,6 +282,7 @@ export function blocksReport(bytes, text, validator) {
     adaptedText,
     body: {
       tool: "pong-authoring-check",
+      checks: CHECKS,
       forAuthor: {
         ...base,
         concatenationAccepted: adapted.ok === true,
@@ -282,8 +294,8 @@ export function blocksReport(bytes, text, validator) {
       operator: {
         validatorSha256: VALIDATOR_SHA256,
         node: process.version,
-        unchangedBytesSha256,
-        adaptedCanonicalSha256,
+        rawInputSha256: unchangedBytesSha256,
+        derivedOfficialArtifactSha256: adaptedCanonicalSha256,
         parameterFingerprintSha256: adapted.ok === true ? adapted.report.parameterFingerprintSha256 : null,
         directError: direct.ok === true ? null : direct.report.errors[0].code,
       },
@@ -299,7 +311,7 @@ export async function inspectBytes(bytes, blocks) {
     const result = validator.validateContestant(view);
     return {
       exitCode: result.ok === true ? 0 : 1,
-      body: { tool: "pong-authoring-check", ...directView(view, result) },
+      body: { tool: "pong-authoring-check", checks: CHECKS, ...directView(view, result) },
     };
   }
   let text = null;
@@ -314,6 +326,7 @@ export async function inspectBytes(bytes, blocks) {
       exitCode: 1,
       body: {
         tool: "pong-authoring-check",
+        checks: CHECKS,
         forAuthor: {
           representation: "mechanical-concatenation",
           accepted: false,
@@ -325,8 +338,8 @@ export async function inspectBytes(bytes, blocks) {
         operator: {
           validatorSha256: VALIDATOR_SHA256,
           node: process.version,
-          unchangedBytesSha256: direct.report.rawResponseSha256,
-          adaptedCanonicalSha256: null,
+          rawInputSha256: direct.report.rawResponseSha256,
+          derivedOfficialArtifactSha256: null,
           parameterFingerprintSha256: null,
         },
       },
@@ -337,7 +350,9 @@ export async function inspectBytes(bytes, blocks) {
 
 function usage() {
   return [
-    "usage: node check-authoring.mjs [--blocks] [file.json]",
+    "usage: node check-authoring.mjs [--canonical] [file.json]",
+    "The default input is six flat lists: W1 96, b1 16, W2 256, b2 16, W3 48, b3 3.",
+    "--canonical checks an unchanged flat {version, weights} document.",
     "Read a file, or stdin when no file is given.",
     "Exit 0 when the selected check accepts the bytes.",
     "Exit 1 when the validator or the block counts reject them.",
@@ -347,8 +362,12 @@ function usage() {
 }
 
 export async function main(argv, stdinBytes) {
-  const args = argv.filter(function (arg) { return arg !== "--blocks"; });
-  const blocks = argv.includes("--blocks");
+  if (argv.includes("--canonical") && argv.includes("--blocks")) {
+    process.stderr.write(usage() + "\n");
+    return 2;
+  }
+  const args = argv.filter(function (arg) { return arg !== "--blocks" && arg !== "--canonical"; });
+  const blocks = !argv.includes("--canonical");
   if (argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(usage() + "\n");
     return 0;
@@ -381,7 +400,9 @@ export async function main(argv, stdinBytes) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const argv = process.argv.slice(2);
-  const wantsStdin = argv.filter(function (arg) { return arg !== "--blocks" && arg !== "--help" && arg !== "-h"; }).length === 0
+  const wantsStdin = argv.filter(function (arg) {
+    return arg !== "--blocks" && arg !== "--canonical" && arg !== "--help" && arg !== "-h";
+  }).length === 0
     && !argv.includes("--help")
     && !argv.includes("-h");
   const stdinBytes = wantsStdin && !process.stdin.isTTY ? readFileSync(0) : null;
