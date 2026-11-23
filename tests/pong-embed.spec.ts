@@ -128,7 +128,10 @@ for (const surface of routes) {
         }));
         expect(padding).toEqual({ play: '16px', court: '16px', decision: '16px' });
         if (surface.name === 'article') {
-          await expect(page.locator('figcaption')).toContainText('loaded. Open a larger view');
+          const caption = page.locator('figcaption');
+          await expect(caption).toHaveText('The player starts with demonstration weights, separate from the evaluated list. Open a larger view.');
+          await expect(caption.locator('a')).toHaveText('Open a larger view');
+          await expect(caption.locator('a')).toHaveAttribute('href', new URL('experiments/play/pong/', baseURL).pathname);
         } else {
           await expect(page.locator('#play-caption')).toHaveText('Demonstration weights. No official score. First attempt rejected. Assisted row canonical is a separate accepted list.');
           await expect(page.locator('.play-view p')).toContainText('Open the standalone page');
@@ -179,6 +182,18 @@ for (const surface of routes) {
         await expect(frame.locator('#decision-when')).toContainText('before tick');
         await frame.locator('#options-toggle').click();
         await expect(frame.locator('#layer')).toBeFocused();
+        if (surface.name === 'article') {
+          await frame.locator('#revision').selectOption('assisted-row');
+          await expect(frame.locator('#stage')).toHaveAttribute('data-loaded-parent', 'assisted-row');
+          await expect(frame.locator('#stage')).toHaveAttribute('data-fingerprint', '7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd');
+          await expect(frame.locator('#stage')).toHaveAttribute('data-artifact-sha256', '15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339');
+          await expect(frame.locator('#stage')).toHaveAttribute('data-role', 'candidate');
+          await expect(frame.locator('#demonstration-status')).toHaveText('Assisted row canonical. Not the demonstration.');
+          await expect(page.locator('figcaption')).toHaveText('The player starts with demonstration weights, separate from the evaluated list. Open a larger view.');
+          await frame.locator('#revision').selectOption('demonstration');
+          await expect(frame.locator('#stage')).toHaveAttribute('data-fingerprint', '9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
+          await expect(frame.locator('#demonstration-status')).toHaveText('Demonstration weights. No official score.');
+        }
         const headingWidth = await frame.locator('#edit-heading').evaluate((node) => node.getBoundingClientRect().width);
         const stageWidth = await frame.locator('#stage').evaluate((node) => node.getBoundingClientRect().width);
         expect(headingWidth).toBeLessThan(stageWidth / 2);
@@ -251,6 +266,7 @@ test('open about keeps the validator hash inside 320 and 390', async ({ page, ba
     await page.goto(new URL('experiments/pong/', baseURL).href);
     await expect(page.locator('html')).toHaveAttribute('data-preview-ready', 'true');
     await page.locator('summary', { hasText: 'About this demo' }).click();
+    await expect(page.locator('.about-demo p').first()).toHaveText('Demonstration presets are examples, separate from the evaluated list. They are not a contestant artifact, and they are not Grok, Gemini Carbon, Astra, or Fable.');
     await expect(page.locator('#attempt-note')).toContainText('44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414');
     const fit = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
