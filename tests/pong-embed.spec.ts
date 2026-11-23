@@ -297,3 +297,52 @@ test('standalone options keep a 240px court on the first 1440 view', async ({ pa
   expect(geometry.revision.top).toBe(geometry.cohort.top);
   expect(geometry.buttonHeight).toBeGreaterThanOrEqual(44);
 });
+
+test('assisted row canonical plays its own weights and stays selected', async ({ page, baseURL }) => {
+  const urls: string[] = [];
+  page.on('request', (request) => urls.push(request.url()));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(new URL('experiments/pong/', baseURL).href);
+  await expect(page.locator('html')).toHaveAttribute('data-preview-ready', 'true');
+  await expect(page.locator('#demonstration-status')).toHaveText('Demonstration weights. No official score.');
+  await expect(page.locator('#attempt-status')).toContainText('rejected');
+  await page.locator('#options-toggle').click();
+  await page.locator('#revision').selectOption('assisted-row');
+  await expect(page.locator('#revision')).toHaveValue('assisted-row');
+  await expect(page.locator('#revision-note')).toHaveText('Assisted row canonical accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not the demonstration.');
+  await expect(page.locator('#stage')).toHaveAttribute('data-loaded-parent', 'assisted-row');
+  await expect(page.locator('#stage')).toHaveAttribute('data-fingerprint', '9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
+  await page.locator('#step').click();
+  await page.locator('#step').click();
+  await expect(page.locator('#chosen-action')).toHaveText('Chosen action: Up.');
+  await expect(page.locator('#score-line')).toContainText('66667');
+  await expect(page.locator('#tick-readout')).toContainText('Tick 2 of 192. Paused.');
+  const painted = await page.locator('#network').evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    const pixels = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data;
+    if (!pixels) return 0;
+    let count = 0;
+    for (let index = 0; index < pixels.length; index += 16) {
+      if (pixels[index] !== 16 || pixels[index + 1] !== 19 || pixels[index + 2] !== 21) count += 1;
+    }
+    return count;
+  });
+  expect(painted).toBeGreaterThan(20);
+  await page.locator('#new-serve').click();
+  await page.locator('#pause').click();
+  const held = await page.locator('#tick-readout').innerText();
+  await page.waitForTimeout(250);
+  await expect(page.locator('#tick-readout')).toHaveText(held);
+  await page.locator('#reset-weights').click();
+  await expect(page.locator('#revision')).toHaveValue('assisted-row');
+  await expect(page.locator('#stage')).toHaveAttribute('data-role', 'demonstration');
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fit = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+  }
+  expect(urls.filter((url) => !url.startsWith(baseURL!))).toEqual([]);
+});

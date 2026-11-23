@@ -15,10 +15,12 @@ import {
   makeController,
   compareBranches,
 } from "./kernel.js";
-import { acceptDemonstration, sha256Utf8 } from "./validate.js";
+import { acceptDemonstration, sha256Utf8, validateContestant } from "./validate.js";
 import { authoringCopy, readAuthoringStatus } from "./authoring-status.js";
 import demonstrationText from "./data/demonstration.json";
 import authoringStatusText from "./data/authoring-status.json";
+import canonicalPlayerText from "./data/grok-assisted-row-canonical.json";
+import assistedRowStatusText from "./data/assisted-row-status.json";
 import {
   projectPoint,
   frameScale,
@@ -58,7 +60,15 @@ import {
     fault.textContent = "The demonstration file was not accepted (" + acceptedDemo.report.errors[0].code + "). It is not a contestant artifact.";
     throw new Error("demonstration");
   }
-  const parent = acceptedDemo.weights;
+  const acceptedCanonical = validateContestant(canonicalPlayerText);
+  if (!acceptedCanonical.ok || acceptedCanonical.report.scalarCount !== 435) {
+    const fault = document.getElementById("fault");
+    fault.hidden = false;
+    fault.textContent = "The assisted row canonical was not accepted. The demonstration weights are unchanged.";
+    throw new Error("canonical");
+  }
+  const assistedRow = JSON.parse(assistedRowStatusText);
+  let parent = acceptedDemo.weights;
   const stage = document.getElementById("stage");
   stage.dataset.role = acceptedDemo.role;
   stage.dataset.fingerprint = acceptedDemo.fingerprint;
@@ -78,11 +88,12 @@ import {
   document.getElementById("attempt-note").textContent = authoringLines.attemptNote;
   document.getElementById("schedule-note").textContent = authoringLines.scheduleNote;
   document.getElementById("attempt-limits").textContent = authoringLines.limits;
-  document.getElementById("revision-note").textContent = authoringLines.revision;
   stage.dataset.attemptOutcome = authoringLines.outcome;
   stage.dataset.candidateLoaded = "false";
   stage.dataset.scheduled = String(authoring.scheduled);
   stage.dataset.played = String(authoring.played);
+  stage.dataset.assistedRow = assistedRow.accepted === true ? "accepted" : "rejected";
+  stage.dataset.loadedParent = "demonstration";
   let active = Float64Array.from(parent);
   const game = {
     world: freshWorld(SERVES.G0),
@@ -835,6 +846,22 @@ import {
     startGame();
   }
 
+  function loadParent(id) {
+    const assisted = id === "assisted-row";
+    parent = assisted ? acceptedCanonical.weights : acceptedDemo.weights;
+    active = Float64Array.from(parent);
+    state.fixture = "parent";
+    state.mute = null;
+    fixtureSelect.value = "parent";
+    stage.dataset.loadedParent = assisted ? "assisted-row" : "demonstration";
+    document.getElementById("revision").value = assisted ? "assisted-row" : "demonstration";
+    document.getElementById("revision-note").textContent = assisted
+      ? "Assisted row canonical accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not the demonstration."
+      : "Demonstration weights. Not the assisted row canonical.";
+    drawAll();
+    publishTick();
+  }
+
   function resetWeights() {
     active = Float64Array.from(parent);
     state.fixture = "parent";
@@ -913,6 +940,9 @@ import {
       applyMute(state.layer, state.unit);
     });
     document.getElementById("reset-weights").addEventListener("click", resetWeights);
+    document.getElementById("revision").addEventListener("change", function () {
+      loadParent(document.getElementById("revision").value);
+    });
     document.getElementById("reset-comparison").addEventListener("click", function () {
       if (!game.captured) return;
       stopGame();

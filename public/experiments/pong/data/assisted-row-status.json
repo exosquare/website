@@ -1,0 +1,22 @@
+{
+  "schema": "pong-assisted-row-status-v1",
+  "id": "grok-assisted-row-initial",
+  "label": "Assisted row canonical",
+  "uiLabel": "Expert",
+  "apiModel": null,
+  "accepted": true,
+  "representation": "mechanical-row-concatenation",
+  "canonicalSha256": "15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339",
+  "parameterFingerprintSha256": "7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd",
+  "scheduled": 32,
+  "played": 32,
+  "failed": 0,
+  "notPlayed": 0,
+  "wins": 17,
+  "losses": 15,
+  "draws": 0,
+  "playedPointSum": [15, 17],
+  "administrativePointSum": [0, 0],
+  "independentSamples": false,
+  "capabilityVerdict": false
+}

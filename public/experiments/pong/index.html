@@ -541,6 +541,8 @@ html.is-embedded .stage.options-open {
           <p id="attempt-note">One authoring attempt on 23 November 2026 used the grok.com page in the visible Expert mode. The exact API model and version are unknown. The preserved text is the visible response innerText, 93,902 UTF-8 bytes, and clipboard bytes were not read separately. It fails the unchanged validator (44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414) at the 16,384-byte cap. The only official error is size. There is no official scalar count and no parameter fingerprint. That byte count is captured page text, not a transport byte count.</p>
           <p id="schedule-note">32 slots were scheduled, 0 were played, and 32 were invalid-artifact-not-played. Played points are null. There is no strength score. Administrative forfeits are not observed losses. No candidate is loaded, and the court plays the demonstration weights.</p>
           <p id="attempt-limits">Token use is unknown. Tools-off was not independently verified. The visible composer text was not the same bytes as the frozen prompt. Screenshots do not cover the full captured text.</p>
+          <p>Unavailable. Only the demonstration parent is loaded. The rejected authoring attempt is not loaded.</p>
+          <p id="assisted-row-note">Assisted row canonical is a separate accepted list. The visible mode label was Expert. The exact API model is unknown. It is not the demonstration. 32 of 32 scheduled games were played. Candidate outcomes were 17 wins, 15 losses, and 0 draws. Left-right played points were 15 and 17. Administrative points were 0 and 0. The 16 pairs are the same serves played on both sides, not 32 independent samples. This is not a capability verdict.</p>
           <p>Frozen revision. No learning during play.</p>
           <p>Contestant labels are display names. Exact model identities are unconfirmed. No name here loads weights.</p>
           <p>After this page has loaded, play stays in this tab. Reloading is a separate load. This is not a claim that a cold start works offline.</p>
@@ -632,13 +634,12 @@ html.is-embedded .stage.options-open {
               <button type="button" disabled>Grok</button>
             </div>
             <p class="field-note">Unavailable. Display names only. Exact identities are unconfirmed. None of these loads weights.</p>
-            <label for="revision">Revision</label>
-            <select id="revision" disabled>
-              <option selected>Initial</option>
-              <option>Revision 1</option>
-              <option>Revision 2</option>
+            <label for="revision">Loaded weights</label>
+            <select id="revision">
+              <option value="demonstration" selected>Demonstration</option>
+              <option value="assisted-row">Assisted row canonical</option>
             </select>
-            <p class="field-note" id="revision-note">Unavailable. Only the demonstration parent is loaded. The rejected authoring attempt is not loaded.</p>
+            <p class="field-note" id="revision-note">Demonstration weights. Not the assisted row canonical.</p>
             <div class="split">
               <label>Layer
                 <select id="layer">
@@ -1667,6 +1668,70 @@ html.is-embedded .stage.options-open {
     if (typeof input === "string") return new TextEncoder().encode(input);
     return null;
   }
+  function validateContestant(input) {
+    const bytes = asBytes(input);
+    if (!bytes) return { ok: false, role: "candidate", report: emptyReport(null, [{ code: "type", index: null, tokenOffset: null }]) };
+    if (bytes.length === 0) {
+      return {
+        ok: false,
+        role: "candidate",
+        weights: null,
+        tokens: null,
+        fingerprint: null,
+        rawResponseSha256: EMPTY_RESPONSE_SHA256,
+        report: {
+          accepted: false,
+          byteLength: 0,
+          scalarCount: 0,
+          rawResponseSha256: EMPTY_RESPONSE_SHA256,
+          parameterFingerprintSha256: null,
+          tokens: null,
+          errors: [{ code: "syntax", index: null, tokenOffset: 0 }]
+        }
+      };
+    }
+    if (bytes.length > 16384) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "size", index: null, tokenOffset: 0 }]) };
+    }
+    if (bytes.length >= 3 && bytes[0] === 239 && bytes[1] === 187 && bytes[2] === 191) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "bom", index: null, tokenOffset: 0 }]) };
+    }
+    const decoded = decodeUtf8(bytes);
+    if (decoded.error) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "utf8", index: null, tokenOffset: decoded.offset }]) };
+    }
+    const parsed = parseDocument(decoded.text);
+    if (parsed.error) {
+      const error = parsed.error;
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: error.error || error.code, index: error.index ?? null, tokenOffset: error.tokenOffset ?? null }]) };
+    }
+    const object = parsed.value;
+    const keys = Object.keys(object);
+    if (keys.length !== 2 || !Object.prototype.hasOwnProperty.call(object, "version") || !Object.prototype.hasOwnProperty.call(object, "weights")) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "keys", index: null, tokenOffset: 0 }]) };
+    }
+    if (object.version !== "pong-feedback-v1") {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "version", index: null, tokenOffset: 0 }]) };
+    }
+    if (!Array.isArray(object.weights)) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "shape", index: null, tokenOffset: 0 }]) };
+    }
+    if (object.weights.length !== 435) {
+      return { ok: false, role: "candidate", report: emptyReport(bytes, [{ code: "shape", index: object.weights.length, tokenOffset: 0 }]) };
+    }
+    const report = finishReport(bytes, object.weights, []);
+    report.tokens = parsed.tokens;
+    return {
+      ok: true,
+      role: "candidate",
+      weights: report.weights,
+      tokens: parsed.tokens,
+      fingerprint: report.parameterFingerprintSha256,
+      rawResponseSha256: report.rawResponseSha256,
+      report
+    };
+  }
+  var EMPTY_RESPONSE_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   function acceptDemonstration(input) {
     const bytes = asBytes(input);
     if (!bytes) return { ok: false, role: DEMONSTRATION_ROLE, report: emptyReport(new Uint8Array(), [{ code: "type", index: null, tokenOffset: null }]) };
@@ -1792,6 +1857,12 @@ html.is-embedded .stage.options-open {
 
   // public/experiments/pong/data/authoring-status.json
   var authoring_status_default = '{\n  "schema": "pong-authoring-status-v1",\n  "acceptedArtifact": false,\n  "candidateLoaded": false,\n  "date": "2026-11-23",\n  "surface": "grok.com",\n  "visibleMode": "Expert",\n  "apiModel": null,\n  "apiVersion": null,\n  "capturedTextKind": "ui-innerText",\n  "capturedTextUtf8Bytes": 93902,\n  "clipboardBytesRead": false,\n  "validatorSha256": "44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414",\n  "validatorCapBytes": 16384,\n  "officialError": "size",\n  "scalarCount": null,\n  "parameterFingerprint": null,\n  "scheduled": 32,\n  "played": 0,\n  "invalidArtifactNotPlayed": 32,\n  "runtimeFaults": 0,\n  "playedPoints": null,\n  "strengthScore": null,\n  "administrativeForfeitsAreObservedLosses": false,\n  "transportBytes": null,\n  "toolsOffVerified": false,\n  "tokenUsageKnown": false,\n  "composerMatchedFrozenPrompt": false,\n  "screenshotsCoverFullText": false\n}\n';
+
+  // public/experiments/pong/data/grok-assisted-row-canonical.json
+  var grok_assisted_row_canonical_default = '{"version":"pong-feedback-v1","weights":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}';
+
+  // public/experiments/pong/data/assisted-row-status.json
+  var assisted_row_status_default = '{\n  "schema": "pong-assisted-row-status-v1",\n  "id": "grok-assisted-row-initial",\n  "label": "Assisted row canonical",\n  "uiLabel": "Expert",\n  "apiModel": null,\n  "accepted": true,\n  "representation": "mechanical-row-concatenation",\n  "canonicalSha256": "15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339",\n  "parameterFingerprintSha256": "7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd",\n  "scheduled": 32,\n  "played": 32,\n  "failed": 0,\n  "notPlayed": 0,\n  "wins": 17,\n  "losses": 15,\n  "draws": 0,\n  "playedPointSum": [15, 17],\n  "administrativePointSum": [0, 0],\n  "independentSamples": false,\n  "capabilityVerdict": false\n}\n';
 
   // public/experiments/pong/cloud-frame.js
   var CLOUD_PAD = 8;
@@ -1940,6 +2011,14 @@ html.is-embedded .stage.options-open {
     fault.textContent = "The demonstration file was not accepted (" + acceptedDemo.report.errors[0].code + "). It is not a contestant artifact.";
     throw new Error("demonstration");
   }
+  var acceptedCanonical = validateContestant(grok_assisted_row_canonical_default);
+  if (!acceptedCanonical.ok || acceptedCanonical.report.scalarCount !== 435) {
+    const fault = document.getElementById("fault");
+    fault.hidden = false;
+    fault.textContent = "The assisted row canonical was not accepted. The demonstration weights are unchanged.";
+    throw new Error("canonical");
+  }
+  var assistedRow = JSON.parse(assisted_row_status_default);
   var parent = acceptedDemo.weights;
   var stage = document.getElementById("stage");
   stage.dataset.role = acceptedDemo.role;
@@ -1960,11 +2039,12 @@ html.is-embedded .stage.options-open {
   document.getElementById("attempt-note").textContent = authoringLines.attemptNote;
   document.getElementById("schedule-note").textContent = authoringLines.scheduleNote;
   document.getElementById("attempt-limits").textContent = authoringLines.limits;
-  document.getElementById("revision-note").textContent = authoringLines.revision;
   stage.dataset.attemptOutcome = authoringLines.outcome;
   stage.dataset.candidateLoaded = "false";
   stage.dataset.scheduled = String(authoring.scheduled);
   stage.dataset.played = String(authoring.played);
+  stage.dataset.assistedRow = assistedRow.accepted === true ? "accepted" : "rejected";
+  stage.dataset.loadedParent = "demonstration";
   var active = Float64Array.from(parent);
   var game = {
     world: freshWorld(SERVES.G0),
@@ -2684,6 +2764,19 @@ html.is-embedded .stage.options-open {
     publishTick();
     startGame();
   }
+  function loadParent(id) {
+    const assisted = id === "assisted-row";
+    parent = assisted ? acceptedCanonical.weights : acceptedDemo.weights;
+    active = Float64Array.from(parent);
+    state.fixture = "parent";
+    state.mute = null;
+    fixtureSelect.value = "parent";
+    stage.dataset.loadedParent = assisted ? "assisted-row" : "demonstration";
+    document.getElementById("revision").value = assisted ? "assisted-row" : "demonstration";
+    document.getElementById("revision-note").textContent = assisted ? "Assisted row canonical accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not the demonstration." : "Demonstration weights. Not the assisted row canonical.";
+    drawAll();
+    publishTick();
+  }
   function resetWeights() {
     active = Float64Array.from(parent);
     state.fixture = "parent";
@@ -2754,6 +2847,9 @@ html.is-embedded .stage.options-open {
       applyMute(state.layer, state.unit);
     });
     document.getElementById("reset-weights").addEventListener("click", resetWeights);
+    document.getElementById("revision").addEventListener("change", function() {
+      loadParent(document.getElementById("revision").value);
+    });
     document.getElementById("reset-comparison").addEventListener("click", function() {
       if (!game.captured) return;
       stopGame();

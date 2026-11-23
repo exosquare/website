@@ -1,0 +1,43 @@
+{
+  "schema": "pong-evaluation-freeze-v1",
+  "frozenAtUtc": "2026-11-23T09:57:55Z",
+  "frozenAtHkt": "2026-11-23T17:57:55+08:00",
+  "gamesPlayedBeforeFreeze": 0,
+  "repoHead": "011add21648f917223f049d80a44c5bd97c719d0",
+  "evaluationIdentity": {
+    "id": "grok-assisted-row-initial",
+    "label": "Assisted row canonical",
+    "uiLabel": "Expert",
+    "apiModel": null,
+    "canonicalIsRawResponse": false,
+    "representation": "mechanical-row-concatenation"
+  },
+  "scheduleIdentity": {
+    "schema": "pong-single-candidate-schedule-v1",
+    "runId": "grok-initial-v1",
+    "role": "historical pair-seed identity inside the immutable schedule",
+    "sha256": "fe94df51854545a1b39964d608e23fb3d738dde5de4e2a22c06358679d4dc335",
+    "bytes": 19339,
+    "entries": 32
+  },
+  "canonicalPlayer": {
+    "sha256": "15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339",
+    "bytes": 914,
+    "scalars": 435,
+    "parameterFingerprintSha256": "7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd"
+  },
+  "runtime": {
+    "kernel": "1249c7f8bd8ea9a50f75bc3d802c343506009ce27eae9ca5c3869acbc4bc1521",
+    "validator": "44bc8b0170ad400c927abfda67270b300e0381bbc2dfd2d4c8be3efcbc19f414",
+    "evaluator": "0c4a17551d4ca32b3e500de6e285ba7bf5cd87c91f6c544d6c82d8881724bfdf",
+    "schema": "958e3a37e242f2f6b3f20828e74515afb4c99399473946ec59eabe2a1f7c610b"
+  },
+  "scheduleAdapter": {
+    "required": false,
+    "entriesPassedThrough": true,
+    "orderUnchanged": true,
+    "seedsUnchanged": true,
+    "initialCoordinatesMatchKernelServes": true,
+    "note": "freshWorld copies the six stored coordinates and sets elapsedTicks 0, phase live, and terminal null, which are already stored. maxTicks 192 matches the kernel limit and is not renamed."
+  }
+}
