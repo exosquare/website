@@ -534,7 +534,7 @@ html.is-embedded .stage.options-open {
         <p class="stage-brand">Experiment demo</p>
         <h1>Can numbers play Pong?</h1>
         <p class="status" id="demonstration-status">Demonstration weights. No official score.</p>
-        <p class="status" id="attempt-status">Grok authoring attempt rejected. No accepted artifact. 32 scheduled, 0 played.</p>
+        <p class="status" id="attempt-status">First attempt rejected. Assisted row canonical is a separate accepted list.</p>
         <details class="about-demo">
           <summary>About this demo</summary>
           <p>These numbers are an authored demonstration. They are not a contestant artifact, and they are not Grok, Gemini Carbon, Astra, or Fable.</p>
@@ -542,6 +542,7 @@ html.is-embedded .stage.options-open {
           <p id="schedule-note">32 slots were scheduled, 0 were played, and 32 were invalid-artifact-not-played. Played points are null. There is no strength score. Administrative forfeits are not observed losses. No candidate is loaded, and the court plays the demonstration weights.</p>
           <p id="attempt-limits">Token use is unknown. Tools-off was not independently verified. The visible composer text was not the same bytes as the frozen prompt. Screenshots do not cover the full captured text.</p>
           <p>Unavailable. Only the demonstration parent is loaded. The rejected authoring attempt is not loaded.</p>
+          <p id="first-attempt-record">Grok authoring attempt rejected. No accepted artifact. 32 scheduled, 0 played.</p>
           <p id="assisted-row-note">Assisted row canonical is a separate accepted list. The visible mode label was Expert. The exact API model is unknown. It is not the demonstration. 32 of 32 scheduled games were played. Candidate outcomes were 17 wins, 15 losses, and 0 draws. Left-right played points were 15 and 17. Administrative points were 0 and 0. The 16 pairs are the same serves played on both sides, not 32 independent samples. This is not a capability verdict.</p>
           <p>Frozen revision. No learning during play.</p>
           <p>Contestant labels are display names. Exact model identities are unconfirmed. No name here loads weights.</p>
@@ -2023,6 +2024,7 @@ html.is-embedded .stage.options-open {
   var stage = document.getElementById("stage");
   stage.dataset.role = acceptedDemo.role;
   stage.dataset.fingerprint = acceptedDemo.fingerprint;
+  stage.dataset.artifactSha256 = demonstrationSha256;
   var authoring;
   var authoringLines;
   try {
@@ -2034,8 +2036,8 @@ html.is-embedded .stage.options-open {
     fault.textContent = "The authoring status could not be shown. The demonstration weights are unchanged.";
     throw error;
   }
-  document.getElementById("demonstration-status").textContent = authoringLines.demonstration;
-  document.getElementById("attempt-status").textContent = authoringLines.attempt;
+  document.getElementById("demonstration-status").textContent = "Demonstration weights. No official score.";
+  document.getElementById("attempt-status").textContent = "First attempt rejected. Assisted row canonical is a separate accepted list.";
   document.getElementById("attempt-note").textContent = authoringLines.attemptNote;
   document.getElementById("schedule-note").textContent = authoringLines.scheduleNote;
   document.getElementById("attempt-limits").textContent = authoringLines.limits;
@@ -2045,7 +2047,10 @@ html.is-embedded .stage.options-open {
   stage.dataset.played = String(authoring.played);
   stage.dataset.assistedRow = assistedRow.accepted === true ? "accepted" : "rejected";
   stage.dataset.loadedParent = "demonstration";
+  var parentArtifact = demonstrationSha256;
+  var parentFingerprint = acceptedDemo.fingerprint;
   var active = Float64Array.from(parent);
+  publishIdentity();
   var game = {
     world: freshWorld(SERVES.G0),
     serveId: "G0",
@@ -2764,9 +2769,57 @@ html.is-embedded .stage.options-open {
     publishTick();
     startGame();
   }
+  function publishIdentity() {
+    const assisted = stage.dataset.loadedParent === "assisted-row";
+    const muted = state.fixture === "fork";
+    const fingerprint = parameterFingerprint(active);
+    stage.dataset.fingerprint = fingerprint || "";
+    stage.dataset.weightState = muted ? "fork" : "parent";
+    if (muted) {
+      stage.dataset.role = "fork";
+      stage.dataset.artifactSha256 = "";
+    } else if (assisted) {
+      stage.dataset.role = "candidate";
+      stage.dataset.artifactSha256 = acceptedCanonical.rawResponseSha256;
+      stage.dataset.candidateLoaded = "true";
+    } else {
+      stage.dataset.role = "demonstration";
+      stage.dataset.artifactSha256 = demonstrationSha256;
+      stage.dataset.candidateLoaded = "false";
+    }
+    const demoStatus = document.getElementById("demonstration-status");
+    const attemptStatus = document.getElementById("attempt-status");
+    if (muted && assisted) {
+      demoStatus.textContent = "Assisted row canonical, muted fork. Not the demonstration.";
+      attemptStatus.textContent = "Fork of the accepted list. Not a separate evaluation.";
+    } else if (assisted) {
+      demoStatus.textContent = "Assisted row canonical. Not the demonstration.";
+      attemptStatus.textContent = "Accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not a capability verdict.";
+    } else if (muted) {
+      demoStatus.textContent = "Demonstration fork. No official score.";
+      attemptStatus.textContent = "First attempt rejected. Assisted row canonical is a separate accepted list.";
+    } else {
+      demoStatus.textContent = "Demonstration weights. No official score.";
+      attemptStatus.textContent = "First attempt rejected. Assisted row canonical is a separate accepted list.";
+    }
+    const history = document.getElementById("schedule-note");
+    if (history) {
+      const record = "32 slots were scheduled, 0 were played, and 32 were invalid-artifact-not-played. Played points are null. There is no strength score. Administrative forfeits are not observed losses.";
+      history.textContent = muted && assisted ? record + " That record is the first attempt. The court is showing a muted fork of the assisted row canonical." : assisted ? record + " That record is the first attempt. The court is showing the assisted row canonical." : record + " No candidate from that attempt is loaded. The court is showing the demonstration weights.";
+    }
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: "pong-loaded-parent",
+        demonstrationStatus: demoStatus.textContent,
+        attemptStatus: attemptStatus.textContent
+      }, "*");
+    }
+  }
   function loadParent(id) {
     const assisted = id === "assisted-row";
     parent = assisted ? acceptedCanonical.weights : acceptedDemo.weights;
+    parentArtifact = assisted ? acceptedCanonical.rawResponseSha256 : demonstrationSha256;
+    parentFingerprint = assisted ? acceptedCanonical.fingerprint : acceptedDemo.fingerprint;
     active = Float64Array.from(parent);
     state.fixture = "parent";
     state.mute = null;
@@ -2774,6 +2827,7 @@ html.is-embedded .stage.options-open {
     stage.dataset.loadedParent = assisted ? "assisted-row" : "demonstration";
     document.getElementById("revision").value = assisted ? "assisted-row" : "demonstration";
     document.getElementById("revision-note").textContent = assisted ? "Assisted row canonical accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not the demonstration." : "Demonstration weights. Not the assisted row canonical.";
+    publishIdentity();
     drawAll();
     publishTick();
   }
@@ -2782,6 +2836,7 @@ html.is-embedded .stage.options-open {
     state.fixture = "parent";
     state.mute = null;
     fixtureSelect.value = "parent";
+    publishIdentity();
     drawAll();
     publishTick();
   }
@@ -2814,6 +2869,7 @@ html.is-embedded .stage.options-open {
     }
     drawAll();
     publishTick();
+    publishIdentity();
   }
   function wireGame() {
     document.getElementById("new-serve").addEventListener("click", function() {
@@ -2868,9 +2924,9 @@ html.is-embedded .stage.options-open {
       publishTick();
       const captured = makeCheckpoint({
         world: game.world,
-        left: makeController("network", { id: "demonstration", artifactSha256: demonstrationSha256 }),
+        left: makeController("network", { id: stage.dataset.loadedParent || "demonstration", artifactSha256: parentArtifact }),
         right: makeController(game.opponent, { id: game.opponent, seed: game.seed || game.rng, state: game.rng }),
-        parentParameterFingerprint: acceptedDemo.fingerprint,
+        parentParameterFingerprint: parentFingerprint,
         episode: { id: "local", serveId: game.serveId, cohort: null, round: null, seedPairId: null }
       });
       game.captured = captured;

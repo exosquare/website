@@ -7,7 +7,7 @@ import { withBase } from '../../../lib/paths';
   <div class="play-view">
     <h1>Pong demonstration</h1>
     <p>
-      Demonstration weights. No official score. The Grok authoring attempt was rejected and is not loaded. <a href={withBase('/experiments/pong/')}>Open the standalone page</a>.
+      <span id="play-caption">Demonstration weights. No official score. First attempt rejected. Assisted row canonical is a separate accepted list.</span> <a href={withBase('/experiments/pong/')}>Open the standalone page</a>.
     </p>
     <iframe
       src={withBase('/experiments/pong/')}
@@ -21,6 +21,13 @@ import { withBase } from '../../../lib/paths';
           if (event.source !== frame.contentWindow) return;
           const data = event.data;
           if (!data || typeof data !== 'object') return;
+          if (data.type === 'pong-loaded-parent') {
+            const caption = document.getElementById('play-caption');
+            if (caption && typeof data.demonstrationStatus === 'string' && typeof data.attemptStatus === 'string') {
+              caption.textContent = `${data.demonstrationStatus} ${data.attemptStatus}`;
+            }
+            return;
+          }
           if (data.type !== 'pong-embed-height') return;
           if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
           const height = Math.round(data.height);

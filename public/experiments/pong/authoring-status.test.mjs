@@ -56,7 +56,8 @@ assert.doesNotMatch(text, /\/home\/|\/opt\/cursor|uploads\/|PUBLIC-SAFE|Co-autho
 
 assert.equal(validateContestant(text).ok, false);
 assert.equal(acceptDemonstration(text).ok, false);
-assert.match(play, new RegExp(copy.play.replace(/[.]/g, "\\.")));
+assert.match(play, /Demonstration weights\. No official score\. First attempt rejected\. Assisted row canonical is a separate accepted list\./);
+assert.match(page, /Grok authoring attempt rejected\. No accepted artifact\. 32 scheduled, 0 played\./);
 assert.doesNotMatch(play, /Evaluation not run/);
 assert.match(play, /sandbox="allow-scripts"/);
 assert.doesNotMatch(play, /allow-same-origin/);

@@ -94,8 +94,9 @@ for (const surface of routes) {
         expect(status.cloudFit).toBe('true');
         expect(await iframe.getAttribute('sandbox')).toBe('allow-scripts');
         await expect(frame.locator('#demonstration-status')).toHaveText('Demonstration weights. No official score.');
-        await expect(frame.locator('#attempt-status')).toHaveText('Grok authoring attempt rejected. No accepted artifact. 32 scheduled, 0 played.');
+        await expect(frame.locator('#attempt-status')).toHaveText('First attempt rejected. Assisted row canonical is a separate accepted list.');
         await expect(frame.locator('#attempt-status')).not.toContainText('not run');
+        await expect(frame.locator('#first-attempt-record')).toHaveText('Grok authoring attempt rejected. No accepted artifact. 32 scheduled, 0 played.');
         await expect(frame.locator('#schedule-note')).toContainText('Administrative forfeits are not observed losses');
         expect(await frame.locator('#stage').evaluate((node) => ({
           outcome: (node as HTMLElement).dataset.attemptOutcome,
@@ -103,12 +104,18 @@ for (const surface of routes) {
           scheduled: (node as HTMLElement).dataset.scheduled,
           played: (node as HTMLElement).dataset.played,
           role: (node as HTMLElement).dataset.role,
+          loadedParent: (node as HTMLElement).dataset.loadedParent,
+          fingerprint: (node as HTMLElement).dataset.fingerprint,
+          artifactSha256: (node as HTMLElement).dataset.artifactSha256,
         }))).toEqual({
           outcome: 'rejected',
           candidate: 'false',
           scheduled: '32',
           played: '0',
           role: 'demonstration',
+          loadedParent: 'demonstration',
+          fingerprint: '9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f',
+          artifactSha256: '614482a817f20450a6cd4c992ccc93575e1ac9b2be1e457d262d240d454177af',
         });
         const skipBottom = await frame.locator('.skip-link').evaluate((node) => node.getBoundingClientRect().bottom);
         expect(skipBottom).toBeLessThanOrEqual(0);
@@ -123,7 +130,7 @@ for (const surface of routes) {
         if (surface.name === 'article') {
           await expect(page.locator('figcaption')).toContainText('loaded. Open a larger view');
         } else {
-          await expect(page.locator('.play-view p')).toContainText('The Grok authoring attempt was rejected and is not loaded.');
+          await expect(page.locator('#play-caption')).toHaveText('Demonstration weights. No official score. First attempt rejected. Assisted row canonical is a separate accepted list.');
           await expect(page.locator('.play-view p')).toContainText('Open the standalone page');
         }
         const controlBorder = await frame.locator('#step').evaluate((node) => getComputedStyle(node).borderTopColor);
@@ -311,7 +318,12 @@ test('assisted row canonical plays its own weights and stays selected', async ({
   await expect(page.locator('#revision')).toHaveValue('assisted-row');
   await expect(page.locator('#revision-note')).toHaveText('Assisted row canonical accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not the demonstration.');
   await expect(page.locator('#stage')).toHaveAttribute('data-loaded-parent', 'assisted-row');
-  await expect(page.locator('#stage')).toHaveAttribute('data-fingerprint', '9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
+  await expect(page.locator('#stage')).toHaveAttribute('data-fingerprint', '7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd');
+  await expect(page.locator('#stage')).toHaveAttribute('data-artifact-sha256', '15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339');
+  await expect(page.locator('#stage')).toHaveAttribute('data-role', 'candidate');
+  await expect(page.locator('#demonstration-status')).toHaveText('Assisted row canonical. Not the demonstration.');
+  await expect(page.locator('#attempt-status')).toHaveText('Accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not a capability verdict.');
+  await expect(page.locator('#attempt-status')).not.toContainText('No accepted artifact');
   await page.locator('#step').click();
   await page.locator('#step').click();
   await expect(page.locator('#chosen-action')).toHaveText('Chosen action: Up.');
@@ -333,9 +345,31 @@ test('assisted row canonical plays its own weights and stays selected', async ({
   const held = await page.locator('#tick-readout').innerText();
   await page.waitForTimeout(250);
   await expect(page.locator('#tick-readout')).toHaveText(held);
+  await page.locator('#unit').selectOption('0');
+  await page.locator('#mute').click();
+  const forkFingerprint = await page.locator('#stage').getAttribute('data-fingerprint');
+  expect(forkFingerprint).not.toBe('7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd');
+  expect(forkFingerprint).not.toBe('9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
+  await expect(page.locator('#stage')).toHaveAttribute('data-weight-state', 'fork');
+  await expect(page.locator('#stage')).toHaveAttribute('data-artifact-sha256', '');
   await page.locator('#reset-weights').click();
   await expect(page.locator('#revision')).toHaveValue('assisted-row');
-  await expect(page.locator('#stage')).toHaveAttribute('data-role', 'demonstration');
+  await expect(page.locator('#stage')).toHaveAttribute('data-fingerprint', '7ef77b133f6c57768725328b849cfee70ff9dae14d434a63580bac4a5c4c54fd');
+  await expect(page.locator('#stage')).toHaveAttribute('data-artifact-sha256', '15556647c50a7c2bd2eeef930ab49ab7cd41dc3ba1c08cef42429510b1694339');
+  await expect(page.locator('#stage')).toHaveAttribute('data-role', 'candidate');
+  await page.locator('#revision').selectOption('demonstration');
+  await expect(page.locator('#stage')).toHaveAttribute('data-fingerprint', '9a647f3200303418ae711c35f56483dd126e8d0f871d64384251c1a52945e02f');
+  await expect(page.locator('#demonstration-status')).toHaveText('Demonstration weights. No official score.');
+  const play = await page.context().newPage();
+  await play.setViewportSize({ width: 1440, height: 900 });
+  await play.goto(new URL('experiments/play/pong/', baseURL).href);
+  await expect(play.locator('#play-caption')).toHaveText('Demonstration weights. No official score. First attempt rejected. Assisted row canonical is a separate accepted list.');
+  const playFrame = play.frameLocator('iframe[title*="Pong"]');
+  await expect(playFrame.locator('html')).toHaveAttribute('data-preview-ready', 'true');
+  await playFrame.locator('#options-toggle').click();
+  await playFrame.locator('#revision').selectOption('assisted-row');
+  await expect(play.locator('#play-caption')).toHaveText('Assisted row canonical. Not the demonstration. Accepted. 32 of 32 played. 17 wins, 15 losses, 0 draws. Not a capability verdict.');
+  await play.close();
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const fit = await page.evaluate(() => ({
