@@ -99,7 +99,59 @@ I froze the board just before Gemini’s eighth move against Grok on seed 4 and 
 
 <PongNetworkComparison />
 
-I could see why Gemini held still on that tick. What I wanted to know next was whether the change helped it win the rally.
+### Why does Grok move up, then down?
+
+A little later in that same rally, watch Grok Original on the left. On tick 34 the ball is two cells below the centre of its paddle. Grok moves up. By tick 35 the ball has risen one cell and so has Grok, so the gap is exactly the same. This time it moves down. What changed?
+
+<div class="pong-tick-boards">
+  <figure>
+    <img src={withBase('/images/weight-space-pong/grok-seed4-tick-34.webp')} width="704" height="352" loading="lazy" alt="Before tick 34, the ball is three cells from Grok’s left edge at height 10. Grok’s paddle is centred at height 12." />
+    <figcaption><strong>Tick 34 · Grok chooses up ↑</strong><br />Before the move, the ball is at height 10 and Grok is at 12.</figcaption>
+  </figure>
+  <figure>
+    <img src={withBase('/images/weight-space-pong/grok-seed4-tick-35.webp')} width="704" height="352" loading="lazy" alt="Before tick 35, the ball is one cell from Grok’s left edge at height 11. Grok’s paddle is now centred at height 13." />
+    <figcaption><strong>Tick 35 · Grok chooses down ↓</strong><br />Before the move, the ball is at height 11 and Grok is at 13.</figcaption>
+  </figure>
+</div>
+
+I followed the one calculation in Grok’s first layer whose answer changed. It reads the height of **its own paddle**. The game measures height from the bottom of the court and divides it by 15 before passing it to the network. Here’s what happens to that number on its way to the paddle.
+
+| Follow the calculation | Tick 34 | Tick 35 |
+| --- | ---: | ---: |
+| Paddle height as the network sees it | 12/15 | 13/15 |
+| First layer · multiply that height by 8, then subtract 4 | 2.4 | 2.933… |
+| Second layer · multiply that answer by 6, then subtract 3 | 11.4 | 14.6 |
+| Down score · start at 860 and add 6 times that answer | 928.4 | **947.6** |
+| Up score | **938** | 938 |
+| Hold score | −337.4 | −340.6 |
+
+On tick 34, up wins by less than ten points. On tick 35 its score is still 938, but down has climbed past it. Grok moves its paddle down from height 13 to 12, just as the ball arrives at height 12. It hits the centre of the paddle and comes back into play.
+
+<details class="pong-tick-maths">
+<summary>See all six inputs and where the 860 comes from</summary>
+
+| Input in Grok’s file order | Tick 34 | Tick 35 |
+| --- | ---: | ---: |
+| Distance from Grok’s end | 3/31 | 1/31 |
+| Ball height | 10/15 | 11/15 |
+| Horizontal speed (negative means towards Grok) | −2/2 | −2/2 |
+| Vertical speed (positive means up) | 1/2 | 1/2 |
+| Grok’s paddle height | 12/15 | 13/15 |
+| Gemini’s paddle height | 7/15 | 7/15 |
+
+The first-layer calculation in the table is unit 6 in Grok’s file. In the second layer, unit 4 combines that answer with unit 4 from the first layer, which gives zero on both ticks. That leaves just the multiplication by 6 and the bias of −3. Both answers are positive, so they pass through unchanged.
+
+Only four second-layer units contribute a nonzero value on these ticks. Unit 1 gives 78, unit 2 gives 86, and unit 5 gives 39.5 both times. Unit 4 is the one we just worked out. Here’s how those four answers give all three scores.
+
+| Move | Tick 34 | Tick 35 |
+| --- | --- | --- |
+| Down | 10 × 86 + 6 × 11.4 = 928.4 | 10 × 86 + 6 × 14.6 = 947.6 |
+| Up | 10 × 78 + 4 × 39.5 = 938 | 10 × 78 + 4 × 39.5 = 938 |
+| Hold | 2 − 2 × 78 − 2 × 86 − 11.4 = −337.4 | 2 − 2 × 78 − 2 × 86 − 14.6 = −340.6 |
+
+</details>
+
+That explains one return. What I wanted to know next was whether the revisions helped over a whole set of rallies.
 
 ## Which revisions helped against the same opponents?
 

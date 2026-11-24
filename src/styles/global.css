@@ -558,6 +558,33 @@ dd {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.pong-tick-boards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+.pong-tick-boards figure {
+  margin: 0;
+}
+.pong-tick-boards img {
+  display: block;
+  width: 100%;
+  filter: none;
+}
+.pong-tick-boards figcaption {
+  margin-top: .5rem;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.pong-tick-maths {
+  margin-block: 1.5rem;
+  border-block: 1px solid var(--rule);
+  padding-block: .75rem;
+}
+.pong-tick-maths summary {
+  cursor: pointer;
+}
 .prose .pong-play-callout {
   margin: 2rem 0;
   padding: 1rem 1.25rem;
