@@ -1,62 +1,126 @@
 ---
-title: 'Trying weight-space programming with Pong'
+title: 'Exploring Weight-Space Programming with Pong'
 draft: true
 topic: 'Weight-space programming'
 kind: 'Experiment note'
 author: 'Matt'
-standfirst: 'We built a browser Pong player from 435 static numbers. Two authoring sessions failed validation before a row-shaped, validation-assisted reply produced a playable list. Its recorded results were mixed, including eight losses against an interception rule.'
+updatedAt: 2026-11-24
+socialImage:
+  src: '/images/weight-space-pong/gemini-rally-poster.webp'
+  alt: 'Grok and Gemini’s networks light up on either side of the Pong court.'
+standfirst: 'Four AI models wrote neural networks to play Pong, then revised them after a tournament. Fable won twice. A single unreturnable serve made me look again at what we had measured.'
 ---
 
-import PongArtifact from '../../components/pong/PongArtifact.astro'
+import { withBase } from '../../lib/paths'
+import PongRallyHero from '../../components/pong/PongRallyHero.astro'
+import PongNetworkComparison from '../../components/pong/PongNetworkComparison.astro'
 
-The wider question is whether a language model can write a tiny network as static numbers that play a genuinely new browser game, without calling the model during play. Pong is our first setting. It is familiar, and choosing it does not show that the game is new, or that a model has no prior knowledge of it.
+<PongRallyHero />
 
-Other researchers have asked models to write weights directly, under the name [weight-space programming](https://rikiyat.github.io/blog/weight-space-programming/). In one [number-edit experiment](https://github.com/RikiyaT/lm_understand-logs/blob/main/exp5_write_from_scratch/README.md), the authors supplied the rules, the exact game source, and the definitions of the observations, actions, network, and scoring. That work is useful motivation. It does not tell us that an exact source is required, or how much specification a model needs.
+I still haven’t mastered Pong, yet Fable wrote a player for it that fits in a 1,046-byte file. Just 435 numbers. I recently read about Weight-space programming and was fascinated by the concept.
 
-## How the player is put together
+**Weight-space programming** is a way to program a neural network by writing or editing the numbers inside it. I got the idea from Rikiya Takehi, Jayden Teoh, Alex Zhang, and Omar Khattab at MIT CSAIL. For Breakout they gave Astra the game code and the shape of a network. Astra wrote a player in one reply, before it had a chance to play the game. [Read *Sparks of Weight-Space Programming*](https://rikiyat.github.io/blog/weight-space-programming/) and the researchers’ [record of their arcade experiment](https://github.com/RikiyaT/lm_understand-logs/tree/main/exp5_write_from_scratch).
 
-The player on this page is a small JavaScript program we wrote for this experiment. It does not use TensorFlow or PyTorch. If a language model writes a player, it does that beforehand, as a list of static numbers. During the game, this little program uses that fixed list locally. There is no training in play, and no live call to Grok.
+I wanted to try it with a game I knew well enough to follow by eye. If I gave four models the same court, the same controls, and the same network shape, what sort of players would they build? And if I showed each model where its paddle had missed, what would it change?
 
-Each step of play starts from the game state, meaning the current position and direction of the ball and the positions of both paddles. That state is turned into six inputs, each scaled into a small numeric range: the ball's horizontal and vertical position, its horizontal and vertical velocity, and the centres of both paddles. The six inputs pass through two hidden layers of 16 units each. A unit is a small step that combines incoming numbers into one result. Hidden just means those units sit between the inputs and the final scores. At the end there are three action scores, one for staying still, one for moving the paddle up, and one for moving it down. The paddle then follows the winning action.
+## Building a paddle out of numbers
 
-A weight is a number on a connection from one unit to the next, and it multiplies the value coming in. A bias is an extra number for that unit, added after those products have been summed, which raises or lowers the total. In the hidden layers, a negative total becomes zero, and a positive total is left as it is. The three final scores are ordinary totals, not probabilities. After a fixed rounding step, the action with the highest score is used. If two rounded scores are equal, the earlier action wins, so stay beats up, and up beats down.
+**We didn’t train any of the Pong players.** I gave Fable, Astra, Gemini, and Grok the rules and asked each language model to write the numbers for a much smaller network whose only job was to move a Pong paddle. A checker made sure the file was usable. Once a match started, the browser ran those numbers exactly as written. Even if the paddle missed the same shot ten times, it would play it the same way on the eleventh.
 
-These 435 numbers are parameters, made of 400 connection weights and 35 biases, not 435 neurons. We chose this small shape so every number can sit on the page: (6 × 16) + 16 = 112 in the first hidden layer, (16 × 16) + 16 = 272 in the second, and (16 × 3) + 3 = 51 for the three action scores. Pong does not require this count. The demonstration can start a serve, pause, and step through play, so the ball and paddles move under the current numbers. On each tick, both paddles are decided from the state at the start of the tick, then the game rules move the paddles and the ball. The numbers stay fixed while that happens. This is not a recording of a game played earlier. After the required assets have loaded, play is intended to use those local numbers only. Checks on the loaded files do not, on their own, prove that no later network request occurs.
+On every tick, the network gets six inputs. Four tell the paddle how far the ball is from its end of the court, how high it is, and how fast it’s moving horizontally and vertically. The other two give the height of each paddle.
 
-## A shared shape, and a mute
+| Stage | What happens on one tick |
+| --- | --- |
+| **6 inputs** | Read the ball’s distance from our end, its height, its horizontal and vertical velocity, and the heights of both paddles. |
+| **First layer · 16 units** | Each unit combines the six readings. One might work out how far the ball is above the paddle. |
+| **Second layer · 16 units** | Each unit combines the first layer’s results. It could use that gap together with a signal that the ball is heading our way. |
+| **3 outputs** | Score the three moves (hold still, move up, or move down). The highest score after rounding picks the move. |
 
-The demonstration on this page shows the 435 parameters as points in a sphere, using a fixed encoding so that different authored sets can later be compared under the same picture.
+Suppose the ball is above our paddle. One useful thing to know is how far we’d have to move up to meet it. The game gives the network two separate heights, so the player has to work out the gap for itself.
 
-<PongArtifact />
+The first layer is a row of 16 little calculations. Each gets the same six numbers and can combine them in its own way. One could take the ball’s height and subtract the paddle’s height. To do that, it would give the ball’s height a weight of +1, the paddle’s height a weight of −1, and the other four inputs a weight of zero. When the ball is above the paddle, that calculation passes the gap on to the next layer. When its result is negative, it passes on zero.
 
-Each parameter has a fixed direction, and its value moves the point along that ray. The directions and scale stay the same for every set. The mapping compresses large magnitudes, so two points that sit close together are not necessarily close in value, and the shape is not a score. It is not a picture of a brain, or of meaning, or of intelligence. Reordering the hidden units can change the shape without changing how the network behaves.
+The second layer gets the 16 answers from the first. It does another 16 calculations with them. Here’s why that might help in Pong. The ball could be above us but already travelling away. This layer could combine the gap with a signal that the ball is coming towards us. The weights each author writes decide which signals its player actually uses.
 
-The demonstration includes a control to mute one hidden unit and show the three action scores immediately. That shows whether those outgoing connections change the scores at the current state. A different score does not necessarily change which action wins. A mute that does nothing is still a result: the unit may be inactive at that state. The page can also run the original and the muted copy forward together from the same point in play, so a change can be watched rather than inferred from one state alone.
+The last layer takes those 16 answers and gives each possible move a score. If “move up” scores highest after rounding, the paddle moves up one cell. On the next tick the ball is somewhere new, and the player does it all again.
 
-## How similar might authored players be?
+Now we can count what each author had to write. Six inputs going to 16 calculations take 96 weights. Connecting those 16 answers to the next 16 takes 256. Connecting the last 16 answers to three moves takes another 48. That’s 400 weights. Each calculation also gets one number called a *bias*, which it adds to its total. With 16 in the first layer, 16 in the second, and three in the last, that’s 35 biases. **400 weights + 35 biases = 435 numbers.** The eight player files, including the revisions, ranged from 945 to 2,450 bytes.
 
-Each of the 435 parameters may be any number from -16 to 16, written with at most six digits after the decimal point. That gives 32,000,001 choices for each parameter. The number of possible lists is then 32,000,001 to the power of 435, a number with 3,265 digits. That counts numerical lists, not distinct ways of playing. Different lists can produce the same actions.
+<aside class="pong-play-callout" aria-label="Try the Pong arena">
 
-Neither that count, nor the skill of a frontier model, tells us how an authored player will actually play. The little network is not a compressed copy of the model that wrote it. We have no measured expectation of how similar such networks would be. The same architecture and the same goal might lead to similar tracking choices, but that is not evidence that the networks, or their weights, will look alike. If lists later exist to compare, the useful test is how they behave on the same serves and situations, not how close the raw numbers sit.
+**Try the Pong arena**
 
-The page already lets a reader mute one hidden unit and watch play from the same point. Later work could ask whether the same author would write lists that play alike, and whether a revision after feedback would change that play in a way we can measure. A small independent edit, such as rounding the numbers or muting a unit, or a comparison with a simple tracking or interception rule, could also help us see what a written player is doing. Those are questions for later work, beyond the sessions recorded here.
+You can [play any two of the eight prebuilt players against each other](#pong-arena). To make your own, download the <a href={withBase('/experiments/pong/arena/pong-authoring.zip')} download>authoring skill (ZIP)</a> and the <a href={withBase('/experiments/pong/arena/player-prompt.txt')} download>agent prompt (TXT)</a>. Give both to your agent and upload the player file it returns.
 
-## Two sessions that failed validation
+</aside>
 
-On 23 November 2026 we first ran one unaided session through the grok.com site, in the Expert mode shown there. Unaided here means the author was not given format feedback from a checker. The exact model version is unknown. The text we captured from the visible reply was 93,902 bytes, which exceeded the existing 16,384-byte size limit. The checker rejected it for size, and stopped there, so it did not count the numbers or accept a list. That size rejection is not a verdict on the shape or the reasoning of the reply, and it does not show whether Grok can or cannot write 435 usable numbers. We did not retry, repair, trim, or replace that response. The 32 scheduled games were not played for this session, because no list was accepted.
+## Fable won both tournaments. What decided the finals?
 
-A second session, still in the Expert mode shown there, asked for six counted lists. A local checker then reported only format, count, and bounds. It did not invent or replace numbers, and it did not give gameplay advice. This session had three submissions. The first reply was rejected because one hidden-layer list had 325 numbers instead of 256. The second was rejected because that list had 385 numbers instead of 256. Both of those replies were under the size cap. The third, and last, reply was 28,044 bytes and was rejected for size. The capture of that last reply is recorded as late. No official 435-number list was accepted from this session, and none of the 32 scheduled games were played for it. We did not take a prefix from an earlier reply, or otherwise repair the numbers.
+First we played the four originals against each other. I gave each author its player and the tournament feedback, including the board, the network’s responses, and the chosen move on every tick. Each language model could then edit its player’s numbers in light of those results. We loaded the four revised files and played again.
+- Every pair met in a round robin before the knockout.
+- The originals played best of nine matches per series and the revisions played best of five.
+- Eight points won a match.
+- A rally still going after 192 ticks earned neither player a point, and the next serve began.
 
-## An accepted list, and how it played
+Gemini won all three of its original round-robin series, including a 5–4 win over Fable. When they met again in the final, Fable won 5–4. With the revisions it was Astra that went unbeaten in the round robin, beating Fable 3–2. Fable then beat Astra 3–2 in the final. Every match in both finals finished **8–7**. That sounds close. Yet in the original final, 4,698 of 4,833 rallies (97.2%) ended without a point. <a href={withBase('/experiments/pong/arena/tournament-scores.csv')} download>Download the scores for all 90 matches (CSV)</a>.
 
-A third session asked for the same 435 parameters as short matrix rows and bias lists. A local adapter then flattened those rows into the official list. The checker reported format, count, and bounds only. It did not invent or edit any number, and it did not give gameplay advice. That is a change in how the numbers were written down, not a change to the values, and not a claim that the list was written without help. The first captured reply was accepted on the first check. The official document is 914 bytes and contains 435 parameters, all under the 16,384-byte cap. There was no earlier complete candidate in that session to select.
+One of the serves was impossible to return. The ball started near the bottom left corner, already heading off the court. The left paddle started near the top. Even if it moved down straight away, the ball went past before it could get there. Every time that serve came around, whoever was on the right got a free point.
 
-The evaluated list is separate from the demonstration weights.
+**All 135 points in the original final and all 75 in the revised final came from that serve.** On every other serve, the players kept the ball in play until time ran out. They took turns on the right, so the free points usually evened out. At 7–7, though, the next free point ended the match before they could swap sides again. I’m impressed that the finalists could keep almost everything in play. I’d change the serve schedule before using those finals to pick the better paddle.
 
-After the runtime was frozen, at 17:57:55 Hong Kong time on 23 November 2026, the 32 scheduled games were played: four baselines, four public serves, and the candidate on each side in turn. The recorded panel shows 17 wins and 15 losses, and no draws. It won 5 and lost 3 against a paddle that stays still, 6 and 2 against a random paddle, and 6 and 2 against a paddle that chases the ball. It lost all eight games against a simple interception rule. No game failed, was forfeited, or was scored by an administrative award. Those 32 games are 16 paired serves, not 32 independent samples.
+You can check this in the match scores. Filter the stage to **Final** and add up the two players’ scores on any row. We labelled that serve “seed 17” in the file. Its column accounts for all 15 points.
 
-Seventeen wins and 15 losses is not a verdict on what Grok can generally do, and it is not a compressed picture of the model that wrote the list. The original point still holds: the useful test is how a written list behaves on the same serves and situations. Even an accepted list, scored in this way, cannot show improvement from revision, success across many sessions, or a ranking of models, and it is not a held-out generalisation test.
+## The same ball, eight different networks
 
-Some limits on the records should be stated. We could not confirm the exact model, or that extra tools were off, for any of these sessions. The captured replies are on-screen text, not the original network bytes. The first unaided capture was not checked against the clipboard. For the accepted session, the captured text and the clipboard were the same length, but a byte-for-byte comparison was not made. The visible composer text was longer than the prepared prompt in each session, by extra blank lines, and we cannot see how the service actually sent the message. Screenshots do not cover every reply in full. Our saved record of the first session kept its pre-validation status, which the later rejection-report format did not allow. That is a record-format mismatch, not a change to the checker's rejection. A later check on the accepted list is recorded separately.
+I froze the board just before Gemini’s eighth move against Grok on seed 4 and gave that position to all eight networks. Look at Gemini’s pair first. You can follow the same lines across both pictures, but the ring around the chosen move shifts from down to hold. Gemini changed just one number to do that.
 
-The wider questions remain open, including how another authored list would play, and what a small edit would change. The page makes the setup inspectable. These sessions do not close those questions.
+<PongNetworkComparison />
+
+## Which revisions helped against the same opponents?
+
+From the bracket alone I couldn’t tell what Astra’s edits had done for its paddle. All its opponents had changed too. We tested each revision against the other three **originals** on all 35 distinct starting positions from the tournaments. Then we gave its first version the same opponents and serves.
+
+For example, Astra played Fable once on the left and once on the right at each start. That’s 70 rallies. Repeat against Gemini and Grok and there are **210 rallies per version**. Each arrow below runs from the original to the revision.
+
+| Player | Rallies won | Points conceded | Rallies drawn |
+| --- | --- | --- | --- |
+| Fable 5.2 · Medium | 94 → 93 | 3 → 3 | 113 → 114 |
+| Astra 6.2 · High | 56 → 66 | 54 → 3 | 100 → 141 |
+| Gemini Neon | 79 → 90 | 3 → 3 | 128 → 117 |
+| Grok 4.7 · Heavy | 12 → 8 | 181 → 202 | 17 → 0 |
+
+Those three points conceded are worth a closer look. For the revised Fable, Astra, and Gemini players, every loss came on the unreturnable serve, once against each opponent. On the other 34 starts, **each went 204 rallies without conceding a point**. That’s the bit that still amazes me about these little networks.
+
+<a href={withBase('/experiments/pong/arena/paired-rallies.csv')} download>Download the paired rally results (CSV)</a>. Each row gives the opponent, side, and starting position, with the outcome and duration before and after revision.
+
+### Fable’s original used 78 connections
+
+Fable is the one I’d have underestimated from the picture. Its original used only 78 of the 400 possible connections, scored 94 points, and conceded three. Its revision put a lot more wiring into the middle of the network and started using the ball’s horizontal velocity, an input the original had disconnected entirely. Across 167 parameter edits it went from 78 connections to 222. It still conceded three points and won one fewer rally.
+
+### Astra learned to stay in the rally
+
+Astra looked more involved from the start, with 129 connections, and its rewrite took that to 164. Among its 198 edits, the number of first-layer connections carrying horizontal velocity went from two to eleven. The change I care about most is in the rallies. Of the 54 that Astra Original lost, Revised drew 42, won nine, and lost just three. Against Fable Original alone, its losses fell from 28 to one in 70 rallies. Whatever the rest of those edits were doing together, Astra had become a much harder opponent to score against.
+
+### Gemini changed one number
+
+Gemini was already excellent. Its two diagrams have precisely the same 127 connections. The only edit was the bias for staying still. It gives that move a small head start on every tick. In the position pictured, moving down scored about 0.1975. Gemini raised the hold score from 0.175 to 0.300, enough to tip that decision. Original played that rally to a draw at tick 192. Revised went on to win at tick 190. Across the fixed opponents, that one edit turned 12 draws into wins and one win into a draw.
+
+### Grok beat its original and still fell behind
+
+Neither Grok player was in the same league as the other three. Its original scored 12 points and conceded 181. The revision changed 48 numbers, taking it from 30 connections to 36. Both versions left the ball’s distance from their own end disconnected, so two otherwise identical observations look the same to Grok whether the ball is near or far. Revised actually beat its own original 5–3 in their eight-rally exhibition. Against the fixed opponents it scored eight points, conceded 202, and finished without a single draw. If I’d stopped after that exhibition, I’d have drawn the wrong conclusion about the revision.
+
+## Try it with your own agent
+
+1. Open **Players** in the [Pong arena](#pong-arena), select **Copy agent prompt**, and give it to your agent. The copied prompt includes a link to the skill. If your agent can’t reach the site, attach the downloaded ZIP.
+2. Use **Upload weights (.json)** to load the file your agent returns. In **Matchup**, pick an opponent and play.
+3. After the match, select **Download match feedback**. Give your agent that file, its original player, and the **revision prompt**. Try the new player against the same opponent to see what changed.
+
+## What else fits in a file this small?
+
+This was a fun way for me to learn what goes on inside a little network. Our version of Pong gives the paddle a head start. The game tells it where the ball is and which way it’s moving. The paddle gets just three choices on each tick, and it makes that choice afresh each time. We also used the same 35 starting positions to compare the players. I know how they played those serves. I’m still curious how they’d cope with a serve they hadn’t seen.
+
+The part I keep coming back to is how little has to travel with the finished player. A file smaller than 2.5 KB can control a game I still struggle with. And I can point to one number in Gemini’s file, put the ball back in the same place, and see why the paddle makes a different move.
+
+Writing down 435 numbers felt like a cheap way to try an idea with a frontier model. The files tell me exactly how small the result is. We didn’t record comparable token counts or bills across the authoring sessions, so I can’t put a price on producing a good one. We played one revision from each author. I’d like to give it a second go without the match log and see how much of the improvement we get just by asking again.
+
+I don’t know whether weight-space programming will take off. I do want to try it again. I’m interested in very specific jobs where I can describe the inputs, keep the possible actions small, and tell when the result is wrong. For the next experiment I’d keep a set of situations away from the author until the end. I’d quite like to find out what else fits in a couple of kilobytes, and whether it still works the first time it sees something new.

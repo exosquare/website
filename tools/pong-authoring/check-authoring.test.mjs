@@ -394,7 +394,7 @@ assert.equal(JSON.parse(packed.stdout).forAuthor.concatenationAccepted, true);
 assert.equal(JSON.parse(packed.stdout).forAuthor.scalarCount, 435);
 assert.equal(JSON.parse(packed.stdout).operator.validatorSha256, VALIDATOR_SHA256);
 assert.equal(statSync(packedFixture).mtimeMs, before);
-const artifactDir = "/opt/cursor/artifacts";
+const artifactDir = process.env.PONG_AUTHORING_ARTIFACT_DIR || join(packet, "artifacts");
 mkdirSync(artifactDir, { recursive: true });
 writeFileSync(join(artifactDir, "pong-authoring-check-v2.2.zip"), zip);
 writeFileSync(join(artifactDir, "pong-authoring-check-v2.2.sha256"), `${createHash("sha256").update(zip).digest("hex")}  pong-authoring-check-v2.2.zip\n`);

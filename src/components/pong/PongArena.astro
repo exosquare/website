@@ -1,0 +1,194 @@
+---
+import playerPrompt from '../../../public/experiments/pong/arena/player-prompt.txt?raw';
+import { withBase } from '../../lib/paths';
+import MatchRules from './MatchRules.astro';
+import RevisionPrompt from './RevisionPrompt.astro';
+import './arena.css';
+const base = withBase('/experiments/pong/arena/');
+const tabs = ['Matchup', 'Live match', 'Tournament', 'Players'];
+---
+
+<section class="pong-arena" aria-label="Weight-space Pong" data-base={base}>
+  <div class="arena-tabs" role="tablist" aria-label="Pong views">
+    {
+      tabs.map((tab, i) => (
+        <button
+          type="button"
+          id={`arena-tab-${i}`}
+          role="tab"
+          aria-selected={i === 0}
+          aria-controls={`arena-panel-${i}`}
+          tabindex={i === 0 ? 0 : -1}
+        >
+          {tab}
+        </button>
+      ))
+    }
+  </div>
+  <div data-notice role="status">Loading players…</div>
+  <section
+    class="arena-page"
+    role="tabpanel"
+    id="arena-panel-0"
+    aria-labelledby="arena-tab-0"
+  >
+    <div class="duel">
+      <button data-seat="0"></button><span class="versus">vs</span><button
+        data-seat="1"></button>
+    </div>
+    <div class="roster-heading">
+      <h2 data-pick-title>Choose P1</h2><span>Original / Revised</span>
+    </div>
+    <div class="model-grid" data-cards></div>
+    <div data-extra></div>
+    <footer>
+      <button data-players>Upload player</button><a
+        download
+        href={base + 'pong-authoring.zip'}>Download skill ↓</a
+      ><button class="primary" data-start>Start match →</button>
+    </footer>
+  </section>
+  <section
+    class="arena-page"
+    role="tabpanel"
+    hidden
+    id="arena-panel-1"
+    aria-labelledby="arena-tab-1"
+  >
+    <div class="scorebar">
+      <h2 data-left-name></h2><strong data-score>0 – 0</strong><h2
+        data-right-name
+      >
+      </h2>
+    </div>
+    <div class="arena-game">
+      <div class="brain-box"><div class="brain-diagram">
+        <canvas
+          width="310"
+          height="284"
+          data-brain="0"
+          aria-label="Left paddle network activations"></canvas></div><b
+          data-action="0"></b>
+      </div>
+      <div class="court">
+        <canvas width="704" height="352" data-court aria-label="Pong court, ball and both paddles"></canvas>
+        <span class="point-call" data-point-call role="status" aria-atomic="true"></span>
+      </div>
+      <div class="brain-box"><div class="brain-diagram">
+        <canvas
+          width="310"
+          height="284"
+          data-brain="1"
+          aria-label="Right paddle network activations"></canvas></div><b
+          data-action="1"></b>
+      </div>
+    </div>
+    <div class="game-detail">
+      <span>Brighter nodes have stronger activations. Hover, tap or focus an outer node to inspect it.</span><span data-game-state
+      ></span>
+    </div>
+    <footer>
+      <button data-pause>Play</button><button data-step>Step</button><label
+        >Speed <select data-speed
+          ><option value="1">1×</option><option value="2">2×</option><option
+            value="4">4×</option
+          ></select
+        ></label
+      ><button data-restart>Restart match</button><button
+        data-series-export
+        hidden>Download match feedback ↓</button
+      >
+      <MatchRules />
+    </footer>
+    <div data-series-revision hidden><RevisionPrompt /></div>
+  </section>
+  <section
+    class="arena-page"
+    role="tabpanel"
+    hidden
+    id="arena-panel-2"
+    aria-labelledby="arena-tab-2"
+  >
+    <div class="toolbar">
+      <label
+        >Tournament <select data-mode
+          ><option value="reference">Reference</option><option value="custom"
+            >Custom</option
+          ></select
+        ></label
+      ><label>Best of <select data-best-of></select></label><button class="primary" data-run>Run tournament →</button>
+    </div>
+    <p data-tournament-state role="status"></p>
+    <section class="fixture" data-fixture hidden aria-label="Tournament scoreboard">
+      <header><strong data-fixture-stage></strong><span data-fixture-clock></span></header>
+      <div class="fixture-layout">
+        <div class="fixture-court">
+          <canvas width="704" height="352" data-fixture-court aria-label="Live tournament court. The left and right paddles match the player order on the scoreboard."></canvas>
+          <span class="point-call" data-fixture-overlay aria-hidden="true"></span>
+        </div>
+        <div class="fixture-scoreboard">
+          <div class="fixture-line">
+            <div class="fixture-team" data-fixture-team="0"></div>
+            <div class="fixture-points" aria-label="Match points"><b data-points="0">0</b><span>–</span><b data-points="1">0</b></div>
+            <div class="fixture-team" data-fixture-team="1"></div>
+          </div>
+          <div class="fixture-strip"><span data-fixture-call></span><span data-fixture-series></span></div>
+          <div class="fixture-foot">
+            <div class="rally-form"><span>Last 5 rallies</span><ol data-rally-history aria-label="Last five rallies, oldest first"></ol></div>
+            <button type="button" data-fast-finish>Fast finish</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div data-custom></div>
+    <div data-round-robin></div>
+    <div class="bracket-scroll" tabindex="0" aria-label="Knockout bracket">
+      <div class="bracket" data-bracket></div>
+    </div>
+    <footer>
+      <MatchRules tournament /><button data-export disabled>Download match feedback ↓</button>
+    </footer>
+    <div data-tournament-revision hidden><RevisionPrompt /></div>
+  </section>
+  <section
+    class="arena-page"
+    role="tabpanel"
+    hidden
+    id="arena-panel-3"
+    aria-labelledby="arena-tab-3"
+  >
+    <div class="profile">
+      <div class="profile-rail" data-authors></div><div data-profile></div>
+    </div>
+    <div class="import-area">
+      <h2>Enter your own player</h2>
+      <div class="import-grid">
+        <div>
+          <h3>Create a player with your agent</h3>
+          <button type="button" class="skill-link" data-copy-prompt>Copy agent prompt</button>
+          <a class="packet-link" download href={base + 'player-prompt.txt'}>Download agent prompt ↓</a>
+          <a class="packet-link" data-packet download href={base + 'pong-authoring.zip'}>Download skill ↓</a>
+          <details data-prompt-details>
+            <summary>Read prompt</summary>
+            <p data-agent-prompt tabindex="-1">{playerPrompt.trim()}</p>
+          </details>
+          <p data-copy-status role="status"></p>
+        </div>
+        <div>
+          <h3>Import your network</h3><label class="upload-label"
+            >Upload weights (.json)<input
+              type="file"
+              accept=".json,application/json"
+              data-file
+            /></label
+          >
+        </div>
+      </div>
+      <p data-upload-state role="status">
+        Uploaded players are available in Matchup and Custom tournament.
+      </p>
+    </div>
+  </section>
+  <noscript>Enable JavaScript to play the local networks.</noscript>
+</section>
+<script is:inline type="module" src={base + 'app.js'}></script>

@@ -66,3 +66,11 @@ Exit 1 means the selected check rejected the bytes. Exit 2 means the command lin
 ## Proposed exchange bound
 
 Pending review, and not enforced by this program: the initial submission plus at most two validation-only corrections, three checks in total. The returned notes are format, count, and bounds only. There is no gameplay feedback. Local repetition of the same bytes does not change them and does not contact a model.
+
+## Supply players to the arena
+
+Put accepted, public canonical JSON files beside `public/experiments/pong/arena/roster.json`. Each roster key combines the lowercase author name and version, for example `astra-revised`. Its object has a relative `file` path, optional `model` and `effort` labels supplied by the operator, and optional public `feedback`, `revision` and `result` strings for the Players tab. Supply only approved notes and measured results. Set pending slots to null until their player files arrive. The site validates every supplied file and enables the reference bracket when all eight slots are present.
+
+Run `python3 scripts/package-pong-skill.py` from the repository root after changing the reader skill, task contract or checker. The resulting ZIP contains the generic skill, the Pong contract, the executable checker and its hashes.
+
+The arena serves the provider marks locally. Grok uses the publisher's [Grok app artwork](https://apps.apple.com/us/app/grok/id6670324846). Astra uses the white Blossom from [OpenAI's logo kit](https://openai.com/brand/). Fable uses the ivory symbol from [Anthropic's press kit](https://www.anthropic.com/press-kit). Gemini uses the [Google-hosted four-color spark](https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png).

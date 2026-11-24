@@ -1,0 +1,91 @@
+tournament,stage,series,match,player_1,player_2,points_1,points_2,drawn_rallies,points_on_seed_17
+original,Round robin,1,1,grok-original,astra-original,0,8,0,0
+original,Round robin,1,2,grok-original,astra-original,3,8,3,0
+original,Round robin,1,3,grok-original,astra-original,4,8,2,0
+original,Round robin,1,4,grok-original,astra-original,1,8,0,0
+original,Round robin,1,5,grok-original,astra-original,0,8,1,1
+original,Round robin,2,1,grok-original,fable-original,0,8,1,0
+original,Round robin,2,2,grok-original,fable-original,0,8,1,0
+original,Round robin,2,3,grok-original,fable-original,0,8,0,0
+original,Round robin,2,4,grok-original,fable-original,0,8,0,0
+original,Round robin,2,5,grok-original,fable-original,0,8,1,1
+original,Round robin,3,1,grok-original,gemini-original,0,8,0,0
+original,Round robin,3,2,grok-original,gemini-original,0,8,3,0
+original,Round robin,3,3,grok-original,gemini-original,0,8,2,0
+original,Round robin,3,4,grok-original,gemini-original,0,8,0,0
+original,Round robin,3,5,grok-original,gemini-original,0,8,1,1
+original,Round robin,4,1,astra-original,fable-original,0,8,15,0
+original,Round robin,4,2,astra-original,fable-original,0,8,7,0
+original,Round robin,4,3,astra-original,fable-original,0,8,7,0
+original,Round robin,4,4,astra-original,fable-original,1,8,11,2
+original,Round robin,4,5,astra-original,fable-original,1,8,10,2
+original,Round robin,5,1,astra-original,gemini-original,0,8,33,1
+original,Round robin,5,2,astra-original,gemini-original,1,8,25,2
+original,Round robin,5,3,astra-original,gemini-original,1,8,18,2
+original,Round robin,5,4,astra-original,gemini-original,1,8,17,2
+original,Round robin,5,5,astra-original,gemini-original,1,8,20,2
+original,Round robin,6,1,fable-original,gemini-original,7,8,530,15
+original,Round robin,6,2,fable-original,gemini-original,8,7,522,15
+original,Round robin,6,3,fable-original,gemini-original,7,8,514,15
+original,Round robin,6,4,fable-original,gemini-original,8,7,506,15
+original,Round robin,6,5,fable-original,gemini-original,7,8,498,15
+original,Round robin,6,6,fable-original,gemini-original,8,7,490,15
+original,Round robin,6,7,fable-original,gemini-original,7,8,554,15
+original,Round robin,6,8,fable-original,gemini-original,8,7,546,15
+original,Round robin,6,9,fable-original,gemini-original,7,8,538,15
+original,Semifinal,7,1,gemini-original,grok-original,8,0,0,0
+original,Semifinal,7,2,gemini-original,grok-original,8,0,4,0
+original,Semifinal,7,3,gemini-original,grok-original,8,0,2,0
+original,Semifinal,7,4,gemini-original,grok-original,8,0,0,0
+original,Semifinal,7,5,gemini-original,grok-original,8,1,1,2
+original,Semifinal,8,1,fable-original,astra-original,8,0,15,0
+original,Semifinal,8,2,fable-original,astra-original,8,0,7,0
+original,Semifinal,8,3,fable-original,astra-original,8,0,7,0
+original,Semifinal,8,4,fable-original,astra-original,8,1,11,2
+original,Semifinal,8,5,fable-original,astra-original,8,1,10,2
+original,Final,9,1,gemini-original,fable-original,7,8,530,15
+original,Final,9,2,gemini-original,fable-original,8,7,522,15
+original,Final,9,3,gemini-original,fable-original,7,8,514,15
+original,Final,9,4,gemini-original,fable-original,8,7,506,15
+original,Final,9,5,gemini-original,fable-original,7,8,498,15
+original,Final,9,6,gemini-original,fable-original,8,7,490,15
+original,Final,9,7,gemini-original,fable-original,7,8,554,15
+original,Final,9,8,gemini-original,fable-original,8,7,546,15
+original,Final,9,9,gemini-original,fable-original,7,8,538,15
+revised,Round robin,1,1,fable-revised,gemini-revised,7,8,530,15
+revised,Round robin,1,2,fable-revised,gemini-revised,8,7,522,15
+revised,Round robin,1,3,fable-revised,gemini-revised,7,8,514,15
+revised,Round robin,1,4,fable-revised,gemini-revised,8,7,506,15
+revised,Round robin,1,5,fable-revised,gemini-revised,7,8,498,15
+revised,Round robin,2,1,fable-revised,grok-revised,8,0,0,0
+revised,Round robin,2,2,fable-revised,grok-revised,8,0,0,0
+revised,Round robin,2,3,fable-revised,grok-revised,8,0,0,0
+revised,Round robin,3,1,fable-revised,astra-revised,7,8,530,15
+revised,Round robin,3,2,fable-revised,astra-revised,8,7,522,15
+revised,Round robin,3,3,fable-revised,astra-revised,7,8,514,15
+revised,Round robin,3,4,fable-revised,astra-revised,8,7,506,15
+revised,Round robin,3,5,fable-revised,astra-revised,7,8,498,15
+revised,Round robin,4,1,gemini-revised,grok-revised,8,0,1,0
+revised,Round robin,4,2,gemini-revised,grok-revised,8,0,1,0
+revised,Round robin,4,3,gemini-revised,grok-revised,8,0,0,0
+revised,Round robin,5,1,gemini-revised,astra-revised,7,8,530,15
+revised,Round robin,5,2,gemini-revised,astra-revised,8,7,522,15
+revised,Round robin,5,3,gemini-revised,astra-revised,7,8,514,15
+revised,Round robin,5,4,gemini-revised,astra-revised,8,7,506,15
+revised,Round robin,5,5,gemini-revised,astra-revised,7,8,498,15
+revised,Round robin,6,1,grok-revised,astra-revised,0,8,0,0
+revised,Round robin,6,2,grok-revised,astra-revised,0,8,0,0
+revised,Round robin,6,3,grok-revised,astra-revised,0,8,0,0
+revised,Semifinal,7,1,astra-revised,grok-revised,8,0,0,0
+revised,Semifinal,7,2,astra-revised,grok-revised,8,0,0,0
+revised,Semifinal,7,3,astra-revised,grok-revised,8,0,0,0
+revised,Semifinal,8,1,gemini-revised,fable-revised,7,8,530,15
+revised,Semifinal,8,2,gemini-revised,fable-revised,8,7,522,15
+revised,Semifinal,8,3,gemini-revised,fable-revised,7,8,514,15
+revised,Semifinal,8,4,gemini-revised,fable-revised,8,7,506,15
+revised,Semifinal,8,5,gemini-revised,fable-revised,7,8,498,15
+revised,Final,9,1,astra-revised,fable-revised,7,8,530,15
+revised,Final,9,2,astra-revised,fable-revised,8,7,522,15
+revised,Final,9,3,astra-revised,fable-revised,7,8,514,15
+revised,Final,9,4,astra-revised,fable-revised,8,7,506,15
+revised,Final,9,5,astra-revised,fable-revised,7,8,498,15

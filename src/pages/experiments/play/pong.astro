@@ -1,65 +1,26 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { withBase } from '../../../lib/paths';
+import PongArena from '../../../components/pong/PongArena.astro';
 ---
 
-<Base title="Pong demonstration" description="Play the local Pong demonstration in this tab.">
-  <div class="play-view">
-    <h1>Pong demonstration</h1>
-    <p>
-      <span id="play-caption">Demonstration weights. No official score. First attempt rejected. Assisted row canonical is a separate accepted list.</span> <a href={withBase('/experiments/pong/')}>Open the standalone page</a>.
-    </p>
-    <iframe
-      src={withBase('/experiments/pong/')}
-      title="Pong demonstration. New serve, pause, and step play the authored weights in this frame."
-      sandbox="allow-scripts"></iframe>
-    <script>
-      const frame = document.querySelector<HTMLIFrameElement>('.play-view iframe');
-      if (frame) {
-        let applied = 0;
-        window.addEventListener('message', (event) => {
-          if (event.source !== frame.contentWindow) return;
-          const data = event.data;
-          if (!data || typeof data !== 'object') return;
-          if (data.type === 'pong-loaded-parent') {
-            const caption = document.getElementById('play-caption');
-            if (caption && typeof data.demonstrationStatus === 'string' && typeof data.attemptStatus === 'string') {
-              caption.textContent = `${data.demonstrationStatus} ${data.attemptStatus}`;
-            }
-            return;
-          }
-          if (data.type !== 'pong-embed-height') return;
-          if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
-          const height = Math.round(data.height);
-          if (height < 480 || height > 20000) return;
-          if (Math.abs(height - applied) < 2) return;
-          applied = height;
-          frame.style.height = `${height}px`;
-        });
-      }
-    </script>
+<Base
+  title="Weight-space Pong"
+  description="Watch two small networks play Pong, inspect their decisions and run a knockout tournament."
+>
+  <div class="arena-wrap">
+    <h1>Weight-space Pong</h1>
+    <PongArena />
   </div>
 </Base>
-
 <style>
-  .play-view {
-    width: min(100% - 32px, 1100px);
-    margin: 40px auto 64px;
+  .arena-wrap {
+    width: min(94%, 1240px);
+    margin: clamp(24px, 5vw, 72px) auto;
   }
   h1 {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-  }
-  p {
-    max-width: 680px;
-    margin: 12px 0 24px;
-    line-height: 1.6;
-  }
-  iframe {
-    display: block;
-    width: 100%;
-    height: 720px;
-    min-height: 480px;
-    border: 1px solid var(--rule);
-    background: #101315;
+    font-size: clamp(2.3rem, 6vw, 5.5rem);
+    letter-spacing: -0.065em;
+    line-height: 1;
+    margin-bottom: 0.5em;
   }
 </style>

@@ -1,4 +1,4 @@
-import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, openSync, realpathSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -655,7 +655,7 @@ export async function main(argv, stdinBytes) {
   return inspected.exitCode;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && existsSync(process.argv[1]) && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const argv = process.argv.slice(2);
   const parsed = parseArgs(argv);
   const wantsStdin = !parsed.help && !parsed.error && !parsed.file;

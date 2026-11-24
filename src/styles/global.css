@@ -558,6 +558,18 @@ dd {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.prose .pong-play-callout {
+  margin: 2rem 0;
+  padding: 1rem 1.25rem;
+  border-inline-start: 3px solid var(--fg);
+  background: var(--soft);
+}
+.prose .pong-play-callout p {
+  margin: 0;
+}
+.prose .pong-play-callout p + p {
+  margin-top: 0.4rem;
+}
 .prose blockquote {
   margin: 40px 0;
   padding: 0 0 0 24px;

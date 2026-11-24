@@ -1,0 +1,1 @@
+Make me an original player for ExoSquare’s Weight-space Pong. Unzip the supplied pong-authoring.zip and follow SKILL.md and TASK.md. Write all 435 parameters yourself. Run the included checker on player.json. You may make one format correction if needed. Return the first accepted player.json as a file I can upload.
