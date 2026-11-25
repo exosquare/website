@@ -1,0 +1,237 @@
+---
+title: 'Exploring Weight-Space Programming with Pong'
+draft: false
+publishedAt: 2026-11-25
+topic: 'Weight-space programming'
+kind: 'Experiment note'
+author: 'Matt'
+socialImage:
+  src: '/images/weight-space-pong/gemini-rally-poster.webp'
+  alt: 'Grok and Gemini’s networks light up on either side of the Pong court.'
+standfirst: 'Four AI models wrote neural networks to play Pong, then revised them after a tournament. Fable won twice. A single unreturnable serve made me look again at what we had measured.'
+---
+
+import { withBase } from '../../lib/paths'
+import PongRallyHero from '../../components/pong/PongRallyHero.astro'
+import PongNetworkComparison from '../../components/pong/PongNetworkComparison.astro'
+
+<PongRallyHero />
+
+I still haven’t mastered Pong. Fable wrote a player for it that fits in a 1,046-byte file. Just 435 numbers. My goal was to find out what in that file made a paddle move.
+
+I got the idea from Rikiya Takehi, Jayden Teoh, Alex Zhang, and Omar Khattab at MIT CSAIL. They gave Astra the code for Breakout and the shape of a neural network. Before it had played a single game, Astra wrote the numbers for a working player in one reply. **Weight-space programming** is their name for writing or editing the numbers inside a neural network directly. [Read *Sparks of Weight-Space Programming*](https://rikiyat.github.io/blog/weight-space-programming/) and the researchers’ [arcade experiment logs](https://github.com/RikiyaT/lm_understand-logs/tree/main/exp5_write_from_scratch).
+
+I chose Pong because I could follow the game by eye. I gave Fable, Astra, Gemini, and Grok the same rules and the same network shape. Once the four paddles had played each other, I’d give each author its results. What would it change after seeing a shot its paddle had missed? Before we get to the matches, here’s what each of them had to write.
+
+## Building a paddle out of numbers
+
+**We didn’t train any of the Pong players.** Each language model wrote a file. A checker made sure the browser could use it. From then on, the little network in that file controlled the paddle. If it saw exactly the same shot twice, it made exactly the same move.
+
+To see how that works, suppose the ball is above our paddle. The game knows where they both are. What the paddle needs to decide is whether to move up. It makes that decision once per *tick*, a single update of the board.
+
+| On each tick | What the paddle has to work with |
+| --- | --- |
+| Six inputs | The ball’s distance from our end, its height, its horizontal and vertical speed, and the heights of both paddles. |
+| First layer | Sixteen small calculations combine those readings. One could work out how far the ball is above the paddle. |
+| Second layer | Sixteen more calculations use the first set of answers. The gap might matter more if the ball is coming towards us. |
+| Three outputs | A score for each move. Whichever scores highest after rounding tells the paddle to hold still, go up one cell, or go down one cell. |
+
+A *weight* says how much of an input to use. For that gap calculation, give the ball’s height a weight of +1, the paddle’s height a weight of −1, and everything else zero. Subtracting the two heights gives the distance above the paddle. If the ball is below it, this unit passes on zero. Each author chose its own weights, so the four players could make quite different decisions on the same board.
+
+### Where do the 435 numbers come from?
+
+Each input has a connection to every unit in the next layer. The six inputs going into the first 16 units need 96 weights. The middle needs another 256 (16 × 16), and the three moves need 48 (16 × 3). That’s 400 weights.
+
+Each of the 16 first-layer units, 16 second-layer units, and three outputs also gets a *bias*, a number it adds to its answer. **400 weights + 35 biases = 435 numbers.** Even the largest of our eight files was only 2,450 bytes. The smallest was 945.
+
+Here are Fable’s first 16 weights. They all refer to the ball’s distance from Fable’s end of the court. Every zero is a unit that can ignore that distance.
+
+```json
+[0,0,1.033333,1.033333,0,1.033333,1.033333,0,0,0,0,0,0,0,0,0]
+```
+
+<aside class="pong-play-callout" aria-label="Try the Pong arena">
+
+**Try the Pong arena**
+
+You can [play any two of the eight prebuilt players against each other](#pong-arena). To make your own, download the <a href={withBase('/experiments/pong/arena/pong-authoring.zip')} download>authoring skill (ZIP)</a> and the <a href={withBase('/experiments/pong/arena/player-prompt.txt')} download>agent prompt (TXT)</a>. Give both to your agent and upload the player file it returns.
+
+</aside>
+
+## Fable won both tournaments. What decided the finals?
+
+We played the originals first. Then I gave each author its own file and a record showing where the ball was, which units lit up, and what the paddle did on every tick. We loaded the four revised files and ran a second tournament.
+
+The scoreboard counts points during a match and matches won during a series. Here’s how to read it.
+
+- **A rally** starts with a serve. Get the ball past the other paddle and you score one point. If both paddles are still returning it after 192 ticks, the rally is a draw. They serve again with the score unchanged.
+- **A match** goes to the first paddle to score eight points. An 8–7 match is as close as it gets.
+- **A series** is a set of matches between two paddles. First to five match wins took an original series. For the revisions, first to three won. Everyone played everyone else in the round robin. After that, losing a series put you out.
+
+Fable had already lost to each finalist earlier in the tournament. Here’s what happened when they met again. These scores count **matches won**.
+
+| Tournament | Round robin | Final |
+| --- | --- | --- |
+| Originals · best of nine | Gemini beat Fable 5–4 | Fable beat Gemini 5–4 |
+| Revisions · best of five | Astra beat Fable 3–2 | Fable beat Astra 3–2 |
+
+Gemini and Astra had each gone unbeaten in their round robin. What puzzled me even more was the score *inside* those final series. **Every single match ended 8–7.** How did four different player files produce the same score every time?
+
+Imagine you’re playing on the left. Your paddle is near the top. The ball starts near the bottom left corner, already heading off the court. You have time to move one cell before it goes past. Whoever is on the right gets a point without touching the ball. We called that serve “seed 17”.
+
+Now picture the score at **7–7**. Up to then the players have taken turns getting that free point. The next time seed 17 comes around, the player on the right gets to eight. The match ends before they can swap sides again. In the deciding match of each final, Fable got that last turn on the right.
+
+That serve accounted for **every point in both finals**. On every other serve, the finalists returned the ball until time ran out. That’s the part I find impressive. I’d change the serve schedule before using the trophy to pick the better paddle.
+
+<details>
+<summary>Check the final scores</summary>
+
+The original final had 4,698 drawn rallies out of 4,833 (97.2%). Seed 17 accounted for all 135 points in that final and all 75 in the revised final. In the download, filter the stage to **Final**. In each row, the two players’ scores add up to 15, and all 15 appear in the seed 17 column.
+
+<a href={withBase('/experiments/pong/arena/tournament-scores.csv')} download>Download the scores for all 90 matches (CSV)</a>.
+
+</details>
+
+My next question was whether the edits had actually made any of the paddles better. The finals couldn’t tell me that, because the opponents had changed too.
+
+## Which revisions helped against the same opponents?
+
+I wanted to know whether each edit made its paddle better against opponents that hadn’t changed. We played both versions of Astra against **Fable Original**, giving each the same 35 serves from both sides so we could see whether the revision returned a ball the original had missed.
+
+We repeated that test for each author against the other three originals. That gave each file 70 rallies per opponent, or **210 rallies in all**. Here a win means getting one ball past the other paddle.
+
+| Player | What changed on the court? |
+| --- | --- |
+| **Fable** | The original was already hard to beat. The revision still conceded just three points and won one fewer rally. |
+| **Astra** | Became much harder to score against. Of its 54 original losses, 42 became draws, and nine became wins. |
+| **Gemini** | Found a way to finish rallies. A single edit turned 12 draws into wins. One win went the other way. |
+| **Grok** | Beat its own original 5–3 in an eight-rally exhibition. Against the other players it lost more often after the revision. |
+
+There’s one result I keep coming back to. Take away the unreturnable serve and the revised Fable, Astra, and Gemini players each went **204 rallies without conceding a point**. On those 34 starting positions, their opponents could still force a draw by keeping the ball in play.
+
+<details>
+<summary>See all the rally results and weight changes</summary>
+
+Each arrow goes from the original file to its revision. A draw means the rally reached the time limit.
+
+| Player | Rallies won | Points conceded | Rallies drawn |
+| --- | --- | --- | --- |
+| Fable 5.2 · Medium | 94 → 93 | 3 → 3 | 113 → 114 |
+| Astra 6.2 · High | 56 → 66 | 54 → 3 | 100 → 141 |
+| Gemini Neon | 79 → 90 | 3 → 3 | 128 → 117 |
+| Grok 4.7 · Heavy | 12 → 8 | 181 → 202 | 17 → 0 |
+
+- **Fable** changed 167 parameters. It went from 78 active connections out of 400 to 222 and started using the ball’s horizontal speed.
+- **Astra** changed 198 parameters. It went from 129 connections to 164. Two first-layer units used horizontal speed before, and eleven did afterwards. Against Fable Original alone, its losses fell from 28 to one in 70 rallies.
+- **Gemini** kept the same 127 connections. Its one change was to the bias for holding still.
+- **Grok** changed 48 parameters and went from 30 connections to 36. Both versions ignored the ball’s distance from their end. Against the fixed opponents the revision conceded 202 points and finished without a draw.
+
+</details>
+
+<a href={withBase('/experiments/pong/arena/paired-rallies.csv')} download>Download the paired rally results (CSV)</a>. Each row lets you follow the same player, opponent, and serve before and after the edit.
+
+Fable is the one I’d have underestimated from its picture. It did so much with so few connections. Gemini made me curious for the opposite reason. Its two networks looked identical. What I wanted to see next was where one number could make the paddle do something different.
+
+## A worked example with the same ball and eight different networks
+
+I froze the board just before the eighth move in the Grok–Gemini rally at the top of the post (seed 4). All eight networks below get that same view from the right paddle. Look at Gemini’s pair first. The lines are identical. The ring around the chosen move shifts from **down** in the original to **hold** in the revision.
+
+<PongNetworkComparison />
+
+### Example 1: Gemini changed one number
+
+These are the last three numbers in Gemini’s file. Each is a bias for one move, in the order hold, up, and down.
+
+```diff
+-0.175,0,0
++0.3,0,0
+```
+
+On this tick, moving down scored about **0.1975**. Originally, holding still scored **0.175**, so the paddle went down. The revision raised hold to **0.300**. That was enough for the paddle to stay put.
+
+I could put both versions back on that serve and watch what followed. Original was still playing when time ran out at tick 192. Revised went on to score at tick 190. The rally in the opening replay is that win.
+
+### Example 2: Why does Grok move up, then down?
+
+Watch the left paddle a little later in the same replay. On tick 34 the ball is two cells below Grok’s centre, and Grok moves up. By tick 35, both the ball and Grok have risen one cell. The gap is still two cells. This time Grok goes down. Why?
+
+<div class="pong-tick-boards">
+  <figure>
+    <img src={withBase('/images/weight-space-pong/grok-seed4-tick-34.webp')} width="704" height="352" loading="lazy" alt="Before tick 34, the ball is three cells from Grok’s left edge at height 10. Grok’s paddle is centred at height 12." />
+    <figcaption><strong>Tick 34 · Grok chooses up ↑</strong><br />Before the move, the ball is at height 10 and Grok is at 12.</figcaption>
+  </figure>
+  <figure>
+    <img src={withBase('/images/weight-space-pong/grok-seed4-tick-35.webp')} width="704" height="352" loading="lazy" alt="Before tick 35, the ball is one cell from Grok’s left edge at height 11. Grok’s paddle is now centred at height 13." />
+    <figcaption><strong>Tick 35 · Grok chooses down ↓</strong><br />Before the move, the ball is at height 11 and Grok is at 13.</figcaption>
+  </figure>
+</div>
+
+Only one answer in Grok’s first layer changed. That unit reads only **the paddle’s own height**. Grok had moved up, and being one cell higher gave “down” a bigger score. You can follow that one change through both layers below. Start at the bottom if you just want to see which move won.
+
+This row in Grok’s file gives the first layer’s 16 weights for its own paddle height. The sixth number, 8, is the weight for unit 6.
+
+```json
+[-12,12,0,0,-8,8,0,0,0,0,0,0,0,0,0,0]
+```
+
+Units 1 and 2 compare the ball’s height with our paddle’s, and the two-cell gap didn’t change. Unit 5 got a different negative number on each tick, so it passed on zero both times.
+
+| Follow Grok’s calculation | Tick 34 | Tick 35 |
+| --- | ---: | ---: |
+| Paddle height divided by 15 | 12/15 | 13/15 |
+| First layer · multiply by 8, then subtract 4 | 2.4 | 2.933… |
+| Second layer · multiply that answer by 6, then subtract 3 | 11.4 | 14.6 |
+| Hold score | −337.4 | −340.6 |
+| Up score | **938** | 938 |
+| Down score · 860 plus 6 times the second-layer answer | 928.4 | **947.6** |
+| **Move** | **Up ↑** | **Down ↓** |
+
+The up score stayed at 938. On the second tick, down overtook it. Grok moved down to height 12 just as the ball arrived at height 12. It caught the ball in the centre of its paddle and sent it back.
+
+<details class="pong-tick-maths">
+<summary>See all six inputs and where the 860 comes from</summary>
+
+| Input in Grok’s file order | Tick 34 | Tick 35 |
+| --- | ---: | ---: |
+| Distance from Grok’s end | 3/31 | 1/31 |
+| Ball height | 10/15 | 11/15 |
+| Horizontal speed (negative means towards Grok) | −2/2 | −2/2 |
+| Vertical speed (positive means up) | 1/2 | 1/2 |
+| Grok’s paddle height | 12/15 | 13/15 |
+| Gemini’s paddle height | 7/15 | 7/15 |
+
+The first-layer calculation in the table is unit 6 in Grok’s file. In the second layer, unit 4 combines that answer with unit 4 from the first layer, which gives zero on both ticks. That leaves just the multiplication by 6 and the bias of −3. Both answers are positive, so they pass through unchanged.
+
+Only four second-layer units contribute a nonzero value on these ticks. Unit 1 gives 78, unit 2 gives 86, and unit 5 gives 39.5 both times. Unit 4 is the one we just worked out. Here’s how those four answers give all three scores.
+
+| Move | Tick 34 | Tick 35 |
+| --- | --- | --- |
+| Down | 10 × 86 + 6 × 11.4 = 928.4 | 10 × 86 + 6 × 14.6 = 947.6 |
+| Up | 10 × 78 + 4 × 39.5 = 938 | 10 × 78 + 4 × 39.5 = 938 |
+| Hold | 2 − 2 × 78 − 2 × 86 − 11.4 = −337.4 | 2 − 2 × 78 − 2 × 86 − 14.6 = −340.6 |
+
+</details>
+
+If you try this with your own player, keep the opponent and the serves the same for its next match. Grok beating its earlier self would have given me quite the wrong idea about its revision.
+
+## Try it with your own agent
+
+1. **Get a player file.** Open **Players** in the [Pong arena](#pong-arena) and select **Copy agent prompt**. Give the prompt to your agent. If it can’t reach the site, attach the downloaded skill ZIP.
+2. **Play a match.** Select **Upload weights (.json)** and choose the file your agent returns. In **Matchup**, pick an opponent and play.
+3. **Try a revision next.** Select **Download match feedback**. Give your agent the feedback, its original player file, and the **revision prompt**. Play the same opponent again and see what changed.
+
+You now have two versions of your own player and a fair way to compare them.
+
+## What else fits in a file this small?
+
+This was a fun way for me to learn what goes on inside a little network. Our Pong players get a head start. The game tells them where the ball is and which way it’s moving. They have three moves to choose from and only the current tick to go on. Still, a file smaller than 2.5 KB can control a game I haven’t mastered. I can open that file and put my finger on the number that made Gemini hold still.
+
+Writing down 435 numbers felt like a cheap way to try an idea with a frontier model. We didn’t record comparable token counts or bills, so I can’t put a price on a good paddle. We also tried only one revision per author. I’d like to know how much improvement we’d get just by asking again, without giving it the match log.
+
+I don’t know whether weight-space programming will take off. I do want to try it on another small job where I can describe the inputs and tell when the result is wrong. For the next experiment I’d keep some starting situations back. I know what these paddles can do on familiar serves. I’d quite like to see what happens the first time they get a new one.
+
+## Further reading
+
+- [*Sparks of Weight-Space Programming*](https://rikiyat.github.io/blog/weight-space-programming/)
+- [The researchers’ arcade experiment logs](https://github.com/RikiyaT/lm_understand-logs/tree/main/exp5_write_from_scratch)
+- [Pong arena](#pong-arena)

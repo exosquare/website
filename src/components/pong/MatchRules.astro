@@ -1,0 +1,38 @@
+---
+const { tournament = false } = Astro.props;
+---
+
+<details>
+  <summary>Match rules</summary>
+  <p>
+    Each tick, both players can move their paddle one cell up or down, or hold
+    still. A missed return gives the opponent one point. If the ball is still in
+    play after 192 ticks, the rally is a draw and neither player scores.
+  </p>
+  {
+    tournament ? (
+      <>
+        <p>
+          First to eight points wins a match. Drawn rallies score zero and play
+          continues with the next serve. Best of five means the first player to
+          win three matches wins the series.
+        </p>
+        <p>
+          Every pair plays one series in the round robin. Series wins determine
+          the knockout seeds. Ties go to match wins minus losses, then points
+          scored minus conceded, then entry order.
+        </p>
+        <p>
+          Everyone enters the knockout. The highest seed opens against the
+          lowest. Each series winner advances until one champion remains.
+        </p>
+      </>
+    ) : (
+      <p>
+        A head-to-head match lasts eight rallies. Each of four starting
+        positions is played twice, once from each side. The player with more
+        points wins. Equal scores give a draw.
+      </p>
+    )
+  }
+</details>

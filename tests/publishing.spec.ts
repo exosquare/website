@@ -17,6 +17,7 @@ function pages(dir: string): string[] {
 const tetrisRoute = 'experiments/local-tetris.html';
 const moonshineRoute = 'experiments/moonshine-stt/';
 const mirageRoute = 'experiments/mirage/';
+const pongRoute = 'experiments/pong/';
 const routes = pages('dist')
   .map((file) => path.relative('dist', file).split(path.sep).join('/'))
   .filter((file) => file !== '404.html')
@@ -43,7 +44,9 @@ for (const route of routes) {
           ? 'moonshine'
           : route === mirageRoute
             ? 'mirage'
-            : 'page';
+            : route === pongRoute
+              ? 'pong'
+              : 'page';
     const errors: string[] = [];
     const consoleErrors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -165,6 +168,15 @@ test('original Tetris artifact plays', async ({ page, baseURL }) => {
   await page.keyboard.press('Space');
   await expect(page.locator('#score')).not.toHaveText('0');
   expect(errors).toEqual([]);
+});
+
+test('the published Pong article is listed and dated', async ({ page, baseURL }) => {
+  const url = new URL('writing/weight-space-pong/', baseURL).href;
+  await page.goto(new URL('writing/', baseURL).href);
+  const link = page.locator('main a[href$="/writing/weight-space-pong/"]');
+  await link.click();
+  await expect(page).toHaveURL(url);
+  await expect(page.locator('.article-meta time')).toHaveAttribute('datetime', '2026-11-25');
 });
 
 test('shared navigation, theme persistence and local fonts', async ({

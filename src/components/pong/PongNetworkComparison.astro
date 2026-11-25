@@ -1,0 +1,170 @@
+---
+import { withBase } from '../../lib/paths';
+
+// Still frames from the arena renderer, all on the right paddle's view of seed 4, tick 8.
+const players = [
+  {
+    id: 'fable',
+    name: 'Fable 5.2',
+    logo: 'anthropic.svg',
+    edges: [78, 222],
+    moves: ['Down', 'Down'],
+  },
+  {
+    id: 'astra',
+    name: 'Astra 6.2',
+    logo: 'openai.svg',
+    edges: [129, 164],
+    moves: ['Hold', 'Down'],
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini Neon',
+    logo: 'gemini.png',
+    edges: [127, 127],
+    moves: ['Down', 'Hold'],
+  },
+  {
+    id: 'grok',
+    name: 'Grok 4.7 Heavy',
+    logo: 'grok.jpg',
+    edges: [30, 36],
+    moves: ['Up', 'Down'],
+  },
+];
+---
+
+<figure
+  class="network-sheet"
+  aria-label="Four Pong players before and after revision"
+>
+  <div class="players">
+    {
+      players.map((player) => (
+        <div class="pair">
+          <div class="name">
+            <img
+              src={withBase('/experiments/pong/arena/logos/' + player.logo)}
+              alt=""
+              width="20"
+              height="20"
+            />
+            {player.name}
+          </div>
+          {['Original', 'Revised'].map((version, i) => (
+            <div class="snapshot">
+              <a
+                class="version"
+                download
+                aria-label={
+                  'Download ' + player.name + ' ' + version + ' weights'
+                }
+                href={withBase(
+                  '/experiments/pong/arena/players/' +
+                    player.id +
+                    '-' +
+                    version.toLowerCase() +
+                    '.json',
+                )}
+              >
+                {version} ↓
+              </a>
+              <img
+                src={withBase(
+                  '/images/weight-space-pong/' +
+                    player.id +
+                    '-' +
+                    version.toLowerCase() +
+                    '.webp',
+                )}
+                width="620"
+                height="568"
+                loading="lazy"
+                decoding="async"
+                alt={
+                  player.name +
+                  ' ' +
+                  version +
+                  ' network with ' +
+                  player.edges[i] +
+                  ' nonzero connections. Selected move: ' +
+                  player.moves[i].toLowerCase() +
+                  '.'
+                }
+              />
+              <div class="reading">
+                {player.edges[i]} connections · {player.moves[i]}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+  <figcaption>
+    All eight networks see the same ball and paddles. Read each picture from the
+    six inputs on the left through the two middle layers to the three moves on
+    the right. Lines show nonzero connection weights. Brightness shows the size
+    of a node’s response relative to others in its layer. The ring marks the
+    chosen move. Select Original or Revised to download that player’s weights.
+  </figcaption>
+</figure>
+<style>
+  .network-sheet {
+    margin: 2rem 0;
+  }
+  .players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: 1px;
+    background: #465052;
+    padding: 1px;
+  }
+  .pair {
+    background: #101416;
+    color: #f1f3f2;
+    display: grid;
+    align-content: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0.75rem;
+    gap: 0.4rem 0.5rem;
+  }
+  .name {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 650;
+  }
+  .network-sheet img {
+    filter: none;
+  }
+  .name img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    margin: 0;
+  }
+  .snapshot {
+    min-width: 0;
+  }
+  .snapshot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0;
+  }
+  .version,
+  .reading {
+    color: #ccd4d5;
+    font:
+      0.76rem/1.45 ui-monospace,
+      monospace;
+  }
+  figcaption {
+    margin-top: 0.7rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+</style>

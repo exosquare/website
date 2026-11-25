@@ -1,0 +1,42 @@
+{
+  "grok-original": {
+    "file": "players/grok-original.json",
+    "model": "Grok 4.7",
+    "effort": "Heavy"
+  },
+  "grok-revised": {
+    "file": "players/grok-revised.json",
+    "model": "Grok 4.7",
+    "effort": "Heavy"
+  },
+  "astra-original": {
+    "file": "players/astra-original.json",
+    "model": "Astra 6.2",
+    "effort": "High"
+  },
+  "astra-revised": {
+    "file": "players/astra-revised.json",
+    "model": "Astra 6.2",
+    "effort": "High"
+  },
+  "fable-original": {
+    "file": "players/fable-original.json",
+    "model": "Fable 5.2",
+    "effort": "Medium"
+  },
+  "fable-revised": {
+    "file": "players/fable-revised.json",
+    "model": "Fable 5.2",
+    "effort": "Medium"
+  },
+  "gemini-original": {
+    "file": "players/gemini-original.json",
+    "model": "Gemini Neon",
+    "effort": "Not set"
+  },
+  "gemini-revised": {
+    "file": "players/gemini-revised.json",
+    "model": "Gemini Neon",
+    "effort": "Not set"
+  }
+}

@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
-    "build": "npm run lint:content && astro build && npm run verify:output",
-    "build:preview": "npm run lint:content && PREVIEW_DRAFTS=true astro build",
+    "build": "npm run lint:content && node scripts/bundle-pong-preview.mjs --check && astro build && npm run verify:output",
+    "build:preview": "npm run lint:content && node scripts/bundle-pong-preview.mjs --check && PREVIEW_DRAFTS=true astro build",
     "preview": "astro preview --host 127.0.0.1",
-    "check": "astro check",
+    "check": "node scripts/bundle-pong-preview.mjs --check && astro check",
     "lint:content": "node scripts/lint-content.mjs",
     "format": "prettier --write \"src/**/*.{astro,css,ts,json,md,mdx}\" \"scripts/*.mjs\" \"*.{json,mjs}\"",
     "verify:output": "node scripts/verify-output.mjs",
     "dev:drafts": "PREVIEW_DRAFTS=true astro dev --host 127.0.0.1",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test --grep-invert @draft",
+    "test:browser:drafts": "playwright test --grep \"@draft|@preview\"",
+    "check:pong-authoring": "node tools/pong-authoring/check-authoring.test.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "8.0.0",
@@ -28,6 +30,7 @@
     "@astrojs/check": "0.9.10",
     "@playwright/test": "1.63.0",
     "@types/qrcode": "1.5.6",
+    "esbuild": "0.28.2",
     "prettier": "3.9.6",
     "prettier-plugin-astro": "0.14.1",
     "typescript": "6.0.3"

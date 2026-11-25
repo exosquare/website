@@ -1,5 +1,6 @@
 ---
 import { withBase } from '../../lib/paths';
+import PongArena from '../../components/pong/PongArena.astro';
 import Figure from '../../components/Figure.astro';
 import ContributorCredits from '../../components/ContributorCredits.astro';
 import NostrLine from '../../components/NostrLine.astro';
@@ -54,7 +55,8 @@ const schema = {
           }
         </div>
       </div>
-    </header><div class="editorial-grid article-body">
+    </header>
+    <div class="editorial-grid article-body">
       <aside class="side-note mono">
         {
           d.draft && (
@@ -81,6 +83,13 @@ const schema = {
           </>
         </section>
       )
-    }<ContributorCredits contributors={d.contributors || []} /><ContactInvite />
+    }
+    {entry.id === 'weight-space-pong' && <div class="article-arena" id="pong-arena">
+      <PongArena />
+      <a href={withBase('/experiments/play/pong/')}>Open the full arena ↗</a>
+    </div>}
+    <ContributorCredits contributors={d.contributors || []} /><ContactInvite />
   </article></Base
 >
+
+<style>.article-arena{margin:0 auto 3rem}.article-arena > a{display:inline-block;margin-top:.6rem;text-decoration:underline}</style>

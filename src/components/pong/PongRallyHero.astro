@@ -1,0 +1,26 @@
+---
+import { withBase } from '../../lib/paths';
+const media = '/images/weight-space-pong/gemini-rally';
+---
+<figure class="rally-hero">
+  <video data-rally-hero controls muted loop playsinline preload="none" width="1200" height="488"
+    poster={withBase(media + '-poster.webp')} aria-label="Replay of Gemini Revised scoring against Grok Original"
+    aria-describedby="rally-description">
+    <source src={withBase(media + '.webm')} type="video/webm" />
+    <a href={withBase(media + '.webm')}>Download the rally replay</a>
+  </video>
+  <figcaption id="rally-description">Grok Original on the left, Gemini Revised on the right. The lit nodes show each paddle choosing its next move. Gemini takes the point on tick 190.</figcaption>
+</figure>
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-rally-hero]');
+  if (video) {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!motion.matches) video.play().catch(() => {});
+    motion.addEventListener('change', () => { if (motion.matches) video.pause(); });
+  }
+</script>
+<style>
+  .rally-hero { margin: 0 0 1.75rem; }
+  video { display: block; width: 100%; height: auto; background: #101416; }
+  figcaption { margin-top: .65rem; font-size: .875rem; line-height: 1.5; color: var(--muted); }
+</style>
