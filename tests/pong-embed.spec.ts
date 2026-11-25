@@ -44,7 +44,7 @@ async function painted(frame: FrameLocator, id: string) {
 for (const surface of routes) {
   for (const viewport of widths) {
     for (const theme of themes) {
-      test(`${surface.name} ${viewport.name} ${theme}`, surface.name === 'article' ? { tag: '@draft' } : {}, async ({ page, baseURL }) => {
+      test(`${surface.name} ${viewport.name} ${theme}`, surface.name === 'article' ? { tag: '@preview' } : {}, async ({ page, baseURL }) => {
         test.setTimeout(60_000);
         const urls = childRequests(page);
         const errors: string[] = [];

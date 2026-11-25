@@ -59,7 +59,7 @@ npm run build:preview
 npm run test:browser:drafts
 ```
 
-`npm run test:browser` follows the production build. It discovers published pages and checks that the draft Pong article is absent. `npm run test:browser:drafts` follows the preview build and runs that article's embed. The suite checks structural behavior, local images, font loading, navigation and theme persistence. It does not assert article counts, headlines, pixel screenshots or third-party availability. Tests use isolated browser contexts, a pinned Chromium version, one worker and no retries. Playwright waits for the server and observable page states instead of fixed sleeps. Failure traces/screenshots are retained for diagnosis.
+`npm run test:browser` follows the production build. It discovers published pages and checks that the Pong article is listed and dated. The article’s layout and arena checks also run against the preview build with `npm run test:browser:drafts`. The suite checks structural behavior, local images, font loading, navigation and theme persistence. It does not assert article counts, headlines, pixel screenshots or third-party availability. Tests use isolated browser contexts, a pinned Chromium version, one worker and no retries. Playwright waits for the server and observable page states instead of fixed sleeps. Failure traces/screenshots are retained for diagnosis.
 
 PR checks run for every change, including article-only changes. They do not deploy. After merging, production is validated again using the configured Pages address. Live-delivery checks run only after deployment and retry transient network/CDN failures separately from the required PR check.
 

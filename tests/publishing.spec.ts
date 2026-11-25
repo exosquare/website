@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
 function pages(dir: string): string[] {
@@ -170,13 +170,13 @@ test('original Tetris artifact plays', async ({ page, baseURL }) => {
   expect(errors).toEqual([]);
 });
 
-test('the draft Pong article is excluded from the production build', async ({ page, baseURL }) => {
-  const draftFile = path.join('dist', 'writing', 'weight-space-pong', 'index.html');
-  expect(existsSync(draftFile)).toBe(false);
-  expect(existsSync(path.join('dist', 'writing', 'mirage', 'index.html'))).toBe(true);
-  expect(readFileSync(path.join('dist', 'writing', 'index.html'), 'utf8')).not.toContain('weight-space-pong');
-  const response = await page.goto(new URL('writing/weight-space-pong/', baseURL).href);
-  expect(response?.status()).toBe(404);
+test('the published Pong article is listed and dated', async ({ page, baseURL }) => {
+  const url = new URL('writing/weight-space-pong/', baseURL).href;
+  await page.goto(new URL('writing/', baseURL).href);
+  const link = page.locator('main a[href$="/writing/weight-space-pong/"]');
+  await link.click();
+  await expect(page).toHaveURL(url);
+  await expect(page.locator('.article-meta time')).toHaveAttribute('datetime', '2026-11-25');
 });
 
 test('shared navigation, theme persistence and local fonts', async ({

@@ -14,7 +14,7 @@
     "verify:output": "node scripts/verify-output.mjs",
     "dev:drafts": "PREVIEW_DRAFTS=true astro dev --host 127.0.0.1",
     "test:browser": "playwright test --grep-invert @draft",
-    "test:browser:drafts": "playwright test --grep @draft",
+    "test:browser:drafts": "playwright test --grep \"@draft|@preview\"",
     "check:pong-authoring": "node tools/pong-authoring/check-authoring.test.mjs"
   },
   "dependencies": {
