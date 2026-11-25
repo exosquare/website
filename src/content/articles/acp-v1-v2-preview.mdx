@@ -1,0 +1,38 @@
+---
+title: 'What ACP v2 Preview changes for a host'
+topic: 'Agent Client Protocol'
+kind: 'Field note'
+standfirst: 'ACP v1 already covers sessions, streamed progress and permissions. The 20 November Preview adds clearer rules for background work, recovery and retries. It is not a frozen release.'
+author: 'ExoSquare'
+draft: true
+---
+
+A host already has a useful v1 contract: start a session, send prompts, show streamed progress, request permission and cancel work. The practical question is what the v2 Preview, published on 20 November 2026, actually changes.
+
+**Status as of 25 November 2026:** [ACP v2 is in Preview](https://agentclientprotocol.com/announcements/acp-v2-preview). It is not frozen, and support will vary by implementation. This note describes the documented contracts, not a tested integration.
+
+[V1 already defines](https://agentclientprotocol.com/protocol/overview) those session, progress and permission exchanges. [Loading a session can replay history](https://agentclientprotocol.com/protocol/v1/session-setup.md), and resuming without replay is a separate optional capability. [Child sessions and messages](https://agentclientprotocol.com/protocol/v1/subagents.md) already exist when a client opts in.
+
+| Host concern | ACP v1 | ACP v2 Preview |
+| --- | --- | --- |
+| Prompt acceptance | The prompt response ends the turn | The response acknowledges acceptance. Completion comes later, as an idle state update |
+| Background work | Inferred from implementation-specific behaviour | An explicit background list, separate from foreground work |
+| Session replay | Load can replay history. Resume without replay is optional | A resume with replay ends with a completion marker |
+| Prompt retries | The host must avoid inserting the same message twice | A keyed retry can return the original message while the agent retains the key |
+| Child sessions | Clients opt in | Every v2 client handles them, even if it does not show them separately. Agents still choose whether to expose them |
+
+The distinction between accepting a prompt and completing the turn was already a v2 Draft theme. The Preview fills in the surrounding rules: background work, replay markers and keyed retries.
+
+### What this could look like
+
+These are illustrative workflows, not deployments we have tested. A host could already build similar behaviour with custom glue. The Preview standardises the contract.
+
+**A test run that remains visible.** After the main reply finishes, a host can still show a background test terminal. An idle foreground does not mean the session is quiet. If the agent advertises cancel support, that terminal can be stopped on its own.
+
+**A dropped connection, then a clean resume.** The host resumes and requests a replay. Updates before the completion marker are history. Live updates wait until after it. A prompt resent with the same key can reuse the original message identifier while the agent still retains that key.
+
+**A delegated investigation the user can inspect.** A parent can announce a child and report messages between them. A v1 client already sees this if it opts in. In v2, handling child sessions becomes part of the client baseline. The agent still owns the children and decides whether to expose them. The client does not freely prompt those children or forward their messages.
+
+The Preview does not supply a task board, a scheduler or a shared inbox. Those remain host responsibilities. [Permission requests stay advisory](https://agentclientprotocol.com/protocol/v1/security) in the documented trust model.
+
+If a host only needs a straightforward interactive session, v1 already covers the core exchange. We would trial v2 Preview where background work, reliable replay or safer retries would reduce guesswork, and check what each implementation actually serves.
