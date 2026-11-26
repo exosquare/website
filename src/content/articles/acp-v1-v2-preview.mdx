@@ -1,0 +1,155 @@
+---
+id: acp-v1-v2-preview
+title: 'What ACP v2 Preview changes for a host'
+type: guide
+audience: 'Developers building or evaluating an editor that works with coding agents'
+prerequisites:
+  - 'For the three checks, access to a host and an agent that can negotiate ACP v2 Preview'
+  - 'A way to inspect the messages they exchange'
+topic: 'Agent Client Protocol'
+kind: 'Field note'
+standfirst: 'The Agent Client Protocol (ACP) lets different coding agents work in the same editor. Its v2 Preview helps the editor track work that continues after a reply.'
+author: 'ExoSquare'
+draft: false
+publishedAt: 2026-11-26
+---
+
+When you use a coding agent inside your editor, the editor is the host. It sends your prompt to the agent, shows you its reply and handles any requests for permission. The ACP spec calls this app the [client](https://agentclientprotocol.com/protocol/v1/overview#client).
+
+Suppose you ask the agent to fix a bug and run the tests. It makes the change and starts the test suite in a terminal. You're reading its summary of the fix while the tests are still running. If you close the session now, what happens to the tests?
+
+In v1, the agent's response tells the editor that the turn has ended. To know the tests are still running, the editor needs its own way to track them.
+
+In v2 Preview, the agent can report that the foreground is idle and list the test terminal as [background work](https://agentclientprotocol.com/rfds/v2/background-work) in the same update. The editor can then warn you that closing the session would stop the tests. If the terminal supports cancellation, you can stop just the test run and keep the session open.
+
+The [20 November 2026 v2 Preview](https://agentclientprotocol.com/announcements/acp-v2-preview) is still open for feedback. By the end, you'll be able to decide which of these five changes are worth trying in your own host.
+
+| Host concern | ACP v1 | ACP v2 Preview |
+| --- | --- | --- |
+| Prompt acceptance | The response marks the end of the turn | The response confirms insertion. An idle update marks the end of foreground work. Either can arrive first |
+| Background work | Inferred from implementation-specific behaviour | An optional list identifies work that continues independently of the foreground |
+| Session replay | [Load can replay history](https://agentclientprotocol.com/protocol/v1/session-setup.md). Resume without replay is optional | A completed replay has a marker before the resume response |
+| Prompt retries | V1 has no standard retry key. Resending a prompt risks a duplicate | A retry with a retained key returns the original message ID |
+| Child sessions | [Clients opt in](https://agentclientprotocol.com/protocol/v1/subagents) | Every v2 client handles them, even if it doesn't show them separately. Agents still choose whether to expose them |
+
+## Why the end of a turn tells only part of the story
+
+What should appear next in the editor when the agent accepts your prompt? The earlier v2 Draft already separated acceptance from the end of the turn. The Preview fills in the rules for three cases a host has to handle. We'll look at background work first, then replay and retries.
+
+### Example: the agent accepts a prompt and leaves the tests running
+
+The abridged `session/prompt` result is `{"messageId":"fix-17"}`. Later, the agent sends this abridged state update.
+
+```json
+{
+  "sessionUpdate": "state_update",
+  "state": "idle",
+  "stopReason": "end_turn",
+  "background": [
+    { "type": "terminal", "terminalId": "tests-1" }
+  ]
+}
+```
+
+Keep the message ID with the prompt the agent accepted. When the idle update arrives, the editor can take down the spinner for the reply and keep the test terminal on screen.
+
+Consider two other cases before marking the tests as finished. An empty list means the agent reports no background work. If it leaves the list out, the editor doesn't know. Even an empty list won't tell you whether the suite passed. Check the test runner's exit code if the agent reports one in `exitStatus`.
+
+These examples illustrate the spec. We haven't tested them in a deployment. A v1 host could build similar behaviour for a particular agent. The Preview standardises how to describe it.
+
+## When the connection drops
+
+What if the connection drops just as you send the next prompt? On reconnect, two questions matter. One is how much history came back. The other is whether the agent received the prompt before the connection broke.
+
+### Example: resuming with replay
+
+On a fresh connection, the host requests the retained history with `session/resume` and `replayFrom` set to `{"type":"start"}`. The agent replays the earlier user message and reply, then sends this [marker](https://agentclientprotocol.com/protocol/v2/session-setup#replay-complete).
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "sessionId": "sess_789xyz",
+    "update": { "sessionUpdate": "replay_complete" }
+  }
+}
+```
+
+This abridged sequence follows one session. Live updates for that session follow the marker. Put the earlier messages back in its history. If your editor sounds a notification for a new reply, let the old reply go by quietly. If the connection fails before the marker arrives, show that the replay was cut short.
+
+### Example: retrying a prompt with a key
+
+The agent inserted the prompt, but the host lost the response. After resuming the session, the host [retries](https://agentclientprotocol.com/protocol/v2/prompt-lifecycle#retrying-a-prompt) with a new request ID, the same prompt and the same key.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "session/prompt",
+  "params": {
+    "sessionId": "sess_abc123def456",
+    "idempotencyKey": "0b6f3c1e-8d2a-4c57-9a41-5e2f7d90c3ab",
+    "prompt": [{ "type": "text", "text": "Run the tests" }]
+  }
+}
+```
+
+The agent still recognises the key. It answers request 8 with the ID of the message it inserted on the first attempt.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "result": { "messageId": "msg_user_8f7a1" }
+}
+```
+
+The exchange is abridged. Match the response to the existing submission so the user sees one prompt. A common mistake is to generate a fresh key on reconnect. That loses the link to the first request, even if the words in both prompts match.
+
+## When the agent delegates
+
+So far the editor has followed one conversation. Now suppose the agent asks a child session to investigate a failing test.
+
+### Example: a child session investigates a failing test
+
+The agent [announces the child on the parent session](https://agentclientprotocol.com/protocol/v2/subagents#announcing-a-child-session). The outer `sessionId` identifies the parent. The ID inside `update` identifies the child.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "sessionId": "sess_parent",
+    "update": {
+      "sessionUpdate": "subagent_update",
+      "sessionId": "sess_child_1",
+      "title": "Test investigator"
+    }
+  }
+}
+```
+
+The agent can report messages between the two sessions. The editor can show the investigation alongside the fix.
+
+A v1 client already sees this if it opts in. A v2 client has to handle the child even if it shows everything in one view. The agent still owns the children and decides which ones to expose. Showing a child's reply doesn't give the editor a free hand to prompt the child or forward its messages.
+
+## Try it: check your host against the Preview
+
+With that in mind, try three checks on a host and agent that have negotiated v2. Keep the protocol messages beside the editor so you can compare what the agent reports with what the user sees.
+
+1. **Step 1 of 3.** Ask the agent to leave a test suite running in the background. When the foreground goes idle, look for the test terminal in the update and check whether the editor still shows the run.
+2. **Step 2 of 3.** Reconnect and request a replay of a session with a reply you recognise. Check that the old reply appears once in the history and that fresh activity appears after the completion marker.
+3. **Step 3 of 3.** Resend one harmless prompt with the original key while the agent still retains it. Compare the two returned `messageId` values and count how many copies of the prompt appear in the conversation.
+
+### Example: what step 1 looks like when it works
+
+The idle update arrives with the test terminal in its `background` list, as in the [first example](#example-the-agent-accepts-a-prompt-and-leaves-the-tests-running). The editor still shows the run after the reply spinner stops.
+
+## Next steps
+
+You can now use those three observations to pick the next behaviour you'd trial. If the editor loses sight of running tests, background reporting is a place to start. If reconnecting gives you two copies of a prompt, look at your retry key and the message ID the agent returns.
+
+The Preview doesn't supply a task board, a scheduler or a shared inbox. Those remain host responsibilities. [Permission requests stay advisory](https://agentclientprotocol.com/protocol/v1/security) in the documented trust model.
+
+If a host only needs a simple interactive session, v1 already covers the core exchange. We'd trial v2 Preview where background work, reliable replay or safer retries would reduce guesswork, and check what each implementation actually serves. See the [Preview announcement](https://agentclientprotocol.com/announcements/acp-v2-preview) for the changes. If you find a case the spec leaves unclear, [tell the ACP maintainers](https://github.com/agentclientprotocol/agent-client-protocol/issues).
