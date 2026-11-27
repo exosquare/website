@@ -1,0 +1,90 @@
+{
+  "anchors": [
+    {
+      "id": "cred",
+      "appName": "CRED",
+      "url": "cred.club",
+      "styleName": "NeoPOP Dark Tactile",
+      "promptDescriptor": "deep #0D0D0D dark surfaces, bold geometric typography, hard-edged 3D tactile elevation, and high-contrast neon accents"
+    },
+    {
+      "id": "wise",
+      "appName": "Wise",
+      "url": "wise.com",
+      "styleName": "Minimalist High-Trust",
+      "promptDescriptor": "generous whitespace, crisp high-trust typographic hierarchy, unmistakable primary CTAs, and zero decorative clutter"
+    },
+    {
+      "id": "airbnb",
+      "appName": "Airbnb",
+      "url": "airbnb.com",
+      "styleName": "Editorial Discovery",
+      "promptDescriptor": "photography-first editorial cards, soft elevation, floating map price pills, and smooth draggable bottom sheets"
+    },
+    {
+      "id": "spotify",
+      "appName": "Spotify",
+      "url": "open.spotify.com",
+      "styleName": "Adaptive Dark Media",
+      "promptDescriptor": "rich #121212 dark surfaces with adaptive ambient gradients, compact Bento media tiles, and persistent bottom playback controls"
+    },
+    {
+      "id": "duolingo",
+      "appName": "Duolingo",
+      "url": "duolingo.com",
+      "styleName": "Playful Tactile 3D",
+      "promptDescriptor": "bright high-energy palette, chunky 3D-extruded buttons that physically depress on tap, vibrant progress bars, and tactile streak rewards"
+    },
+    {
+      "id": "grug",
+      "appName": "grug",
+      "url": "apps.apple.com",
+      "styleName": "Human-Crafted Minimal",
+      "promptDescriptor": "warm paper off-white surfaces, intentional hand-drawn organic borders, friendly marker/monospace typography, and zero corporate clutter"
+    }
+  ],
+  "modules": [
+    {
+      "id": "retention-duo",
+      "orderCode": "Retention like Duolingo",
+      "metricPill": "60fps • Spring Physics • <100ms",
+      "compactRule": "spring-physics state transitions (stiffness 350, damping 25) at 60fps with zero layout shift and <100ms visual press response"
+    },
+    {
+      "id": "flow-waze",
+      "orderCode": "Flow like Waze / Wise",
+      "metricPill": "≤2 Taps • Bottom 35%",
+      "compactRule": "core action reachable in ≤2 taps with all primary CTAs locked to the lower 35% thumb zone and zero redundant modals"
+    },
+    {
+      "id": "motion-cred",
+      "orderCode": "Motion like CRED",
+      "metricPill": "Zero Linear Easing • Tactile",
+      "compactRule": "thumb-reactive kinetic typography, tactile micro-elevation on touch, and zero linear CSS easing"
+    },
+    {
+      "id": "discovery-airbnb",
+      "orderCode": "Discovery like Airbnb",
+      "metricPill": "Bottom Sheets • Live Filter",
+      "compactRule": "contextual draggable bottom sheets with live instant-update filtering and shared-element transitions"
+    },
+    {
+      "id": "layout-bento",
+      "orderCode": "Layout like Bento 2.0",
+      "metricPill": "Modular Cards • 1 Metric/Card",
+      "compactRule": "asymmetric rounded Bento cards with strictly 1 primary metric or action per card instead of long lists"
+    },
+    {
+      "id": "onboarding-grug",
+      "orderCode": "Onboarding like grug",
+      "metricPill": "Zero-Login Screen 1",
+      "compactRule": "deliver interactive core value on Screen 1 with zero login or permission walls upfront"
+    },
+    {
+      "id": "polish-guitarwiz",
+      "orderCode": "Polish like Guitar Wiz",
+      "metricPill": "WCAG AA • Non-Color States",
+      "compactRule": "WCAG AA contrast, Dynamic Type scaling, and icon/label pairing so no state relies on color alone"
+    }
+  ]
+}

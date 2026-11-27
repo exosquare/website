@@ -1,0 +1,49 @@
+---
+title: 'A Gauntlet Loop prompt builder for mobile UI design'
+draft: false
+publishedAt: 2026-11-27
+topic: 'Agent workflows'
+kind: 'Field note'
+author: 'Matt'
+standfirst: 'Pick an app you like and a task your screen should make easy. This tool writes a prompt for a coding agent to build the screen, try it and improve it.'
+---
+
+import Gauntlet from '../../components/gauntlet/Gauntlet.astro'
+
+“Make it look like Wise” gives a coding agent somewhere to start. But suppose your goal is to send £20 to a friend you’ve paid before. How many taps should that take? What if the nicer-looking screen takes longer?
+
+I wrote this tool with Gemini. It’s a mobile UI version of [RoboNuggets’ Gauntlet Loop](https://github.com/robonuggets/gauntlet-loop). The idea is simple. A builder makes the screen. A critic compares it with a real one and picks the biggest thing to fix. The builder tries again. That’s the loop you’re asking your agent to run.
+
+I asked Grok to look across the app stores for apps that users rated highly. That gave me the shortlist in the tool below. Wise makes a useful reference here because both screens have the same job: help you pay someone.
+
+## Worked example: sending £20 in two taps
+
+Imagine you’re the critic. You get two screenshots at the same size (390 × 844), labelled A and B in random order. You know the task. You haven’t heard the builder explain its choices.
+
+Which screen would you rather use? Say A shows your saved recipients straight away. On B, they’re tucked behind a menu. You pick A. Next, you try the transfer in the build and count the taps. Here’s what you might send back:
+
+```text
+A wins. It took me three taps to pay my friend in the build.
+Show my saved recipients on the first screen.
+```
+
+The builder moves the list. The critic looks at both screens again and repeats the transfer. Once the critic prefers the build and can pay in two taps, the loop is done. You can also stop it yourself.
+
+## Try it with your own screen
+
+1. **Pick one task.** For the example above, paste this into the goal box:
+
+   ```text
+   Send £20 from the home screen to a saved recipient.
+   ```
+
+2. **Choose what to compare.** Pick *Wise* for the look and keep only *Flow like Waze / Wise* for the two-tap check. If your agent lands on the Wise homepage, give it a screenshot of the transfer screen.
+3. **Choose who reviews it.** *Separate critic pass* asks your agent to take a fresh look. *Claude subagents* gives the build and the review to two separate agents.
+
+<Gauntlet />
+
+## Next steps
+
+You can now copy your prompt into a fresh coding session. When the first review comes back, look for the tap count. If the critic only tells you which screen looks better, ask it to try the transfer.
+
+Adapted from RoboNuggets’ [Gauntlet Loop](https://github.com/robonuggets/gauntlet-loop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

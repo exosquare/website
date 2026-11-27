@@ -1,0 +1,96 @@
+---
+import data from './menu.json';
+import { withBase } from '../../lib/paths';
+const presets = {
+  Fintech: 'Mobile habit & finance tracker dashboard and core transfer flow',
+  Marketplace: 'Local experiences marketplace search, map discovery, and booking flow',
+  'AI companion': 'Daily AI companion home screen, voice check-in, and streak progression flow',
+};
+---
+<form id="gauntlet" class="gauntlet">
+  <label class="heading" for="gauntlet-goal">What should someone be able to do?</label>
+  <input id="gauntlet-goal" name="goal" value="Mobile habit & finance tracker dashboard and core flow" />
+  <div class="presets">{Object.entries(presets).map(([name, goal]) => <button type="button" data-goal={goal}>{name}</button>)}</div>
+  <fieldset><legend>Choose a visual reference</legend>
+    <div class="references">{data.anchors.map(a => <label class="reference">
+      <img src={withBase('/images/gauntlet/' + a.id + '.png')} alt="" width="240" height="174" loading="lazy"/>
+      <span><input type="radio" name="reference" value={a.id} checked={a.id === 'cred'} /><b>{a.appName}</b></span>
+      <small>{a.styleName}</small>
+    </label>)}</div>
+  </fieldset>
+  <fieldset><legend>Choose up to two behaviours</legend>
+    <div class="rules">{data.modules.map((m,i) => <label class="rule">
+      <input type="checkbox" name="behaviour" value={m.id} checked={i < 2} />
+      <span><b>{m.orderCode}</b><small>{m.metricPill}</small></span>
+    </label>)}</div>
+    <output class="count" aria-live="polite"></output>
+  </fieldset>
+  <fieldset><legend>Who will review the build?</legend>
+    <div class="modes"><label><input type="radio" name="mode" value="plain" checked /> Separate critic pass</label>
+    <label><input type="radio" name="mode" value="claude" /> Claude subagents</label></div>
+  </fieldset>
+  <div class="result"><label for="gauntlet-output" class="heading">Your prompt</label>
+    <small class="summary"></small><textarea id="gauntlet-output" readonly rows="9"></textarea>
+    <div class="actions"><button type="button" class="copy">Copy prompt</button><button type="button" class="reset">Reset</button><output class="status" aria-live="polite"></output></div>
+  </div>
+  <noscript>Enable JavaScript to generate a prompt from your selections.</noscript>
+</form>
+<script>
+  import data from './menu.json';
+  const form = document.querySelector<HTMLFormElement>('#gauntlet')!;
+  const goal = form.querySelector<HTMLInputElement>('[name=goal]')!;
+  const output = form.querySelector('textarea')!;
+  const checks = Array.from(form.querySelectorAll<HTMLInputElement>('[name=behaviour]'));
+  const status = form.querySelector<HTMLOutputElement>('.status')!;
+  function render() {
+    const fields = new FormData(form);
+    const anchor = data.anchors.find(a => a.id === fields.get('reference'))!;
+    const modules = data.modules.filter(m => checks.some(check => check.value === m.id && check.checked));
+    for (const check of checks) check.disabled = !check.checked && modules.length >= 2;
+    form.querySelector('.count')!.textContent = modules.length === 2 ? '2 of 2 selected. Clear one to choose another.' : modules.length + ' of 2 selected.';
+    form.querySelector('.summary')!.textContent = [anchor.appName, ...modules.map(m => m.orderCode)].join(' + ');
+    const rules = modules.map(m => m.compactRule).join('. Also require ');
+    const reviewer = fields.get('mode') === 'claude' ? 'Use a Builder subagent and a separate Critic subagent with fresh context.' : 'Run a builder pass followed by a separate critic pass with fresh context.';
+    output.value = [
+      'Build this mobile flow at 390 × 844: ' + (goal.value.trim() || goal.defaultValue) + '.',
+      'Use ' + anchor.appName + ' as the visual reference (' + anchor.styleName + '): ' + anchor.promptDescriptor + '. Use the matching product screen at the same size. ' + (anchor.id === 'grug' ? 'Ask for a reference screenshot.' : 'Start at https://' + anchor.url + ' and ask for a screenshot if the relevant screen is unavailable.'),
+      'Require ' + (rules || '60fps interactions, zero layout shift and thumb-reachable primary actions') + '.',
+      'Split the work into layout, core flow and interactive states. ' + reviewer + ' Compare unlabelled screenshots in random order. Have the critic choose A or B, test the selected behaviours in the running build and name the biggest gap. Fix that gap and repeat until the build wins and the checks pass. Report any checks you could not perform.'
+    ].join('\n\n');
+    status.value = '';
+  }
+  form.addEventListener('input', render);
+  form.addEventListener('submit', e => e.preventDefault());
+  form.querySelector('.reset')!.addEventListener('click', () => {
+    form.reset();
+    render();
+  });
+  for (const button of form.querySelectorAll<HTMLButtonElement>('[data-goal]')) {
+    button.addEventListener('click', () => { goal.value = button.dataset.goal!; render(); });
+  }
+  form.querySelector('.copy')!.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(output.value); status.value = 'Copied.'; }
+    catch { output.focus(); output.select(); status.value = 'Text selected. Use your device’s copy command.'; }
+  });
+  render();
+</script>
+<style>
+.gauntlet {font:400 1rem/1.4 'Helvetica Neue',Arial,sans-serif;accent-color:var(--fg);border-block:2px solid var(--fg);padding:1.4rem 0;container-type:inline-size}
+.heading,legend {font-weight:700;font-size:1.05rem;display:block;margin-bottom:.65rem}
+fieldset {min-width:0;border:0;border-top:1px solid var(--rule);margin:1.6rem 0 0;padding:0}
+legend {padding:0 .75rem 0 0}
+input[name=goal],textarea {border:1px solid var(--muted);background:var(--bg);color:var(--fg);font:inherit;width:100%;padding:.8rem;border-radius:3px}
+.presets,.modes,.actions {display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.presets {margin-top:.5rem}.presets button,.actions button {border:1px solid var(--rule);padding:.5rem .8rem;border-radius:3px;font-size:.85rem}
+.references,.rules {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem}
+.reference,.rule {cursor:pointer;border:1px solid var(--rule);border-radius:5px;background:var(--bg);min-width:0}
+.reference:has(:checked),.rule:has(:checked) {border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.reference {padding:.4rem .4rem .6rem}.reference img {display:block;width:100%;height:auto;border-radius:3px;filter:none}
+.reference span,.rule,.modes label {display:flex;align-items:center;gap:.4rem}.reference span {margin:.5rem .15rem .15rem}
+input[type=radio],input[type=checkbox] {margin:0;flex:none}
+small,.count,.status {font-size:.8rem;color:var(--muted);display:block}.reference small {margin-left:.15rem}
+.rules {grid-template-columns:repeat(2,minmax(0,1fr))}.rule {padding:.65rem;align-items:baseline;font-size:.9rem}.rule:has(:disabled) {cursor:default}.count {margin-top:.6rem}
+.modes {gap:1.1rem}.modes label {font-size:.9rem;min-height:32px}.result {margin-top:1.25rem;background:var(--soft);padding:1rem;border-radius:5px}
+.summary {margin-bottom:.65rem}textarea {display:block;font:.9rem/1.5 ui-monospace,monospace;resize:vertical}.actions {margin-top:.65rem}.actions .copy {background:var(--fg);color:var(--bg);border-color:var(--fg)}
+@container (max-width:510px){.references{grid-template-columns:repeat(2,minmax(0,1fr))}.rules{grid-template-columns:1fr}}
+</style>
